@@ -13,6 +13,7 @@ import {
   Unlink,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
+import { CermoMascot } from '../components/CermoMascot';
 
 const DAYS_HEADER = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -117,6 +118,16 @@ export const CalendarScreen: React.FC = () => {
               <ChevronRight size={20} />
             </button>
           </div>
+        </div>
+
+        {/* Legenda warna panen */}
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+          <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span className="ripeness-dot" style={{ background: 'var(--tomato-500)' }} /> Estimasi panen
+          </span>
+          <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span className="ripeness-dot" style={{ background: 'var(--ok)' }} /> Sudah dipanen
+          </span>
         </div>
 
         {/* Nama hari */}
@@ -273,11 +284,18 @@ export const CalendarScreen: React.FC = () => {
       </section>
 
       {/* Kolom Kanan: Notifikasi Bot Telegram (F7.2 & F7.3) */}
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <div>
-            <h2 className="t-h2">Pengingat Telegram</h2>
-            <p className="t-small t-soft">Tautkan sekali dengan kode 6 digit</p>
+      <section className="card stagger-card stagger-1" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CermoMascot
+              pose={state.user.telegramChatId ? 'happy' : 'wave'}
+              size={58}
+              tipOverride="Tautkan Telegram sekali saja agar Cermo bisa mengingatkan panen otomatis!"
+            />
+            <div>
+              <h2 className="t-h2">Pengingat Telegram</h2>
+              <p className="t-small t-soft">Tautkan sekali dengan kode 6 digit</p>
+            </div>
           </div>
           <span className={`pill ${state.user.telegramChatId ? 'pill-ok' : 'pill-neutral'}`}>
             {state.user.telegramChatId ? 'Tertaut' : 'Belum tertaut'}

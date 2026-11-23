@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Camera,
@@ -14,21 +14,29 @@ import {
   ShieldAlert,
   Sparkles,
   Sprout,
+  SwitchCamera,
   Upload,
+  X,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { TomatoConfetti } from '../components/Illustrations';
+import { StripedProgressBar } from '../components/Charts';
 import {
-  DEMO_PHOTO_PRESETS,
   KNOWLEDGE_DISEASES,
   KNOWLEDGE_NUTRIENTS,
   RIPENESS_REFERENCE,
 } from '../data/knowledgeBase';
-import { compressImageClient, runTomatoScanAnalysis } from '../utils/scanAnalyzer';
+import {
+  compressDataUrlClient,
+  compressImageClient,
+  runSmartPlantScan,
+} from '../utils/scanAnalyzer';
 import { PlantPart, ScanRecord } from '../types/cermattani';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { cermatSupabaseRepo } from '@/lib/supabase/repository';
 
-/* Layar 3 & 4: Scan (pilih bagian -> kamera/unggah -> proses 2.4s -> hasil 3 tab) */
+/* Layar 3 & 4: Scan (pilih bagian -> kamera langsung / unggah foto -> proses AI -> hasil 3 tab) */
 export const ScanScreen: React.FC = () => {
   const {
     state,
@@ -43,17 +51,26 @@ export const ScanScreen: React.FC = () => {
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const [selectedPart, setSelectedPart] = useState<PlantPart>(scanPreselectPart || 'buah');
   const [selectedPlantId, setSelectedPlantId] = useState<string>(
     scanPreselectPlantId || activeFarmPlants[0]?.id || state.plants[0]?.id || ''
   );
-  const [stage, setStage] = useState<'pick' | 'scanning' | 'result'>('pick');
+  const [stage, setStage] = useState<'pick' | 'camera' | 'scanning' | 'result'>('pick');
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
   const [previewFoto, setPreviewFoto] = useState<string>('');
   const [uploadError, setUploadError] = useState<string>('');
   const [queueNotice, setQueueNotice] = useState<string>('');
   const [result, setResult] = useState<ScanRecord | null>(null);
+  const [aiModel, setAiModel] = useState<string>('');
+  const [aiNote, setAiNote] = useState<string>('');
+  const [temuanVisual, setTemuanVisual] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'kematangan' | 'penyakit' | 'pupuk'>('kematangan');
   const [savedToTimeline, setSavedToTimeline] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -62,6 +79,100 @@ export const ScanScreen: React.FC = () => {
     if (scanPreselectPart) setSelectedPart(scanPreselectPart);
     if (scanPreselectPlantId) setSelectedPlantId(scanPreselectPlantId);
   }, [scanPreselectPart, scanPreselectPlantId]);
+
+  // Hentikan stream kamera secara bersih agar lampu kamera langsung mati
+  const stopCameraStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraReady(false);
+    setCameraStarting(false);
+  }, []);
+
+  useEffect(() => {
+    return () => stopCameraStream();
+  }, [stopCameraStream]);
+
+  // Buka kamera nyata via MediaDevices API (bekerja di webcam laptop & kamera HP)
+  const openLiveCamera = useCallback(
+    async (mode: 'environment' | 'user' = facingMode) => {
+      setUploadError('');
+      setQueueNotice('');
+      stopCameraStream();
+
+      if (
+        typeof navigator === 'undefined' ||
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        setUploadError(
+          'Browser ini belum mendukung akses kamera langsung (atau butuh HTTPS/localhost). Gunakan tombol "Unggah foto" sebagai gantinya.'
+        );
+        return;
+      }
+
+      setCameraStarting(true);
+      setStage('camera');
+
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: mode },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+        } catch {
+          // Fallback jika perangkat hanya punya 1 kamera (mis. webcam laptop)
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setCameraReady(true);
+        setCameraStarting(false);
+      } catch (err) {
+        stopCameraStream();
+        setStage('pick');
+        const name = err instanceof DOMException ? err.name : '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setUploadError(
+            'Izin kamera ditolak oleh browser. Izinkan akses kamera di bilah alamat browser, lalu klik "Buka kamera" lagi.'
+          );
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          setUploadError(
+            'Perangkat kamera tidak ditemukan. Kamu bisa memakai tombol "Unggah foto" untuk memilih gambar dari perangkat.'
+          );
+        } else {
+          setUploadError(
+            'Kamera sedang dipakai aplikasi lain atau tidak dapat dibuka. Tutup aplikasi kamera lain atau pakai "Unggah foto".'
+          );
+        }
+      }
+    },
+    [facingMode, stopCameraStream]
+  );
+
+  // Pasang ulang stream saat elemen <video> baru ter-render
+  useEffect(() => {
+    if (stage === 'camera' && streamRef.current && videoRef.current && !videoRef.current.srcObject) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stage]);
 
   const targetPlant = useMemo(
     () =>
@@ -74,29 +185,30 @@ export const ScanScreen: React.FC = () => {
   const startAnalysis = async (params: {
     fotoUrl: string;
     part: PlantPart;
-    presetId?: string;
     originalKb?: number;
     compressedKb?: number;
   }) => {
     if (!targetPlant) {
-      setUploadError('Tambahkan minimal satu tanaman tomat di menu Tanaman sebelum memindai.');
+      setUploadError('Tambahkan minimal satu tanaman di menu Tanaman sebelum memindai.');
       return;
     }
 
+    stopCameraStream();
     setUploadError('');
     setQueueNotice('');
     setSavedToTimeline(false);
+    setAiNote('');
+    setTemuanVisual([]);
 
-    // Bila sedang offline, masukkan antrean unggah ulang otomatis (PRD §8)
     if (isOffline) {
       enqueueOfflineScan({
         plantId: targetPlant.id,
         bagian: params.part,
         fotoUrl: params.fotoUrl,
-        presetId: params.presetId,
       });
+      setStage('pick');
       setQueueNotice(
-        'Koneksi sedang offline. Foto sudah dikompres dan masuk antrean — akan otomatis dianalisis saat jaringan kembali.'
+        'Koneksi sedang offline. Foto sudah dikompres dan masuk antrean — akan otomatis dianalisis dengan Gemini AI saat jaringan kembali.'
       );
       return;
     }
@@ -105,39 +217,75 @@ export const ScanScreen: React.FC = () => {
     setStage('scanning');
 
     const prevScans = state.scans.filter((s) => s.plantId === targetPlant.id);
-    const reduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-    const [analysis] = await Promise.all([
-      runTomatoScanAnalysis({
+    try {
+      const output = await runSmartPlantScan({
         plant: targetPlant,
         bagian: params.part,
         fotoUrl: params.fotoUrl,
-        presetId: params.presetId,
         originalKb: params.originalKb,
         compressedKb: params.compressedKb,
         sensorAvailable: state.sensor.sensorTersedia,
         lowConfidenceThreshold: state.settings.ambangKeyakinanRendah,
         previousPlantScans: prevScans,
-      }),
-      new Promise((r) => window.setTimeout(r, reduced ? 120 : 2400)),
-    ]);
+      });
 
-    setResult(analysis);
-    setActiveTab(params.part === 'buah' ? 'kematangan' : 'penyakit');
-    setStage('result');
+      setResult(output.record);
+      setAiModel(output.aiModel);
+      setAiNote(output.aiNote || '');
+      setTemuanVisual(output.temuanVisual || []);
+      setActiveTab(params.part === 'buah' ? 'kematangan' : 'penyakit');
+      setStage('result');
 
-    if (analysis.anjuranPanen === 'Panen sekarang') {
-      setShowConfetti(true);
-      window.setTimeout(() => setShowConfetti(false), 1400);
+      if (output.record.anjuranPanen === 'Panen sekarang') {
+        setShowConfetti(true);
+        window.setTimeout(() => setShowConfetti(false), 1400);
+      }
+    } catch (err) {
+      setStage('pick');
+      setResult(null);
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : 'Analisis Gemini AI gagal diproses. Pastikan internet aktif dan coba unggah atau foto ulang.'
+      );
     }
   };
 
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  // Jepret frame nyata dari kamera langsung
+  const handleCaptureCamera = async () => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      setUploadError('Kamera belum siap menampilkan gambar. Tunggu sebentar lalu coba klik "Ambil foto" lagi.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    stopCameraStream();
+
+    const compressed = await compressDataUrlClient(rawDataUrl);
+    await startAnalysis({
+      fotoUrl: compressed.dataUrl,
+      part: selectedPart,
+      originalKb: compressed.originalKb,
+      compressedKb: compressed.compressedKb,
+    });
+  };
+
+  const handleToggleFacing = () => {
+    const next = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(next);
+    void openLiveCamera(next);
+  };
+
+  const processUploadedFile = async (file: File) => {
     try {
       const compressed = await compressImageClient(file);
       await startAnalysis({
@@ -150,27 +298,58 @@ export const ScanScreen: React.FC = () => {
       setUploadError(
         err instanceof Error
           ? err.message
-          : 'Foto belum bisa diproses. Pastikan ukuran ≤ 10 MB (JPG/PNG/HEIC).'
+          : 'Foto belum bisa diproses. Pastikan format JPG/PNG/HEIC/WebP dan ukuran ≤ 10 MB.'
       );
     }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await processUploadedFile(file);
+  };
+
+  const handleDropFile = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processUploadedFile(file);
   };
 
   const handleSave = () => {
     if (!result || savedToTimeline) return;
     saveScan(result);
     setSavedToTimeline(true);
+
+    // Sinkron non-blocking ke Supabase jika pengguna sudah login
+    if (isSupabaseConfigured) {
+      void (async () => {
+        try {
+          const session = await cermatSupabaseRepo.getCurrentSession();
+          if (!session) return;
+          const fotoPath = await cermatSupabaseRepo.uploadScanPhotoDataUrl(
+            result.plantId,
+            result.fotoUrl
+          );
+          await cermatSupabaseRepo.insertScan(result, fotoPath);
+        } catch {
+          // Tetap aman tersimpan lokal bila ID tanaman masih mode demo
+        }
+      })();
+    }
   };
 
-  // Alt-text aksesibel hasil deteksi (DESIGN.md §12)
   const detectionAltText = useMemo(() => {
-    if (!result) return 'Foto tanaman tomat';
+    if (!result) return 'Foto tanaman';
     if (result.boxes.length === 0) {
-      return `Foto ${result.bagian} tomat: ${result.penyakitUtamaNama}`;
+      return `Foto ${result.bagian} tanaman: ${result.penyakitUtamaNama}`;
     }
     const raw = result.boxes.filter((b) => b.stage === 'mentah').length;
     const half = result.boxes.filter((b) => b.stage === 'setengah_matang').length;
     const ripe = result.boxes.filter((b) => b.stage === 'matang').length;
-    return `${result.boxes.length} tomat terdeteksi: ${raw} mentah, ${half} setengah matang, ${ripe} matang`;
+    return `${result.boxes.length} buah terdeteksi: ${raw} mentah, ${half} setengah matang, ${ripe} matang`;
   }, [result]);
 
   const diseaseInfo = result
@@ -182,17 +361,28 @@ export const ScanScreen: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 960 }}>
-      {/* STEP 1 & 2: Pilih bagian tanaman -> Ambil/unggah foto */}
+      {/* STEP 1 & 2: Pilih bagian tanaman -> Buka kamera / Unggah foto */}
       {stage === 'pick' && (
         <>
-          <section className="card stagger-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
-              <CermoMascot pose="wave" size={82} />
+          <section
+            className="card stagger-card"
+            style={{
+              background:
+                'linear-gradient(145deg, var(--surface) 0%, var(--surface) 64%, rgba(216,243,106,0.14) 100%)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
+              <CermoMascot pose="wave" size={86} />
               <div style={{ flex: '1 1 260px' }}>
-                <h2 className="t-h1">Scan tanaman tomat</h2>
-                <p className="t-body t-soft">
-                  Pilih tanaman dan bagian yang mau difoto. Foto dikompres otomatis di ponselmu agar
-                  hemat kuota.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <span className="pill pill-ok">
+                    <Sparkles size={13} /> Foto dulu, keputusan dalam 5 detik
+                  </span>
+                </div>
+                <h2 className="t-h1">Scan tanaman</h2>
+                <p className="t-body t-soft" style={{ marginTop: 2 }}>
+                  Pilih tanaman dan bagian yang ingin dipindai, lalu buka kamera langsung atau unggah
+                  foto dari perangkatmu.
                 </p>
               </div>
             </div>
@@ -245,21 +435,21 @@ export const ScanScreen: React.FC = () => {
                   [
                     {
                       id: 'buah',
-                      title: 'Buah tomat',
+                      title: 'Buah',
                       desc: 'Cek kematangan, hari panen & perkiraan hasil',
                       color: '#F2562B',
                       icon: Sparkles,
                     },
                     {
                       id: 'daun',
-                      title: 'Daun tomat',
+                      title: 'Daun',
                       desc: 'Kenali bercak/penyakit & dugaan kekurangan pupuk',
                       color: '#1F9D55',
                       icon: Leaf,
                     },
                     {
                       id: 'batang',
-                      title: 'Batang tomat',
+                      title: 'Batang',
                       desc: 'Deteksi gejala layu batang & pangkal tanaman',
                       color: '#0E4F43',
                       icon: Sprout,
@@ -312,32 +502,25 @@ export const ScanScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* F1.1: Ambil kamera / unggah foto (JPG/PNG/HEIC ≤ 10 MB) */}
+            {/* F1.1: Buka Kamera Langsung vs Unggah Foto (Drag & Drop + File Picker) */}
             <div>
               <div className="field-label" style={{ marginBottom: 10 }}>
-                2. Ambil atau unggah foto (JPG, PNG, HEIC · maks 10 MB)
+                2. Buka kamera atau unggah foto (JPG, PNG, WebP, HEIC · maks 10 MB)
               </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelected}
-                  style={{ display: 'none' }}
-                />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
-                  onChange={handleFileSelected}
-                  style={{ display: 'none' }}
-                />
 
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+                onChange={handleFileSelected}
+                style={{ display: 'none' }}
+              />
+
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                 <button
                   type="button"
                   className="btn-tomato"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => void openLiveCamera(facingMode)}
                 >
                   <Camera size={20} /> Buka kamera
                 </button>
@@ -346,13 +529,42 @@ export const ScanScreen: React.FC = () => {
                   className="btn-primary"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Upload size={20} /> Unggah dari galeri
+                  <Upload size={20} /> Unggah foto
                 </button>
               </div>
-              <p className="t-micro t-soft" style={{ marginTop: 8 }}>
-                Tips foto jelas: ambil di cahaya terang, jarak 20–40 cm, fokuskan kamera ke buah atau
-                daun.
-              </p>
+
+              {/* Zona tarik & lepas foto (drag & drop upload) */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDropFile}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
+                }}
+                style={{
+                  border: `2px dashed ${dragActive ? 'var(--leaf-600)' : 'var(--line)'}`,
+                  background: dragActive ? 'var(--ok-soft)' : 'var(--surface-2)',
+                  borderRadius: 18,
+                  padding: '18px 16px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'border-color 150ms ease, background 150ms ease',
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
+                  Tarik foto ke sini atau klik untuk memilih file dari galeri/komputer
+                </div>
+                <p className="t-micro t-soft" style={{ marginTop: 4 }}>
+                  Foto dikompres otomatis di sisi klien. Tips: cahaya terang, jarak 20–40 cm dari
+                  bagian {selectedPart}.
+                </p>
+              </div>
             </div>
 
             {uploadError && (
@@ -369,74 +581,124 @@ export const ScanScreen: React.FC = () => {
               </div>
             )}
           </section>
-
-          {/* Contoh foto cepat untuk demo & uji semua skenario PRD */}
-          <section className="card stagger-card stagger-1">
-            <div style={{ marginBottom: 14 }}>
-              <h3 className="t-h3">Atau coba cepat dengan foto contoh</h3>
-              <p className="t-small t-soft">
-                Pilih skenario di bawah untuk langsung melihat cara Cermo menilai kematangan,
-                penyakit, keyakinan rendah, hingga foto gelap.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 12,
-              }}
-            >
-              {DEMO_PHOTO_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedPart(preset.bagian);
-                    void startAnalysis({
-                      fotoUrl: preset.fotoUrl,
-                      part: preset.bagian,
-                      presetId: preset.id,
-                      originalKb: 1840,
-                      compressedKb: 165,
-                    });
-                  }}
-                  className="card-interactive"
-                  style={{
-                    border: '1px solid var(--line)',
-                    borderRadius: 18,
-                    padding: 10,
-                    background: 'var(--surface-2)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                  }}
-                >
-                  <img
-                    src={preset.fotoUrl}
-                    alt={preset.label}
-                    style={{
-                      width: '100%',
-                      height: 118,
-                      objectFit: 'cover',
-                      borderRadius: 12,
-                      display: 'block',
-                    }}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{preset.label}</div>
-                    <div className="t-micro t-soft">{preset.deskripsi}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
         </>
       )}
 
-      {/* STEP 3: Proses animasi memindai 2.4s (DESIGN.md §10) */}
+      {/* LIVE CAMERA VIEWFINDER (getUserMedia — benar-benar membuka kamera!) */}
+      {stage === 'camera' && (
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 className="t-h2">Kamera langsung</h2>
+                <span className="pill pill-ok">Bagian: {selectedPart}</span>
+              </div>
+              <p className="t-small t-soft">
+                Arahkan kamera ke {selectedPart} {targetPlant?.nama || 'tanaman'} dengan cahaya cukup.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => {
+                stopCameraStream();
+                setStage('pick');
+              }}
+            >
+              <X size={18} /> Tutup kamera
+            </button>
+          </div>
+
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              borderRadius: 20,
+              overflow: 'hidden',
+              background: '#0C1713',
+              aspectRatio: '16 / 10',
+              display: 'grid',
+              placeItems: 'center',
+            }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+
+            {/* Bingkai bidik viewfinder */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: '10%',
+                border: '2px dashed rgba(216, 243, 106, 0.75)',
+                borderRadius: 18,
+                pointerEvents: 'none',
+              }}
+            />
+
+            {cameraStarting && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(12, 23, 19, 0.72)',
+                  color: '#FFFFFF',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 600,
+                }}
+              >
+                Menyalakan kamera...
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn-tomato"
+              onClick={() => void handleCaptureCamera()}
+              disabled={!cameraReady}
+              style={{ minWidth: 190 }}
+            >
+              <Camera size={20} /> Ambil foto & pindai
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleToggleFacing}
+              disabled={cameraStarting}
+            >
+              <SwitchCamera size={18} /> Ganti kamera
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                stopCameraStream();
+                setStage('pick');
+                window.setTimeout(() => fileInputRef.current?.click(), 50);
+              }}
+            >
+              <Upload size={18} /> Unggah foto saja
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP 3: Proses animasi memindai (DESIGN.md §10) */}
       {stage === 'scanning' && (
         <section
           className="card"
@@ -460,10 +722,9 @@ export const ScanScreen: React.FC = () => {
           >
             <img
               src={previewFoto}
-              alt="Sedang memindai foto tomat"
+              alt="Sedang memindai foto tanaman"
               style={{ width: '100%', display: 'block', maxHeight: 320, objectFit: 'cover' }}
             />
-            {/* Garis hijau menyapu foto */}
             <div
               aria-hidden="true"
               style={{
@@ -483,7 +744,7 @@ export const ScanScreen: React.FC = () => {
           <div>
             <h2 className="t-h2">Cermo sedang memeriksa fotomu...</h2>
             <p className="t-body t-soft" style={{ marginTop: 6 }}>
-              Mengecek warna buah, pola bercak daun, serta kecocokan gejala hara.
+              Menganalisis kondisi {selectedPart}, kematangan, tanda penyakit, serta gejala hara.
             </p>
           </div>
         </section>
@@ -492,7 +753,6 @@ export const ScanScreen: React.FC = () => {
       {/* STEP 4 (Layar 4): Hasil Scan dengan 3 Tab (Kematangan / Penyakit / Pupuk) */}
       {stage === 'result' && result && diseaseInfo && nutrientInfo && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {/* Foto beranotasi kotak deteksi 3px + pil label + konfeti bila panen siap */}
           <section className="card" style={{ position: 'relative', overflow: 'hidden' }}>
             <TomatoConfetti active={showConfetti} />
 
@@ -531,7 +791,7 @@ export const ScanScreen: React.FC = () => {
                         height: `${box.h}%`,
                         border: `3px solid ${ref.color}`,
                         borderRadius: 12,
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.35)',
+                        boxShadow: '0 0 0 1px #FFFFFF, 0 2px 10px rgba(0,0,0,0.35)',
                         animation: `boxPopIn 360ms cubic-bezier(.2,.8,.2,1) ${idx * 160}ms both`,
                       }}
                     >
@@ -557,7 +817,7 @@ export const ScanScreen: React.FC = () => {
                 })}
               </div>
 
-              {/* Ringkasan keputusan utama (Hasil = keputusan, lebih besar dari angka keyakinan — F1.4) */}
+              {/* Ringkasan keputusan utama */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <CermoMascot
@@ -568,12 +828,18 @@ export const ScanScreen: React.FC = () => {
                     }
                     size={76}
                   />
-                  <div>
-                    <span className="pill pill-neutral">
-                      {targetPlant?.nama} · Bagian {result.bagian}
-                    </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span className="pill pill-neutral">
+                        {targetPlant?.nama} · Bagian {result.bagian}
+                      </span>
+                      <span className="pill pill-ok">
+                        Gemini AI · {aiModel || result.aiModel || 'Vision'}
+                      </span>
+                      <span className="pill pill-neutral">Dataset Agronomi Khusus</span>
+                    </div>
                     {result.fotoUkuranAsliKb && result.fotoUkuranKompresKb && (
-                      <div className="t-micro t-soft" style={{ marginTop: 4 }}>
+                      <div className="t-micro t-soft">
                         Kompresi klien: {result.fotoUkuranAsliKb} KB → {result.fotoUkuranKompresKb} KB
                       </div>
                     )}
@@ -600,7 +866,7 @@ export const ScanScreen: React.FC = () => {
                   </div>
                   <div className="t-display" style={{ marginTop: 4 }}>
                     {result.tanpaBuahTerdeteksi
-                      ? 'Buah belum terlihat'
+                      ? 'Objek belum terlihat jelas'
                       : result.bagian === 'buah'
                         ? result.anjuranPanen === 'Panen sekarang'
                           ? 'Panen sekarang'
@@ -610,28 +876,55 @@ export const ScanScreen: React.FC = () => {
                   <div className="t-small t-soft" style={{ marginTop: 6 }}>
                     Seberapa yakin Cermo: <strong className="tabular-nums">{result.keyakinan}%</strong>
                   </div>
+                  {aiNote && (
+                    <p className="t-small" style={{ marginTop: 8 }}>
+                      {aiNote}
+                    </p>
+                  )}
+                  {temuanVisual.length > 0 && (
+                    <ul
+                      style={{
+                        margin: '10px 0 0',
+                        paddingLeft: 18,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      {temuanVisual.map((t, idx) => (
+                        <li key={idx} className="t-micro t-soft">
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
-                {/* F1.5: Pesan jika tidak ada buah terdeteksi */}
                 {result.tanpaBuahTerdeteksi && (
                   <div className="alert-card alert-card--warn">
                     <AlertTriangle size={20} style={{ flexShrink: 0 }} />
                     <div>
-                      <strong>Foto terlalu gelap atau buah tidak tampak jelas.</strong>
+                      <strong>
+                        {result.diluarKonteksTanaman
+                          ? 'Foto ini terdeteksi bukan objek tanaman kebun.'
+                          : 'Foto terlalu gelap atau bagian tanaman tidak tampak jelas.'}
+                      </strong>
                       <p className="t-small" style={{ marginTop: 4 }}>
-                        Coba dekat jendela atau nyalakan cahaya tambahan, arahkan kamera 20–40 cm dari
-                        buah tomat, dan pastikan buah tidak tertutup daun.
+                        {result.diluarKonteksTanaman
+                          ? `CermatTani hanya menganalisis foto buah, daun, atau batang tanaman pertanian. Arahkan kamera ke bagian ${result.bagian} tanamanmu lalu pindai ulang.`
+                          : `Coba dekat jendela atau nyalakan cahaya tambahan, arahkan kamera 20–40 cm ke bagian ${result.bagian}, dan pastikan tidak tertutup bayangan.`}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* F2.4: Peringatan keyakinan rendah (< ambang, default 60%) */}
                 {result.keyakinanRendah && !result.tanpaBuahTerdeteksi && (
                   <div className="alert-card alert-card--warn" role="alert">
                     <ShieldAlert size={22} style={{ flexShrink: 0 }} />
                     <div>
-                      <strong>Cermo belum cukup yakin ({result.keyakinan}% &lt; {state.settings.ambangKeyakinanRendah}%).</strong>
+                      <strong>
+                        Cermo belum cukup yakin ({result.keyakinan}% &lt; {state.settings.ambangKeyakinanRendah}%).
+                      </strong>
                       <p className="t-small" style={{ marginTop: 4 }}>
                         Coba ambil foto ulang di tempat terang, dan konfirmasi juga ke penyuluh
                         pertanian setempat sebelum mengambil tindakan.
@@ -653,7 +946,7 @@ export const ScanScreen: React.FC = () => {
                 className={`tab-btn ${activeTab === 'kematangan' ? 'active' : ''}`}
                 onClick={() => setActiveTab('kematangan')}
               >
-                <Sparkles size={18} /> Kematangan & panen
+                <Sparkles size={18} /> Kematangan &amp; panen
               </button>
               <button
                 type="button"
@@ -662,7 +955,7 @@ export const ScanScreen: React.FC = () => {
                 className={`tab-btn ${activeTab === 'penyakit' ? 'active' : ''}`}
                 onClick={() => setActiveTab('penyakit')}
               >
-                <ShieldAlert size={18} /> Penyakit & solusi
+                <ShieldAlert size={18} /> Penyakit &amp; solusi
               </button>
               <button
                 type="button"
@@ -676,21 +969,21 @@ export const ScanScreen: React.FC = () => {
             </div>
 
             <div style={{ marginTop: 20 }}>
-              {/* TAB 1: KEMATANGAN & ESTIMASI PANEN (F1 + F6) */}
               {activeTab === 'kematangan' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {result.bagian !== 'buah' ? (
                     <div className="card-subtle">
                       <p className="t-body">
                         Kamu memindai bagian <strong>{result.bagian}</strong>. Untuk melihat tahap
-                        kematangan buah dan perkiraan hasil panen, coba scan bagian <strong>buah</strong>.
+                        kematangan buah dan perkiraan hasil panen, pilih bagian <strong>Buah</strong>{' '}
+                        saat memindai.
                       </p>
                     </div>
                   ) : result.tanpaBuahTerdeteksi ? (
                     <div className="card-subtle">
                       <p className="t-body">
-                        Tidak ada buah tomat yang terdeteksi pada foto ini. Gunakan tombol "Scan lagi"
-                        di bawah dengan pencahayaan yang lebih baik.
+                        Tidak ada buah yang terdeteksi pada foto ini. Klik &ldquo;Scan lagi&rdquo; di
+                        bawah dengan pencahayaan yang lebih jelas.
                       </p>
                     </div>
                   ) : (
@@ -724,7 +1017,6 @@ export const ScanScreen: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* F6: Estimasi hasil panen + label "Estimasi kasar" */}
                         <div className="card-subtle">
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                             <span className="t-micro t-soft">Perkiraan hasil (foto ini)</span>
@@ -741,7 +1033,6 @@ export const ScanScreen: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* F1.3: Catatan penyesuaian riwayat ≥ 2 scan */}
                       {result.estimasiDisesuaikanRiwayat && (
                         <div className="alert-card alert-card--ok">
                           <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
@@ -752,94 +1043,36 @@ export const ScanScreen: React.FC = () => {
                           </div>
                         </div>
                       )}
-
-                      {/* Tabel referensi tahap kematangan */}
-                      <div className="card-subtle">
-                        <div className="t-small" style={{ fontWeight: 700, marginBottom: 8 }}>
-                          Acuan rentang hari menuju panen
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
-                          {(['mentah', 'setengah_matang', 'matang'] as const).map((st) => {
-                            const ref = RIPENESS_REFERENCE[st];
-                            return (
-                              <div
-                                key={st}
-                                style={{
-                                  background: 'var(--surface)',
-                                  padding: 12,
-                                  borderRadius: 14,
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 4,
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-                                  <span className="ripeness-dot" style={{ background: ref.color }} />
-                                  {ref.label}
-                                </div>
-                                <div className="t-small tabular-nums">
-                                  {st === 'matang' ? 'Siap panen (0–1 hari)' : `Tunggu ${ref.minDays}–${ref.maxDays} hari`}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <p className="t-micro t-soft" style={{ marginTop: 8 }}>
-                          Sumber: {RIPENESS_REFERENCE.matang.sumber}
-                        </p>
-                      </div>
                     </>
                   )}
                 </div>
               )}
 
-              {/* TAB 2: PENYAKIT & SOLUSI (F2.2, F2.3, F2.4) */}
               {activeTab === 'penyakit' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* F2.2: 3 teratas kemungkinan termasuk "Sehat" */}
                   <div className="card-subtle">
                     <div className="t-small" style={{ fontWeight: 700, marginBottom: 10 }}>
                       3 kemungkinan teratas (termasuk kelas Sehat)
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {result.penyakitTop3.map((item, idx) => (
-                        <div key={item.id}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontWeight: idx === 0 ? 700 : 500 }}>
-                              {idx + 1}. {item.nama}
-                            </span>
-                            <span className="tabular-nums" style={{ fontWeight: 700 }}>
-                              {item.confidence}%
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              height: 10,
-                              borderRadius: 99,
-                              background: 'var(--line)',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${item.confidence}%`,
-                                height: '100%',
-                                borderRadius: 99,
-                                background:
-                                  item.id === 'sehat'
-                                    ? 'var(--ok)'
-                                    : idx === 0
-                                      ? 'var(--bad)'
-                                      : 'var(--warn)',
-                              }}
-                            />
-                          </div>
-                        </div>
+                        <StripedProgressBar
+                          key={item.id}
+                          label={`${idx + 1}. ${item.nama}`}
+                          valueLabel={`${item.confidence}%`}
+                          percent={item.confidence}
+                          color={
+                            item.id === 'sehat'
+                              ? '#1F9D55'
+                              : idx === 0
+                                ? '#E5484D'
+                                : '#FFB63D'
+                          }
+                        />
                       ))}
                     </div>
                   </div>
 
-                  {/* F2.3: Basis pengetahuan (Penyebab, Gejala, Organik dulu, Kimiawi + baca label produk, Pencegahan, Sumber) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div>
                       <h3 className="t-h3">{diseaseInfo.penyakit}</h3>
@@ -851,12 +1084,11 @@ export const ScanScreen: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Solusi Organik & Budidaya SELALU PERTAMA */}
                     <div className="alert-card alert-card--ok">
                       <Leaf size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <strong>Solusi organik & budidaya</strong>
+                          <strong>Solusi organik &amp; budidaya</strong>
                           <span className="pill pill-ok">Organik lebih dulu</span>
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -869,7 +1101,6 @@ export const ScanScreen: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Opsi Kimiawi + wajib "Baca label produk" */}
                     <div className="alert-card alert-card--warn">
                       <AlertTriangle size={22} style={{ flexShrink: 0 }} />
                       <div>
@@ -904,12 +1135,10 @@ export const ScanScreen: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 3: REKOMENDASI PUPUK (F3.1–F3.4) */}
               {activeTab === 'pupuk' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <h3 className="t-h3">{nutrientInfo.dugaan}</h3>
-                    {/* F3.3: Label Dengan data sensor vs Dugaan visual */}
                     {result.pakaiDataSensor ? (
                       <>
                         <span className="pill pill-ok">Dengan data sensor</span>
@@ -924,7 +1153,6 @@ export const ScanScreen: React.FC = () => {
                     <strong>Gejala acuan:</strong> {nutrientInfo.gejala}
                   </p>
 
-                  {/* Rekomendasi organik dulu */}
                   <div className="alert-card alert-card--ok">
                     <Leaf size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
                     <div>
@@ -935,43 +1163,18 @@ export const ScanScreen: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Tabel dosis umum per fase tumbuh (F3.2) */}
                   <div className="card-subtle">
-                    <div style={{ marginBottom: 8 }}>
-                      <strong className="t-small">
-                        Dosis umum untuk fase aktif ({targetPlant?.fase || 'Berbuah'})
-                      </strong>
-                      <p className="t-body" style={{ marginTop: 4, fontWeight: 600 }}>
-                        {nutrientInfo.dosisPerFase[targetPlant?.fase || 'Berbuah']}
-                      </p>
-                    </div>
-                    <hr className="card-divider" />
-                    <div className="t-micro t-soft" style={{ fontWeight: 700, marginBottom: 6 }}>
-                      Panduan per fase tumbuh:
-                    </div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {Object.entries(nutrientInfo.dosisPerFase).map(([fase, dosis]) => (
-                        <div
-                          key={fase}
-                          className="t-small"
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: 10,
-                            background:
-                              fase === targetPlant?.fase ? 'var(--surface)' : 'transparent',
-                            fontWeight: fase === targetPlant?.fase ? 700 : 400,
-                          }}
-                        >
-                          <span style={{ color: 'var(--leaf-600)', fontWeight: 700 }}>{fase}:</span> {dosis}
-                        </div>
-                      ))}
-                    </div>
+                    <strong className="t-small">
+                      Dosis umum untuk fase aktif ({targetPlant?.fase || 'Berbuah'})
+                    </strong>
+                    <p className="t-body" style={{ marginTop: 4, fontWeight: 600 }}>
+                      {nutrientInfo.dosisPerFase[targetPlant?.fase || 'Berbuah']}
+                    </p>
                     <p className="t-micro t-soft" style={{ marginTop: 10 }}>
                       Sumber: {nutrientInfo.sumber}
                     </p>
                   </div>
 
-                  {/* F3.4: Disclaimer wajib selalu tampil */}
                   <div className="alert-card alert-card--warn" role="note">
                     <AlertTriangle size={20} style={{ flexShrink: 0 }} />
                     <div className="t-small">
@@ -995,7 +1198,7 @@ export const ScanScreen: React.FC = () => {
             >
               {savedToTimeline ? (
                 <>
-                  <Check size={18} /> Tersimpan di timeline & kalender
+                  <Check size={18} /> Tersimpan di timeline &amp; kalender
                 </>
               ) : (
                 'Simpan ke timeline'

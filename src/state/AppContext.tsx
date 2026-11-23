@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   AppSettings,
   ChatMessage,
@@ -41,7 +41,8 @@ import { runTomatoScanAnalysis } from '../utils/scanAnalyzer';
 const STORAGE_KEY = 'cermattani_app_state_v1';
 
 export const SCREEN_PATHS: Record<ScreenId, string> = {
-  beranda: '/',
+  landing: '/',
+  beranda: '/dashboard',
   scan: '/scan',
   tanaman: '/tanaman',
   kalender: '/kalender',
@@ -52,7 +53,7 @@ export const SCREEN_PATHS: Record<ScreenId, string> = {
 };
 
 function pathnameToScreen(pathname: string | null): ScreenId {
-  if (!pathname || pathname === '/') return 'beranda';
+  if (!pathname || pathname === '/') return 'landing';
   const clean = pathname.replace(/\/+$/, '');
   const entry = (Object.entries(SCREEN_PATHS) as [ScreenId, string][]).find(
     ([, path]) => path === clean
@@ -100,6 +101,9 @@ function createDefaultState(onboarded = false): PersistedState {
   };
 }
 
+const DUMMY_SCAN_IDS = new Set(['scan-1', 'scan-2', 'scan-3', 'scan-4', 'scan-5']);
+const DUMMY_CHAT_IDS = new Set(['chat-1', 'chat-clean']);
+
 function loadPersistedState(): PersistedState {
   if (typeof window === 'undefined') return createDefaultState(false);
   try {
@@ -107,9 +111,32 @@ function loadPersistedState(): PersistedState {
     if (!raw) return createDefaultState(false);
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     const def = createDefaultState(false);
+
+    // Bersihkan otomatis sisa data scan/chat dummy lama dari localStorage browser
+    const cleanedScans = Array.isArray(parsed.scans)
+      ? parsed.scans.filter(
+          (s) =>
+            s &&
+            !DUMMY_SCAN_IDS.has(s.id) &&
+            typeof s.fotoUrl === 'string' &&
+            !s.fotoUrl.startsWith('data:image/svg+xml')
+        )
+      : def.scans;
+
+    const cleanedChats = Array.isArray(parsed.chatMessages)
+      ? parsed.chatMessages.filter((m) => m && !DUMMY_CHAT_IDS.has(m.id))
+      : def.chatMessages;
+
+    const cleanedNotifs = Array.isArray(parsed.notifications)
+      ? parsed.notifications.filter((n) => n && n.id !== 'notif-2')
+      : def.notifications;
+
     return {
       ...def,
       ...parsed,
+      scans: cleanedScans,
+      chatMessages: cleanedChats,
+      notifications: cleanedNotifs,
       user: { ...def.user, ...(parsed.user || {}) },
       sensor: { ...def.sensor, ...(parsed.sensor || {}) },
       settings: { ...def.settings, ...(parsed.settings || {}) },
@@ -163,6 +190,7 @@ interface AppContextValue {
   toggleTask: (id: string) => void;
   addTask: (judul: string, kategori: FarmTask['kategori'], waktuLabel: string) => void;
   addChatMessage: (msg: Omit<ChatMessage, 'id' | 'waktu'>) => void;
+  clearChatMessages: () => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSensor: (patch: Partial<SensorSnapshot>) => void;
   triggerManualPump: (turnOn: boolean) => { ok: boolean; message: string };
@@ -179,9 +207,8 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const router = useRouter();
   const pathname = usePathname();
-  const activeScreen = pathnameToScreen(pathname);
+  const [activeScreen, setActiveScreenState] = useState<ScreenId>(() => pathnameToScreen(pathname));
 
   const [state, setState] = useState<PersistedState>(() => createDefaultState(false));
   const [hydrated, setHydrated] = useState(false);
@@ -190,6 +217,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [chatContextPlantId, setChatContextPlantId] = useState<string | null>(INITIAL_PLANTS[0]?.id ?? null);
   const [searchQuery, setSearchQuery] = useState('');
   const [browserOffline, setBrowserOffline] = useState(false);
+
+  // Sinkronkan URL saat direct load atau tombol Back/Forward browser ditekan
+  useEffect(() => {
+    setActiveScreenState(pathnameToScreen(pathname));
+  }, [pathname]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setActiveScreenState(pathnameToScreen(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // Hydrate dari localStorage hanya di sisi klien (SSR-safe untuk Next.js)
   useEffect(() => {
@@ -232,9 +272,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const isOffline = browserOffline || state.settings.simulasikanOffline;
 
-  const setActiveScreen = (screen: ScreenId) => {
-    router.push(SCREEN_PATHS[screen]);
-  };
+  // Navigasi instan 0 ms di sisi klien (tanpa server round-trip Next.js), tetap sinkron URL
+  const setActiveScreen = useCallback((screen: ScreenId) => {
+    setActiveScreenState(screen);
+    if (typeof window !== 'undefined') {
+      const targetPath = SCREEN_PATHS[screen];
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ screen }, '', targetPath);
+      }
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, []);
 
   // Evaluasi F10.1, F10.3 interlock tandon kritis, & F13.2 mode hemat baterai
   useEffect(() => {
@@ -305,32 +353,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const plant = state.plants.find((p) => p.id === item.plantId) || state.plants[0];
       if (!plant) continue;
       const prevScans = state.scans.filter((s) => s.plantId === plant.id);
-      const result = await runTomatoScanAnalysis({
-        plant,
-        bagian: item.bagian,
-        fotoUrl: item.fotoUrl,
-        presetId: item.presetId,
-        sensorAvailable: state.sensor.sensorTersedia,
-        lowConfidenceThreshold: state.settings.ambangKeyakinanRendah,
-        previousPlantScans: prevScans,
-      });
-      setState((prev) => ({
-        ...prev,
-        scans: [result, ...prev.scans],
-        offlineQueue: prev.offlineQueue.filter((q) => q.id !== item.id),
-        notifications: [
-          {
-            id: `notif-sync-${Date.now()}`,
-            judul: 'Antrean scan offline terkirim',
-            isi: `Scan ${item.bagian} untuk ${plant.nama} sudah selesai diproses otomatis.`,
-            waktu: 'Baru saja',
-            tipe: 'panen',
-            dibaca: false,
-          },
-          ...prev.notifications,
-        ],
-      }));
-      count++;
+      try {
+        const result = await runTomatoScanAnalysis({
+          plant,
+          bagian: item.bagian,
+          fotoUrl: item.fotoUrl,
+          sensorAvailable: state.sensor.sensorTersedia,
+          lowConfidenceThreshold: state.settings.ambangKeyakinanRendah,
+          previousPlantScans: prevScans,
+        });
+        setState((prev) => ({
+          ...prev,
+          scans: [result, ...prev.scans],
+          offlineQueue: prev.offlineQueue.filter((q) => q.id !== item.id),
+          notifications: [
+            {
+              id: `notif-sync-${Date.now()}`,
+              judul: 'Antrean scan offline terkirim',
+              isi: `Scan ${item.bagian} untuk ${plant.nama} sudah selesai diproses oleh AI.`,
+              waktu: 'Baru saja',
+              tipe: 'panen',
+              dibaca: false,
+            },
+            ...prev.notifications,
+          ],
+        }));
+        count++;
+      } catch {
+        // Biarkan tetap di antrean bila AI belum terjangkau
+      }
     }
     return count;
   };
@@ -359,12 +410,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openScanWith = (part?: PlantPart, plantId?: string) => {
     setScanPreselectPart(part ?? null);
     setScanPreselectPlantId(plantId ?? null);
-    router.push('/scan');
+    setActiveScreen('scan');
   };
 
   const openChatWithPlant = (plantId: string | null) => {
     setChatContextPlantId(plantId);
-    router.push('/cermo');
+    setActiveScreen('cermo');
   };
 
   const completeOnboarding: AppContextValue['completeOnboarding'] = (payload) => {
@@ -414,7 +465,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     });
 
-    router.push(payload?.goToScan ? '/scan' : '/');
+    setActiveScreen(payload?.goToScan ? 'scan' : 'beranda');
   };
 
   const reopenOnboarding = () => {
@@ -566,6 +617,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
       ],
     }));
+  };
+
+  const clearChatMessages = () => {
+    setState((prev) => ({ ...prev, chatMessages: [] }));
   };
 
   const updateSettings = (patch: Partial<AppSettings>) => {
@@ -726,7 +781,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetDemoData = () => {
     setState(createDefaultState(true));
-    router.push('/');
+    setActiveScreen('beranda');
   };
 
   const deleteAllUserData = () => {
@@ -750,17 +805,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       harvestEvents: [],
       tasks: [],
       notifications: [],
-      chatMessages: [
-        {
-          id: 'chat-clean',
-          plantId: null,
-          peran: 'cermo',
-          isi: 'Semua data lokal sudah dihapus. Halo lagi! Aku Cermo, siap mulai dari awal bersamamu.',
-          waktu: new Date().toISOString(),
-        },
-      ],
+      chatMessages: [],
     });
-    router.push('/');
+    setActiveScreen('beranda');
   };
 
   return (
@@ -794,6 +841,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleTask,
         addTask,
         addChatMessage,
+        clearChatMessages,
         updateSettings,
         updateSensor,
         triggerManualPump,

@@ -2,21 +2,18 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   Camera,
+  CloudSun,
   Download,
   Droplets,
   Power,
   ShieldAlert,
-  Sliders,
-  Sun,
-  Thermometer,
-  Waves,
+  Sprout,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { IrrigationSoilVisual, WaterTankVisual } from '../components/Illustrations';
-import { GreenAreaChart } from '../components/Charts';
+import { GreenAreaChart, StripedProgressBar } from '../components/Charts';
 import { downloadCsv } from '../utils/scanAnalyzer';
 
 /* Layar 7: Lahan — Sensor IoT (F8), Irigasi Otomatis (F10), Risiko Penyakit (F11), Tandon (F12) */
@@ -122,69 +119,138 @@ export const LandScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Nilai Sensor Terbaru (F8.1, F8.2, F11.1) */}
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
-          gap: 12,
-        }}
-      >
-        {[
-          {
-            label: 'Kelembapan tanah',
-            value: `${sensor.kelembapanTanah}%`,
-            sub: sensor.kelembapanTanah < settings.ambangTanahBawah ? 'Kering — perlu siram' : 'Cukup lembap',
-            icon: Droplets,
-            color: '#2B8FD9',
-          },
-          {
-            label: 'Suhu udara (DHT22)',
-            value: `${sensor.suhuUdara} °C`,
-            sub: 'Ideal tomat 20–28 °C',
-            icon: Thermometer,
-            color: '#F2562B',
-          },
-          {
-            label: 'Kelembapan udara',
-            value: `${sensor.kelembapanUdara}%`,
-            sub: isDiseaseRisk ? 'Di atas ambang risiko' : `Aman (< ${settings.ambangKelembapanRisikoPenyakit}%)`,
-            icon: Waves,
-            color: isDiseaseRisk ? '#E5484D' : '#1F9D55',
-          },
-          {
-            label: 'Cahaya (BH1750)',
-            value: `${(sensor.cahayaLux / 1000).toFixed(1)}k lux`,
-            sub: 'Penyinaran siang hari',
-            icon: Sun,
-            color: '#FFB63D',
-          },
-          {
-            label: 'NPK tanah (opsional)',
-            value: `${sensor.nitrogenMgKg}/${sensor.fosforMgKg}/${sensor.kaliumMgKg}`,
-            sub: 'mg/kg · N / P / K',
-            icon: Sliders,
-            color: '#7A6CF0',
-          },
-        ].map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className="card-sm" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Icon size={20} strokeWidth={1.75} color={card.color} />
-                <span className="pill pill-sim" style={{ fontSize: '0.6875rem', padding: '2px 8px' }}>
-                  Simulasi
-                </span>
+      {/* Bento Row Agrova: Kesehatan Tanah & NPK (--forest-900) + Cuaca Mikro (Striped Progress Bars) */}
+      <div className="dashboard-bento-row">
+        <section
+          className="card-forest stagger-card"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 14,
+                  background: 'rgba(216,243,106,0.16)',
+                  color: '#D8F36A',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <Sprout size={20} />
               </div>
-              <div className="font-display tabular-nums" style={{ fontSize: '1.65rem', lineHeight: 1.15 }}>
-                {card.value}
+              <div>
+                <h3 className="t-h3" style={{ color: '#FFFFFF' }}>
+                  Kesehatan Tanah &amp; Hara (NPK)
+                </h3>
+                <p className="t-small t-soft">
+                  {sensor.kelembapanTanah < settings.ambangTanahBawah
+                    ? 'Tanah kering — siap disiram otomatis'
+                    : 'Kelembapan tanah dalam rentang nyaman'}
+                </p>
               </div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{card.label}</div>
-              <div className="t-micro t-soft">{card.sub}</div>
             </div>
-          );
-        })}
-      </section>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+            <StripedProgressBar
+              label="Kelembapan tanah"
+              valueLabel={`${sensor.kelembapanTanah}%`}
+              percent={sensor.kelembapanTanah}
+              color="#2B8FD9"
+              darkBg
+            />
+            <StripedProgressBar
+              label="Nitrogen (N · opsional)"
+              valueLabel={`${sensor.nitrogenMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.nitrogenMgKg / 80) * 100))}
+              color="#D8F36A"
+              darkBg
+            />
+            <StripedProgressBar
+              label="Fosfor (P · opsional)"
+              valueLabel={`${sensor.fosforMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.fosforMgKg / 60) * 100))}
+              color="#FFB63D"
+              darkBg
+            />
+            <StripedProgressBar
+              label="Kalium (K · opsional)"
+              valueLabel={`${sensor.kaliumMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.kaliumMgKg / 90) * 100))}
+              color="#3DBE74"
+              darkBg
+            />
+          </div>
+        </section>
+
+        <section
+          className="card stagger-card stagger-1"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 14,
+                  background: 'var(--surface-2)',
+                  color: 'var(--leaf-600)',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <CloudSun size={20} />
+              </div>
+              <div>
+                <h3 className="t-h3">Cuaca Mikro Lahan</h3>
+                <p className="t-small t-soft">Sensor DHT22 &amp; intensitas cahaya BH1750</p>
+              </div>
+            </div>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+            <StripedProgressBar
+              label="Suhu udara (ideal 20–28 °C)"
+              valueLabel={`${sensor.suhuUdara} °C`}
+              percent={Math.min(100, Math.round((sensor.suhuUdara / 40) * 100))}
+              color="#F2562B"
+            />
+            <StripedProgressBar
+              label={
+                isDiseaseRisk
+                  ? `Kelembapan udara (di atas ambang ${settings.ambangKelembapanRisikoPenyakit}%)`
+                  : `Kelembapan udara (aman < ${settings.ambangKelembapanRisikoPenyakit}%)`
+              }
+              valueLabel={`${sensor.kelembapanUdara}%`}
+              percent={sensor.kelembapanUdara}
+              color={isDiseaseRisk ? '#E5484D' : '#1F9D55'}
+            />
+            <StripedProgressBar
+              label="Cahaya siang hari (BH1750)"
+              valueLabel={`${(sensor.cahayaLux / 1000).toFixed(1)}k lux`}
+              percent={Math.min(100, Math.round((sensor.cahayaLux / 50000) * 100))}
+              color="#FFB63D"
+            />
+          </div>
+
+          <div className="card-subtle" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 'auto' }}>
+            <CermoMascot pose={isDiseaseRisk ? 'worried' : isTankCritical ? 'water' : 'happy'} size={54} interactive={false} />
+            <div className="t-small">
+              <strong>Catatan Cermo:</strong>{' '}
+              {isDiseaseRisk
+                ? 'Udara terlalu lembap, pantau daun bawah lebih sering.'
+                : isTankCritical
+                  ? 'Air tandon hampir habis, segera isi ulang sebelum menyiram.'
+                  : 'Kondisi mikro kebun stabil untuk pertumbuhan optimal.'}
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* Grafik 24 Jam (F8.2) */}
       <section className="card">

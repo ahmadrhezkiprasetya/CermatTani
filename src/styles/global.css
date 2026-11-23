@@ -1,4 +1,7 @@
-/* CermatTani Global Styles, Layout & Components — DESIGN.md §4–§12 */
+/* CermatTani Design System Stylesheet — DESIGN.md v2.0
+   Tema Aplikasi: Mint Organic Modernism (Agrova × Plant Monitor × Agri-cultur)
+   Tema Publik: Cream Harvest (Agroton 8 Seksi)
+   Navigasi Instan 0 ms + Kontras WCAG 2.2 AA */
 
 *,
 *::before,
@@ -22,61 +25,111 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Tipografi skala exact DESIGN.md §4 */
+/* Skala Tipografi eksak DESIGN.md v2.0 §4.3 */
 h1,
 h2,
-h3,
 .font-display {
   font-family: var(--font-display);
-  font-weight: 600;
+  margin: 0;
+  color: inherit;
+  text-wrap: balance;
+}
+
+h3,
+h4 {
+  font-family: var(--font-body);
+  font-weight: 700;
   margin: 0;
   color: inherit;
 }
 
 .t-display {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
   line-height: 1.05;
   font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Judul Editorial 2 Bobot Halaman Publik (Agroton §4.3: Plus Jakarta Sans 300 + 700) */
+.t-editorial {
+  font-family: var(--font-body);
+  font-size: clamp(2.125rem, 4.4vw, 3.5rem);
+  line-height: 1.1;
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.t-editorial strong {
+  font-weight: 700;
+}
+
+.t-editorial-sub {
+  font-family: var(--font-body);
+  font-size: clamp(1.65rem, 3vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.t-editorial-sub strong {
+  font-weight: 700;
 }
 
 .t-h1 {
   font-family: var(--font-display);
-  font-size: clamp(1.625rem, 2.5vw, 2rem);
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
   line-height: 1.15;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .t-h2 {
   font-family: var(--font-display);
   font-size: 1.5rem;
   line-height: 1.2;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .t-h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.125rem;
   line-height: 1.3;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.t-eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 .t-body {
   font-size: 1rem;
   line-height: 1.6;
+  font-weight: 400;
   max-width: 65ch;
 }
 
 .t-small {
   font-size: 0.875rem;
   line-height: 1.5;
+  font-weight: 500;
 }
 
 .t-micro {
   font-size: 0.75rem;
   line-height: 1.4;
+  font-weight: 600;
 }
 
 .t-soft {
@@ -98,19 +151,37 @@ textarea {
   font-family: var(--font-body);
   font-size: 1rem;
   color: inherit;
+  touch-action: manipulation;
 }
 
-/* Fokus papan ketik (DESIGN.md §12) */
+/* Cincin Fokus WCAG 2.2 AA (§6: 3px --leaf-500, offset 2px) */
 :focus-visible {
-  outline: 3px solid var(--leaf-600);
+  outline: 3px solid var(--leaf-500);
   outline-offset: 2px;
 }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 200;
+  background: var(--forest-900);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--r-ctl);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: 12px;
+}
+
 /* ============================================================
-   SHELL TATA LETAK (DESIGN.md §6)
-   Desktop ≥1100px: Sidebar 240px + Main + Right Panel (on Beranda)
-   Tablet 700–1099px: Icon+Label rail 96px + Main (panel below)
-   Mobile <700px: Single column + Bottom Nav 5 item (Scan tengah)
+   KERANGKA APLIKASI (DESIGN.md v2.0 §5.1)
+   Desktop ≥1100px: Sidebar 240px (--forest-900) + Konten + Panel Kanan 340px
+   Tablet 700–1099px: Rel Ikon 80px + label di bawah
+   Mobile <700px: Header Ringkas + Single Column + Bottom-Nav 5 item + FAB 64px
    ============================================================ */
 
 .app-shell {
@@ -124,59 +195,79 @@ textarea {
   top: 0;
   height: 100dvh;
   background: var(--forest-900);
-  color: #eaf5ee;
-  padding: 20px 14px;
+  color: #cfe6d8;
+  padding: 18px 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   overflow-y: auto;
   z-index: 30;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 99px;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px;
+  padding: 6px 8px;
   cursor: pointer;
   border: none;
   background: transparent;
   color: #ffffff;
   text-align: left;
-  border-radius: var(--r-ctl);
+  border-radius: 14px;
+  transition: background var(--dur-base) ease;
+}
+
+.sidebar-brand:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-brand-logo {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(216, 243, 106, 0.16);
+  border: 1px solid rgba(216, 243, 106, 0.28);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 .sidebar-farm-box {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 10px;
 }
 
 .sidebar-farm-label {
-  font-size: 0.75rem;
-  color: rgba(234, 245, 238, 0.72);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(216, 243, 106, 0.85);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .sidebar-farm-select {
   width: 100%;
-  background: rgba(12, 23, 19, 0.35);
+  background: rgba(8, 43, 36, 0.78);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
+  border-radius: 11px;
   padding: 8px 10px;
-  min-height: 44px;
+  min-height: 42px;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -187,44 +278,57 @@ textarea {
   color: #ffffff;
 }
 
+.sidebar-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(207, 230, 216, 0.52);
+  padding: 6px 14px 2px;
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
 }
 
+/* Item 48px, aktif pil --lime-300 teks --on-lime, hover geser 3px (§6.2) */
 .nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 48px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-pill);
   border: none;
   background: transparent;
-  color: rgba(234, 245, 238, 0.84);
+  color: #cfe6d8;
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 0.9125rem;
   cursor: pointer;
   text-align: left;
-  transition: background 180ms ease, color 180ms ease, transform 160ms ease;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease, transform var(--dur-fast) ease;
   width: 100%;
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+.nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
+  transform: translateX(3px);
 }
 
 .nav-item.active {
   background: var(--lime-300);
   color: var(--on-lime);
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
 }
 
 .nav-item.nav-scan-item:not(.active) {
   background: rgba(214, 61, 18, 0.24);
-  color: #ffd8cb;
+  color: #ffe4da;
   border: 1px solid rgba(242, 86, 43, 0.4);
 }
 
@@ -237,7 +341,7 @@ textarea {
   margin-left: auto;
   background: var(--tomato-btn);
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--r-pill);
@@ -245,29 +349,47 @@ textarea {
 
 .sidebar-mascot-card {
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 12px;
+  border: 1px solid rgba(216, 243, 106, 0.22);
+  border-radius: 18px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: auto;
 }
 
-/* Main area */
+/* Main Workspace */
 .main-viewport {
   min-width: 0;
-  padding: 24px 32px 48px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  width: 100%;
 }
 
+/* Kepala Halaman Agrova (§5.1) */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 25;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
+  padding: 14px 28px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.main-content-pad {
+  padding: 20px 28px 48px;
+  max-width: 1560px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .topbar-left {
@@ -289,21 +411,27 @@ textarea {
   display: flex;
   align-items: center;
   background: var(--surface);
+  border: 1.5px solid var(--line);
   border-radius: var(--r-pill);
   padding: 0 14px;
   min-height: 48px;
-  width: min(290px, 100%);
-  box-shadow: var(--shadow-card);
+  width: min(260px, 100%);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-base) ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--leaf-500);
 }
 
 .search-box input {
   border: none;
   background: transparent;
   width: 100%;
-  padding: 10px 8px;
+  padding: 8px;
   outline: none;
   color: var(--ink);
-  font-size: 0.9375rem;
+  font-size: 0.9125rem;
 }
 
 .search-box input::placeholder {
@@ -315,25 +443,26 @@ textarea {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: none;
+  border: 1.5px solid var(--line);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-1);
   display: grid;
   place-items: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 180ms ease, background 180ms ease;
+  transition: transform var(--dur-fast) ease, border-color var(--dur-base) ease;
 }
 
 .icon-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  border-color: var(--leaf-600);
 }
 
 .icon-btn-dot {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 9px;
+  right: 9px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -341,10 +470,13 @@ textarea {
   border: 2px solid var(--surface);
 }
 
-/* Dashboard Desktop 3-column layout (Main center + Right illustration/schedule panel) */
+/* ============================================================
+   TATA LETAK DASHBOARD (DESIGN.md v2.0 §5.1)
+   ============================================================ */
+
 .dashboard-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
   align-items: start;
 }
@@ -352,21 +484,28 @@ textarea {
 .dashboard-center {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   min-width: 0;
+}
+
+.dashboard-bento-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
 .dashboard-two-col {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: 24px;
+  gap: 20px;
   align-items: start;
 }
 
 .dashboard-col {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   min-width: 0;
 }
 
@@ -375,57 +514,81 @@ textarea {
   flex-direction: column;
   gap: 20px;
   position: sticky;
-  top: 24px;
+  top: 92px;
+}
+
+/* 4 Ubin Statistik Agrova (§6.6) */
+.stat-tiles-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-tile {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ============================================================
-   KARTU & KOMPONEN (DESIGN.md §5 & §7)
+   KARTU BENTO, TOMBOL 3D & KOMPONEN v2.0 (§6)
    ============================================================ */
 
 .card {
   background: var(--surface);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
-  padding: 24px;
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  border: 1px solid var(--card-hairline);
+  box-shadow: var(--shadow-1);
+  padding: 22px 24px;
+}
+
+.card-interactive {
+  transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
 }
 
 .card-interactive:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
 }
 
 .card-sm {
   background: var(--surface);
-  border-radius: var(--r-card-sm);
-  box-shadow: var(--shadow-card);
-  padding: 20px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--card-hairline);
+  box-shadow: var(--shadow-1);
+  padding: 18px;
 }
 
 .card-forest {
   background: var(--forest-900);
   color: #ffffff;
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
-  padding: 24px;
+  box-shadow: var(--shadow-1);
+  padding: 22px 24px;
 }
 
 .card-forest .t-soft {
-  color: rgba(234, 245, 238, 0.78);
-}
-
-.card-lime {
-  background: var(--lime-300);
-  color: var(--on-lime);
-  border-radius: var(--r-card-sm);
-  box-shadow: var(--shadow-card);
-  padding: 18px;
+  color: #cfe6d8;
 }
 
 .card-subtle {
   background: var(--surface-2);
-  border-radius: var(--r-card-sm);
-  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
 }
 
 .card-divider {
@@ -435,25 +598,20 @@ textarea {
   margin: 16px 0;
 }
 
-/* Metric cards x3 (Lime, Putih, Hijau tua) */
+/* Kartu Metrik 3 Varian (§6.3: Lime sorot, Putih, Forest penekanan) */
 .metrics-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .metric-card {
-  border-radius: var(--r-card-sm);
-  padding: 16px;
-  box-shadow: var(--shadow-card);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 200ms ease;
-}
-
-.metric-card:hover {
-  transform: translateY(-3px);
 }
 
 .metric-card--lime {
@@ -464,6 +622,7 @@ textarea {
 .metric-card--white {
   background: var(--surface);
   color: var(--ink);
+  border: 1px solid var(--card-hairline);
 }
 
 .metric-card--forest {
@@ -471,17 +630,24 @@ textarea {
   color: #ffffff;
 }
 
+.metric-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .metric-icon-circle {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 12px;
   display: grid;
   place-items: center;
 }
 
 .metric-card--lime .metric-icon-circle {
   background: rgba(20, 48, 42, 0.12);
-  color: #14302a;
+  color: var(--on-lime);
 }
 
 .metric-card--white .metric-icon-circle {
@@ -490,32 +656,172 @@ textarea {
 }
 
 .metric-card--forest .metric-icon-circle {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(216, 243, 106, 0.16);
   color: var(--lime-300);
 }
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: 1.875rem;
-  line-height: 1.1;
+  font-size: 2rem;
+  line-height: 1.05;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.metric-card--forest .metric-value {
+  color: var(--lime-300);
 }
 
 .metric-label {
   font-size: 0.875rem;
   font-weight: 600;
-  opacity: 0.88;
 }
 
-/* Tombol Utama 3D tipis (DESIGN.md §5 & §7) */
+/* Striped Progress Bar (§6.6 Kesehatan Tanah & N-P-K) */
+.striped-track {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.striped-track--dark {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.striped-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width 500ms var(--ease-out);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.22) 0px,
+    rgba(255, 255, 255, 0.22) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Kartu Foto Tugas Agrova (§6.3: foto penuh r20, gradasi bawah, judul putih kiri bawah, chip status kiri atas) */
+.activity-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.activity-photo-card {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--card-hairline);
+  background: #102a22;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4 / 3.1;
+  transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+
+.activity-photo-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+}
+
+.activity-photo-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.activity-photo-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(18, 36, 31, 0.08) 0%, rgba(18, 36, 31, 0.22) 48%, rgba(18, 36, 31, 0.88) 100%);
+  pointer-events: none;
+}
+
+.activity-photo-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+}
+
+.activity-photo-body {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #ffffff;
+}
+
+/* Panel Peta Kebun Agrova (§6.7) */
+.agrova-map-panel {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: #0e4f43;
+  box-shadow: var(--shadow-1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.glass-surface {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  color: #14302a;
+}
+
+@supports not (backdrop-filter: blur(12px)) {
+  .glass-surface {
+    background: #ffffffee;
+  }
+}
+
+.floating-pin {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) ease;
+}
+
+.floating-pin:hover {
+  transform: scale(1.03);
+}
+
+.floating-pin-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   TOMBOL v2.0 (§6.1: Utama 3D, Tomat 3D, Sekunder, Gelap Panah Bulat ↗)
+   ============================================================ */
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 9px;
   min-height: 48px;
-  padding: 12px 22px;
+  padding: 10px 22px;
   border-radius: var(--r-ctl);
   border: none;
   background: var(--leaf-600);
@@ -523,10 +829,9 @@ textarea {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1rem;
-  letter-spacing: 0.01em;
-  box-shadow: 0 6px 0 var(--leaf-700);
+  box-shadow: var(--shadow-btn);
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 150ms ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background var(--dur-base) ease;
   text-decoration: none;
 }
 
@@ -536,22 +841,22 @@ textarea {
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(4px);
-  box-shadow: 0 2px 0 var(--leaf-700);
+  box-shadow: none;
 }
 
 .btn-primary:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
-/* Tombol Aksi Tomat (kontras WCAG AA 4.5:1 dengan --tomato-btn #D63D12) */
 .btn-tomato {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 9px;
   min-height: 48px;
-  padding: 12px 22px;
+  padding: 10px 22px;
   border-radius: var(--r-ctl);
   border: none;
   background: var(--tomato-btn);
@@ -559,9 +864,9 @@ textarea {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1rem;
-  box-shadow: 0 6px 0 var(--tomato-btn-dark);
+  box-shadow: var(--shadow-btn-tomato);
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, filter 150ms ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, filter var(--dur-base) ease;
 }
 
 .btn-tomato:hover:not(:disabled) {
@@ -570,10 +875,61 @@ textarea {
 
 .btn-tomato:active:not(:disabled) {
   transform: translateY(4px);
-  box-shadow: 0 2px 0 var(--tomato-btn-dark);
+  box-shadow: none;
 }
 
-/* Tombol Sekunder */
+.btn-tomato:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Tombol Gelap dengan Bulatan Panah ↗ (§6.1 Agroton & Agrova) */
+.ct-btn-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 6px 6px 20px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: var(--night);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.9125rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform var(--dur-fast) ease, background var(--dur-base) ease;
+}
+
+.ct-btn-dark:hover {
+  background: #1a352d;
+  transform: translateY(-1px);
+}
+
+.ct-btn-dark-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--lime-300);
+  color: var(--on-lime);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform var(--dur-base) ease;
+}
+
+.ct-btn-dark:hover .ct-btn-dark-circle {
+  transform: translate(1px, -1px);
+}
+
+.ct-btn-dark--amber .ct-btn-dark-circle {
+  background: var(--amber);
+  color: #14302a;
+}
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -582,29 +938,25 @@ textarea {
   min-height: 48px;
   padding: 10px 18px;
   border-radius: var(--r-ctl);
-  border: 1.5px solid var(--leaf-600);
+  border: 2px solid var(--leaf-600);
   background: var(--surface);
   color: var(--leaf-600);
   font-weight: 600;
   font-size: 0.9375rem;
   cursor: pointer;
-  transition: background 150ms ease, transform 120ms ease;
+  transition: background var(--dur-base) ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--surface-2);
 }
 
-.btn-secondary:active:not(:disabled) {
-  transform: translateY(2px);
-}
-
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
+  gap: 6px;
+  min-height: 44px;
   padding: 8px 14px;
   border-radius: var(--r-ctl);
   border: none;
@@ -627,49 +979,62 @@ textarea {
   min-height: 48px;
   padding: 10px 18px;
   border-radius: var(--r-ctl);
-  border: 1.5px solid var(--bad);
-  background: var(--bad-soft);
-  color: var(--bad);
+  border: 1.5px solid var(--bad-600);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
   font-weight: 700;
   cursor: pointer;
 }
 
-/* Chip & Lencana (999px) */
+/* ============================================================
+   LENCANA & CHIP WCAG 2.2 AA [REVISI v2.0 §4.1.3 & §6.4]
+   ============================================================ */
+
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
   border-radius: var(--r-pill);
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
 }
 
+/* [REVISI WCAG AA 5,12:1] Pil #ECE9FF + teks #5B4CD6 */
 .pill-sim {
-  background: var(--sim);
-  color: #ffffff;
+  background: var(--sim-bg);
+  color: var(--sim-600);
+}
+
+.pill-sim::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sim-600);
+  flex-shrink: 0;
 }
 
 .pill-ok {
-  background: var(--ok-soft);
-  color: var(--leaf-600);
+  background: var(--ok-bg);
+  color: var(--ok-fg);
 }
 
 .pill-warn {
-  background: var(--warn-soft);
-  color: var(--warn-ink);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
 .pill-bad {
-  background: var(--bad-soft);
-  color: var(--bad);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
 }
 
 .pill-water {
-  background: var(--water-soft);
-  color: var(--water);
+  background: var(--water-bg);
+  color: var(--water-700);
 }
 
 .pill-neutral {
@@ -684,61 +1049,98 @@ textarea {
   flex-shrink: 0;
 }
 
-/* Peringatan (Alert card) */
+/* Status strip pills */
+.status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-strip-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-chip-solid {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--leaf-600);
+  color: var(--on-leaf);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.status-chip-surface {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--line);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+/* Alert Cards */
 .alert-card {
   display: flex;
   align-items: flex-start;
   gap: 14px;
   padding: 16px 18px;
-  border-radius: var(--r-card-sm);
+  border-radius: var(--r-md);
 }
 
 .alert-card--warn {
-  background: var(--warn-soft);
+  background: var(--warn-bg);
   color: var(--ink);
   border-left: 4px solid var(--warn);
 }
 
 .alert-card--bad {
-  background: var(--bad-soft);
+  background: var(--bad-bg);
   color: var(--ink);
-  border-left: 4px solid var(--bad);
+  border-left: 4px solid var(--bad-600);
 }
 
 .alert-card--ok {
-  background: var(--ok-soft);
+  background: var(--ok-bg);
   color: var(--ink);
-  border-left: 4px solid var(--ok);
+  border-left: 4px solid var(--leaf-600);
 }
 
 .alert-card--water {
-  background: var(--water-soft);
+  background: var(--water-bg);
   color: var(--ink);
-  border-left: 4px solid var(--water);
+  border-left: 4px solid var(--water-700);
 }
 
-.alert-card--sim {
-  background: var(--sim-soft);
-  color: var(--ink);
-  border-left: 4px solid var(--sim);
-}
-
-/* Toggle Irigasi 56×32 (DESIGN.md §7) */
+/* Toggle Irigasi 64×36 (§6.8) */
 .irrigation-toggle {
   position: relative;
-  width: 56px;
-  height: 32px;
+  width: 60px;
+  height: 34px;
   border-radius: var(--r-pill);
   border: none;
   background: var(--line);
   cursor: pointer;
   padding: 3px;
-  transition: background 200ms ease;
+  transition: background var(--dur-base) ease;
   flex-shrink: 0;
 }
 
 .irrigation-toggle[aria-checked="true"] {
-  background: var(--leaf-600);
+  background: var(--water-700);
 }
 
 .irrigation-toggle:disabled {
@@ -747,23 +1149,23 @@ textarea {
 }
 
 .irrigation-toggle-thumb {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #ffffff;
   color: var(--ink);
   display: grid;
   place-items: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
 .irrigation-toggle[aria-checked="true"] .irrigation-toggle-thumb {
-  transform: translateX(24px);
-  color: var(--leaf-600);
+  transform: translateX(26px);
+  color: var(--water-700);
 }
 
-/* Form controls */
+/* Formulir (§6.8: tinggi 48, r14, garis 2px --line) */
 .field-group {
   display: flex;
   flex-direction: column;
@@ -772,7 +1174,7 @@ textarea {
 
 .field-label {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
 }
 
@@ -783,17 +1185,17 @@ textarea {
   min-height: 48px;
   padding: 10px 14px;
   border-radius: var(--r-ctl);
-  border: 1.5px solid var(--line);
+  border: 2px solid var(--line);
   background: var(--surface-2);
   color: var(--ink);
   font-size: 1rem;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
 }
 
 .field-input:focus,
 .field-select:focus,
 .field-textarea:focus {
-  border-color: var(--leaf-600);
+  border-color: var(--leaf-500);
   background: var(--surface);
   outline: none;
 }
@@ -808,10 +1210,11 @@ textarea {
 /* Tabs */
 .tabs-bar {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface-2);
-  padding: 6px;
-  border-radius: 18px;
+  border: 1px solid var(--line);
+  padding: 5px;
+  border-radius: 16px;
   overflow-x: auto;
 }
 
@@ -819,7 +1222,7 @@ textarea {
   flex: 1;
   min-height: 48px;
   padding: 10px 16px;
-  border-radius: var(--r-ctl);
+  border-radius: 12px;
   border: none;
   background: transparent;
   color: var(--ink-soft);
@@ -831,26 +1234,24 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 180ms ease, color 180ms ease;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .tab-btn.active {
-  background: var(--surface);
-  color: var(--leaf-600);
-  box-shadow: 0 2px 8px rgba(20, 48, 42, 0.08);
+  background: var(--forest-900);
+  color: var(--lime-300);
 }
 
-/* Modal & Drawer */
+/* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(12, 23, 19, 0.56);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(5px);
   display: grid;
   place-items: center;
   padding: 16px;
   z-index: 100;
-  animation: fadeIn 180ms ease;
 }
 
 .modal-panel {
@@ -860,58 +1261,330 @@ textarea {
   background: var(--surface);
   border-radius: var(--r-card);
   padding: 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-  animation: pageEnter 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: var(--shadow-3);
 }
 
-/* ============================================================
-   MOBILE BOTTOM NAV (DESIGN.md §6 & §7)
-   ============================================================ */
-.mobile-bottom-nav {
-  display: none;
-}
-
+.mobile-bottom-nav,
 .mobile-more-bar {
   display: none;
 }
 
 /* ============================================================
-   ANIMASI (DESIGN.md §10)
+   HALAMAN PUBLIK — TEMA "CREAM HARVEST" (DESIGN.md v2.0 §9.1)
    ============================================================ */
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.landing-shell {
+  min-height: 100dvh;
+  background: var(--cream);
+  color: #14302a;
 }
 
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.landing-container {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 0 28px;
 }
 
-@keyframes cardStaggerIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.landing-section {
+  padding: 56px 0;
 }
 
+/* Navigasi pil terang (§6.2 Agroton) */
+.landing-nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 16px 0;
+  background: rgba(251, 248, 230, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(20, 48, 42, 0.08);
+}
+
+.landing-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.landing-nav-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: #ffffff;
+  border: 1px solid rgba(20, 48, 42, 0.1);
+  box-shadow: 0 2px 10px rgba(20, 48, 42, 0.05);
+}
+
+.landing-nav-link {
+  border: none;
+  background: transparent;
+  color: #14302a;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
+}
+
+.landing-nav-link:hover {
+  background: rgba(20, 48, 42, 0.06);
+}
+
+.landing-nav-link.active {
+  background: var(--night);
+  color: #ffffff;
+}
+
+/* Seksi 1: Hero Foto Lebar Penuh r28 */
+.landing-hero-card {
+  position: relative;
+  border-radius: var(--r-hero);
+  overflow: hidden;
+  min-height: 580px;
+  background: var(--night);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 42px 44px 36px;
+  box-shadow: var(--shadow-2);
+}
+
+.landing-hero-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.72;
+}
+
+.landing-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(18, 36, 31, 0.9) 0%,
+    rgba(18, 36, 31, 0.65) 48%,
+    rgba(18, 36, 31, 0.32) 100%
+  );
+}
+
+.landing-hero-bottom {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 36px;
+}
+
+/* Chip statistik tumpang-tindih (§6.3 Agroton) */
+.stat-chip-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  background: #ffffff;
+  color: #14302a;
+  border-radius: 16px;
+  padding: 14px 18px;
+  min-width: 142px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-chip--butter {
+  background: var(--butter);
+  color: #14302a;
+}
+
+.stat-chip-num {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.08;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kartu pratinjau kaca gelap kanan bawah (§6.3) */
+.glass-preview-card {
+  background: rgba(18, 36, 31, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 22px;
+  padding: 16px 18px;
+  color: #ffffff;
+  width: min(330px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-2);
+}
+
+/* Seksi 3: Wadah Data Gelap --night r28 */
+.landing-night-box {
+  background: var(--night);
+  color: #ffffff;
+  border-radius: var(--r-hero);
+  padding: 40px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-shadow: var(--shadow-2);
+}
+
+.landing-night-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+/* Kartu CTA Kuning Mentega (--butter #FFE7A8, teks HANYA #14302A per §4.1.5!) */
+.butter-cta-card {
+  background: var(--butter);
+  color: #14302a;
+  border-radius: 22px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Seksi 6: Panel Nilai #EFEEE0 dengan 3 kartu (putih, gelap, putih) */
+.values-panel {
+  background: var(--sand-panel);
+  border-radius: var(--r-hero);
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.values-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.value-card {
+  background: #ffffff;
+  color: #14302a;
+  border-radius: var(--r-card);
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: var(--shadow-1);
+}
+
+.value-card--dark {
+  background: var(--night);
+  color: #ffffff;
+}
+
+.value-tag-dark {
+  display: inline-flex;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.carousel-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(20, 48, 42, 0.16);
+  background: #ffffff;
+  color: #14302a;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--dur-base) ease, transform var(--dur-fast) ease;
+}
+
+.carousel-circle-btn--active,
+.carousel-circle-btn:hover {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #14302a;
+}
+
+/* Onboarding Split */
+.onboarding-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+
+.onboarding-split {
+  width: min(980px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+  background: var(--surface);
+  border-radius: var(--r-hero);
+  overflow: hidden;
+  box-shadow: var(--shadow-2);
+}
+
+.onboarding-showcase {
+  background: var(--forest-900);
+  color: #ffffff;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.onboarding-form-pane {
+  padding: 34px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* Navigasi instan 0 ms tanpa delay blokir */
+.page-enter,
+.stagger-card,
+.stagger-1,
+.stagger-2,
+.stagger-3,
+.stagger-4,
+.stagger-5,
+.stagger-6 {
+  animation: none;
+}
+
+/* Animasi Bermakna (§4.9) */
 @keyframes fabPulse {
-  0%, 72%, 100% {
-    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 0 rgba(214, 61, 18, 0.35);
+  0%, 74%, 100% {
+    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 0 rgba(214, 61, 18, 0.32);
   }
-  86% {
-    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 14px rgba(214, 61, 18, 0);
+  88% {
+    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 12px rgba(214, 61, 18, 0);
   }
 }
 
@@ -927,23 +1600,20 @@ textarea {
 
 @keyframes cermoJump {
   0% { transform: scale(1, 1) translateY(0); }
-  20% { transform: scale(1.12, 0.86) translateY(5px); }
-  50% { transform: scale(0.92, 1.1) translateY(-16px); }
-  80% { transform: scale(1.06, 0.94) translateY(2px); }
+  20% { transform: scale(1.1, 0.88) translateY(4px); }
+  50% { transform: scale(0.94, 1.08) translateY(-14px); }
   100% { transform: scale(1, 1) translateY(0); }
 }
 
 @keyframes cermoWave {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-22deg); }
-  55% { transform: rotate(12deg); }
-  80% { transform: rotate(-16deg); }
+  25% { transform: rotate(-20deg); }
+  60% { transform: rotate(12deg); }
 }
 
 @keyframes cermoScanGlass {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  33% { transform: translate(-8px, -6px) rotate(-12deg); }
-  66% { transform: translate(5px, 4px) rotate(10deg); }
+  50% { transform: translate(-6px, -4px) rotate(-10deg); }
 }
 
 @keyframes scanBeam {
@@ -953,36 +1623,13 @@ textarea {
 }
 
 @keyframes boxPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.84);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes waterDropFall {
-  0% { transform: translateY(-12px); opacity: 0; }
-  25% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { transform: translateY(34px); opacity: 0; }
-}
-
-@keyframes sunRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes batteryWave {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-40px); }
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes confettiDrop {
-  0% { transform: translateY(-10px) rotate(0deg) scale(0.7); opacity: 1; }
-  100% { transform: translateY(110px) rotate(220deg) scale(1.1); opacity: 0; }
+  0% { transform: translateY(-8px) rotate(0deg) scale(0.75); opacity: 1; }
+  100% { transform: translateY(100px) rotate(180deg) scale(1.1); opacity: 0; }
 }
 
 @keyframes barGrowUp {
@@ -996,45 +1643,51 @@ textarea {
 }
 
 @keyframes floatZzz {
-  0% { opacity: 0; transform: translate(0, 4px) scale(0.8); }
-  40% { opacity: 1; }
-  100% { opacity: 0; transform: translate(10px, -16px) scale(1.1); }
-}
+  0% {
+    opacity: 0;
+    transform: translate(0, 4px) scale(0.85);
+  }
 
-.page-enter {
-  animation: pageEnter 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+  45% {
+    opacity: 1;
+  }
 
-.stagger-card {
-  animation: cardStaggerIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  100% {
+    opacity: 0;
+    transform: translate(8px, -14px) scale(1.05);
+  }
 }
-
-.stagger-1 { animation-delay: 60ms; }
-.stagger-2 { animation-delay: 120ms; }
-.stagger-3 { animation-delay: 180ms; }
-.stagger-4 { animation-delay: 240ms; }
-.stagger-5 { animation-delay: 300ms; }
-.stagger-6 { animation-delay: 360ms; }
 
 /* ============================================================
-   BREAKPOINTS (DESIGN.md §6)
-   Tablet: 700px–1099px
-   Mobile: < 700px
+   TITIK HENTI RESPONSIF (§4.4)
    ============================================================ */
+
+@media (max-width: 1220px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-right-panel {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  }
+}
 
 @media (max-width: 1099px) {
   .app-shell {
-    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-columns: 80px minmax(0, 1fr);
   }
 
   .sidebar {
-    padding: 16px 8px;
+    padding: 14px 6px;
     align-items: center;
   }
 
   .sidebar-brand-text,
   .sidebar-farm-box,
   .sidebar-mascot-text,
+  .sidebar-section-title,
   .nav-badge {
     display: none;
   }
@@ -1047,36 +1700,55 @@ textarea {
   .nav-item {
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
     padding: 8px 4px;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-align: center;
-    min-height: 56px;
+    min-height: 52px;
+    border-radius: 14px;
   }
 
   .sidebar-mascot-card {
-    padding: 8px;
+    padding: 6px;
     justify-content: center;
   }
 
-  .main-viewport {
-    padding: 20px 24px 48px;
+  .topbar,
+  .main-content-pad {
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
-  .dashboard-layout {
+  .landing-night-grid,
+  .values-grid-3 {
     grid-template-columns: 1fr;
-  }
-
-  .dashboard-right-panel {
-    position: static;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 }
 
-@media (max-width: 860px) {
-  .dashboard-two-col {
+@media (max-width: 900px) {
+  .onboarding-split,
+  .dashboard-bento-row,
+  .dashboard-two-col,
+  .activity-photo-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stat-tiles-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-nav-pills {
+    display: none;
+  }
+
+  .landing-hero-card {
+    padding: 28px 22px;
+    min-height: 500px;
+  }
+
+  .landing-night-box,
+  .values-panel {
+    padding: 26px 20px;
   }
 }
 
@@ -1089,12 +1761,17 @@ textarea {
     display: none;
   }
 
-  .main-viewport {
+  .topbar {
+    padding: 12px 16px;
+  }
+
+  .main-content-pad {
     padding: 16px 16px 104px;
     gap: 16px;
   }
 
-  .card {
+  .card,
+  .card-forest {
     padding: 18px;
   }
 
@@ -1105,6 +1782,17 @@ textarea {
   .search-box {
     width: 100%;
     order: 3;
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modal-panel {
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-more-bar {
@@ -1126,12 +1814,11 @@ textarea {
     min-height: 44px;
     padding: 8px 14px;
     border-radius: var(--r-pill);
-    border: none;
+    border: 1.5px solid var(--line);
     background: var(--surface);
     color: var(--ink);
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: var(--shadow-card);
     white-space: nowrap;
     cursor: pointer;
   }
@@ -1139,18 +1826,20 @@ textarea {
   .mobile-chip-nav.active {
     background: var(--forest-900);
     color: var(--lime-300);
+    border-color: transparent;
   }
 
-  /* Bottom-nav 5 item FarmVista + FAB Scan tengah 64px */
+  /* Bottom-nav 5 item + FAB Scan 64px terangkat 22px dengan cincin --bg 4px (§5.1 & §6.2) */
   .mobile-bottom-nav {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     height: 76px;
-    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 95%, transparent);
+    backdrop-filter: blur(14px);
     border-top: 1px solid var(--line);
-    box-shadow: 0 -6px 24px rgba(20, 48, 42, 0.1);
+    box-shadow: 0 -8px 28px rgba(20, 48, 42, 0.12);
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: center;
@@ -1184,29 +1873,23 @@ textarea {
     align-items: center;
     justify-content: center;
     position: relative;
-    top: -16px;
+    top: -22px;
   }
 
   .scan-fab {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    border: 4px solid var(--surface);
+    border: 4px solid var(--bg);
     background: var(--tomato-btn);
     color: #ffffff;
     display: grid;
     place-items: center;
     cursor: pointer;
     animation: fabPulse 4s infinite ease-in-out;
-    transition: transform 140ms ease;
-  }
-
-  .scan-fab:active {
-    transform: scale(0.94);
   }
 }
 
-/* Reduced motion (DESIGN.md §2 & §10) */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

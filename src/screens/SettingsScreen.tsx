@@ -16,6 +16,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
+import { CermoMascot } from '../components/CermoMascot';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -103,12 +104,53 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 880 }}>
-      <div>
-        <h2 className="t-h1">Pengaturan</h2>
-        <p className="t-small t-soft">
-          Atur profil kebun, tampilan terang/gelap, ambang peringatan, dan privasi datamu.
-        </p>
-      </div>
+      {/* Bento Summary Header — Forest-900 */}
+      <section
+        className="card-forest stagger-card"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              background: 'rgba(216,243,106,0.14)',
+              border: '1px solid rgba(216,243,106,0.24)',
+              borderRadius: 18,
+              padding: 4,
+            }}
+          >
+            <CermoMascot pose="wave" size={64} />
+          </div>
+          <div>
+            <h2 className="t-h1" style={{ color: '#FFFFFF' }}>Pengaturan</h2>
+            <p className="t-small t-soft" style={{ marginTop: 2 }}>
+              Atur profil kebun, tampilan terang/gelap, ambang peringatan, dan privasi datamu.
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span
+            className="pill"
+            style={{
+              background: isSupabaseConfigured ? 'var(--lime-300)' : 'rgba(255,255,255,0.14)',
+              color: isSupabaseConfigured ? '#14302A' : '#EAF5EE',
+            }}
+          >
+            {isSupabaseConfigured ? 'Supabase aktif' : 'Mode lokal'}
+          </span>
+          <span
+            className="pill"
+            style={{ background: 'rgba(255,255,255,0.14)', color: '#EAF5EE' }}
+          >
+            Tema: {state.settings.tema === 'dark' ? 'Gelap' : state.settings.tema === 'light' ? 'Terang' : 'Sistem'}
+          </span>
+        </div>
+      </section>
 
       {/* Koneksi Database Supabase (Akun, Kebun, Scan & AI, Basis Pengetahuan, IoT & Irigasi, Jadwal & Chat) */}
       <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

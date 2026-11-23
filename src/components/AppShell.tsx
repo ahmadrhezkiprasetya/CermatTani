@@ -2,12 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import {
+  ArrowUpRight,
   Bell,
   CalendarDays,
   Camera,
+  CheckCircle2,
   CloudOff,
   Droplets,
+  Globe,
   Home,
+  MapPin,
   MessageCircle,
   Moon,
   RefreshCw,
@@ -21,20 +25,23 @@ import { useApp } from '../state/AppContext';
 import { ScreenId } from '../types/cermattani';
 import { CermoMascot } from './CermoMascot';
 
-const NAV_ITEMS: {
-  id: ScreenId;
+type NavEntry = {
+  id: Exclude<ScreenId, 'landing'>;
   label: string;
-  shortLabel: string;
+  pageTitle: string;
   icon: React.FC<{ size?: number; strokeWidth?: number }>;
-}[] = [
-  { id: 'beranda', label: 'Beranda', shortLabel: 'Beranda', icon: Home },
-  { id: 'scan', label: 'Scan tanaman', shortLabel: 'Scan', icon: Camera },
-  { id: 'tanaman', label: 'Tanaman', shortLabel: 'Tanaman', icon: Sprout },
-  { id: 'kalender', label: 'Kalender panen', shortLabel: 'Kalender', icon: CalendarDays },
-  { id: 'lahan', label: 'Lahan & irigasi', shortLabel: 'Lahan', icon: Droplets },
-  { id: 'energi', label: 'Energi surya', shortLabel: 'Surya', icon: Sun },
-  { id: 'cermo', label: 'Tanya Cermo', shortLabel: 'Cermo', icon: MessageCircle },
-  { id: 'pengaturan', label: 'Pengaturan', shortLabel: 'Atur', icon: Settings },
+  group: 'utama' | 'lapangan' | 'sistem';
+};
+
+const NAV_ITEMS: NavEntry[] = [
+  { id: 'beranda', label: 'Beranda', pageTitle: 'Beranda Kebun', icon: Home, group: 'utama' },
+  { id: 'scan', label: 'Scan', pageTitle: 'Scan Tanaman', icon: Camera, group: 'utama' },
+  { id: 'tanaman', label: 'Tanaman', pageTitle: 'Tanaman & Timeline', icon: Sprout, group: 'utama' },
+  { id: 'kalender', label: 'Kalender panen', pageTitle: 'Kalender Panen', icon: CalendarDays, group: 'utama' },
+  { id: 'lahan', label: 'Lahan', pageTitle: 'Lahan & Irigasi', icon: Droplets, group: 'lapangan' },
+  { id: 'energi', label: 'Energi surya', pageTitle: 'Energi Surya', icon: Sun, group: 'lapangan' },
+  { id: 'cermo', label: 'Tanya Cermo', pageTitle: 'Tanya Cermo', icon: MessageCircle, group: 'lapangan' },
+  { id: 'pengaturan', label: 'Pengaturan', pageTitle: 'Pengaturan', icon: Settings, group: 'sistem' },
 ];
 
 function getTimeGreeting(): string {
@@ -69,6 +76,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isTankLow = state.sensor.levelTandonPersen < state.settings.ambangTandonRendah;
   const isDiseaseRisk =
     state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit;
+
+  const activeNav = NAV_ITEMS.find((i) => i.id === activeScreen) || NAV_ITEMS[0];
 
   const cermoSidebarPose = isPowerSave
     ? 'sleep'
@@ -106,7 +115,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         },
       }));
     return [...matchedPlants, ...matchedScans];
-  }, [searchQuery, state.plants, state.scans]);
+  }, [searchQuery, state.plants, state.scans, setActiveScreen, setSearchQuery]);
 
   const toggleTheme = () => {
     const isDark =
@@ -122,9 +131,43 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setSyncing(false);
   };
 
+  const renderGroup = (group: NavEntry['group'], title: string) => {
+    const items = NAV_ITEMS.filter((i) => i.group === group);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 4 }}>
+        <div className="sidebar-section-title">{title}</div>
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = activeScreen === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => (item.id === 'scan' ? openScanWith() : setActiveScreen(item.id))}
+              className={`nav-item ${active ? 'active' : ''} ${item.id === 'scan' ? 'nav-scan-item' : ''}`}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon size={20} strokeWidth={1.75} />
+              <span>{item.label}</span>
+              {item.id === 'lahan' && (isTankLow || isDiseaseRisk) && (
+                <span className="nav-badge" aria-label="Perlu perhatian">
+                  !
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="app-shell">
-      {/* Sidebar gelap Desktop 240px / Tablet rail (DESIGN.md §6) */}
+      <a href="#isi-aplikasi" className="skip-link">
+        Lewati ke isi utama
+      </a>
+
+      {/* Sidebar Gelap 240px (--forest-900) + Item Aktif Pil --lime-300 (§5.1 & §6.2) */}
       <aside className="sidebar" aria-label="Navigasi utama">
         <button
           type="button"
@@ -132,22 +175,21 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           onClick={() => setActiveScreen('beranda')}
         >
           <div className="sidebar-brand-logo">
-            <CermoMascot pose="wave" size={40} interactive={false} />
+            <CermoMascot pose="wave" size={38} interactive={false} />
           </div>
           <div className="sidebar-brand-text">
-            <div className="font-display" style={{ fontSize: '1.25rem', lineHeight: 1.1 }}>
+            <div className="font-display" style={{ fontSize: '1.25rem', lineHeight: 1.08 }}>
               CermatTani
             </div>
-            <div className="t-micro" style={{ color: 'rgba(234,245,238,0.72)' }}>
-              Budidaya cerdas untuk semua tanaman
+            <div className="t-micro" style={{ color: 'rgba(216,243,106,0.85)' }}>
+              Cermat memeriksa
             </div>
           </div>
         </button>
 
-        {/* Pemilih kebun (X1 banyak kebun) */}
         <div className="sidebar-farm-box">
           <label htmlFor="farm-switcher" className="sidebar-farm-label">
-            Kebun aktif
+            Kebun Aktif
           </label>
           <select
             id="farm-switcher"
@@ -164,77 +206,82 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = activeScreen === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => (item.id === 'scan' ? openScanWith() : setActiveScreen(item.id))}
-                className={`nav-item ${active ? 'active' : ''} ${item.id === 'scan' ? 'nav-scan-item' : ''}`}
-                aria-current={active ? 'page' : undefined}
-              >
-                <Icon size={22} strokeWidth={1.75} />
-                <span>{item.label}</span>
-                {item.id === 'lahan' && (isTankLow || isDiseaseRisk) && (
-                  <span className="nav-badge" aria-label="Perlu perhatian">
-                    !
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {renderGroup('utama', 'Budidaya')}
+          {renderGroup('lapangan', 'Lahan & Asisten')}
+          {renderGroup('sistem', 'Sistem')}
+          <button
+            type="button"
+            onClick={() => setActiveScreen('landing')}
+            className="nav-item"
+            style={{ marginTop: 4, opacity: 0.9 }}
+          >
+            <Globe size={19} strokeWidth={1.75} />
+            <span>Halaman Publik</span>
+          </button>
         </nav>
 
-        {/* Maskot Cermo di bawah sidebar */}
+        {/* Asisten Cermo interaktif di sidebar */}
         <div className="sidebar-mascot-card">
           <CermoMascot
             pose={cermoSidebarPose}
-            size={52}
+            size={48}
             tipOverride={
               isPowerSave
-                ? 'Baterai surya rendah, aku masuk mode hemat dulu ya...'
+                ? 'Baterai surya sedang hemat daya. Data dikirim lebih jarang ya.'
                 : isTankLow
-                  ? `Tandon tinggal ${state.sensor.levelTandonPersen}%. Pompa kutahan dulu.`
+                  ? `Tandon tinggal ${state.sensor.levelTandonPersen}%. Pompa kutahan dulu supaya tidak kering.`
                   : undefined
             }
           />
           <div className="sidebar-mascot-text" style={{ minWidth: 0 }}>
             <div className="t-small" style={{ fontWeight: 700, color: '#FFFFFF' }}>
-              {isPowerSave ? 'Mode hemat' : 'Cermo siap!'}
+              {isPowerSave ? 'Mode hemat' : 'Cermo si Tomat'}
             </div>
-            <div className="t-micro" style={{ color: 'rgba(234,245,238,0.78)' }}>
-              {isPowerSave
-                ? 'Baterai rendah'
-                : 'Klik aku untuk tips cepat'}
+            <div className="t-micro" style={{ color: '#CFE6D8' }}>
+              {isPowerSave ? 'Baterai surya rendah' : 'Klik aku untuk tips cepat'}
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Konten Utama */}
+      {/* Area Konten Utama */}
       <div className="main-viewport">
-        {/* Topbar: Sapaan + pencarian + notifikasi + tema */}
+        {/* Kepala Halaman Agrova (§5.1): sapaan · pemilih kebun · pencarian · tombol aksi */}
         <header className="topbar">
           <div className="topbar-left">
-            <h1 className="t-h1">
-              {getTimeGreeting()}, {state.user.nama}
+            <h1 className="t-h1" style={{ fontSize: 'clamp(1.3rem, 1.9vw, 1.75rem)' }}>
+              {activeScreen === 'beranda'
+                ? `${getTimeGreeting()}, ${state.user.nama}`
+                : activeNav.pageTitle}
             </h1>
-            <p className="t-small t-soft">
-              {activeFarm?.nama} · {activeFarm?.lokasi}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className="t-small t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <MapPin size={14} color="var(--leaf-600)" />
+                {activeFarm?.nama} · {activeFarm?.lokasi}
+              </span>
+              <span className={`pill ${isOffline ? 'pill-warn' : 'pill-ok'}`} style={{ padding: '2px 10px' }}>
+                {isOffline ? (
+                  <>
+                    <CloudOff size={12} /> Offline, tersimpan di perangkat
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={12} /> Terkirim
+                  </>
+                )}
+              </span>
+            </div>
           </div>
 
           <div className="topbar-actions">
             <div className="search-box" role="search">
-              <Search size={18} strokeWidth={1.75} color="var(--ink-soft)" />
+              <Search size={17} strokeWidth={1.75} color="var(--ink-soft)" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari tanaman atau hasil scan..."
-                aria-label="Cari tanaman atau hasil scan"
+                placeholder="Cari tanaman atau scan..."
+                aria-label="Cari tanaman atau riwayat scan"
               />
               {searchQuery && (
                 <button
@@ -254,13 +301,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     left: 0,
                     right: 0,
                     background: 'var(--surface)',
-                    borderRadius: '18px',
-                    boxShadow: 'var(--shadow-card-hover)',
-                    padding: '8px',
+                    borderRadius: 16,
+                    boxShadow: 'var(--shadow-2)',
+                    border: '1px solid var(--line)',
+                    padding: 8,
                     zIndex: 40,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px',
+                    gap: 4,
                   }}
                 >
                   {searchResults.map((r) => (
@@ -273,13 +321,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                         background: 'transparent',
                         textAlign: 'left',
                         padding: '10px 12px',
-                        borderRadius: '12px',
+                        borderRadius: 12,
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                       }}
                     >
-                      <span style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{r.title}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{r.title}</span>
                       <span className="t-micro t-soft">{r.sub}</span>
                     </button>
                   ))}
@@ -314,82 +362,102 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <Bell size={20} strokeWidth={1.75} />
               {unreadNotifCount > 0 && <span className="icon-btn-dot" />}
             </button>
-          </div>
-        </header>
 
-        {/* Bar pintasan mobile untuk menu sekunder (Kalender, Energi surya, Pengaturan, Kebun) */}
-        <div className="mobile-more-bar" aria-label="Menu tambahan mobile">
-          <select
-            aria-label="Pilih kebun"
-            className="mobile-chip-nav"
-            value={activeFarm?.id || ''}
-            onChange={(e) => setActiveFarmId(e.target.value)}
-          >
-            {state.farms.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.nama}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className={`mobile-chip-nav ${activeScreen === 'kalender' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('kalender')}
-          >
-            <CalendarDays size={16} strokeWidth={1.75} /> Kalender
-          </button>
-          <button
-            type="button"
-            className={`mobile-chip-nav ${activeScreen === 'energi' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('energi')}
-          >
-            <Sun size={16} strokeWidth={1.75} /> Energi surya
-          </button>
-          <button
-            type="button"
-            className={`mobile-chip-nav ${activeScreen === 'pengaturan' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('pengaturan')}
-          >
-            <Settings size={16} strokeWidth={1.75} /> Pengaturan
-          </button>
-        </div>
-
-        {/* Banner status koneksi offline & antrean unggah ulang PWA (PRD §8) */}
-        {(isOffline || state.offlineQueue.length > 0) && (
-          <div className="alert-card alert-card--warn" role="status">
-            <CloudOff size={22} strokeWidth={1.75} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700 }}>
-                {isOffline
-                  ? 'Mode offline aktif (cache PWA)'
-                  : `${state.offlineQueue.length} foto di antrean siap dikirim`}
-              </div>
-              <p className="t-small t-soft">
-                {isOffline
-                  ? 'Halaman utama tetap bisa dibaca. Foto scan baru akan disimpan ke antrean dan diunggah otomatis saat sinyal kembali.'
-                  : 'Koneksi kembali stabil. Klik tombol di kanan bila belum tersinkron.'}
-              </p>
-            </div>
-            {!isOffline && state.offlineQueue.length > 0 && (
+            {activeScreen !== 'scan' && (
               <button
                 type="button"
-                className="btn-secondary"
-                onClick={handleSyncQueue}
-                disabled={syncing}
+                className="ct-btn-dark"
+                onClick={() => openScanWith('buah')}
               >
-                <RefreshCw size={16} /> {syncing ? 'Mengirim...' : 'Kirim sekarang'}
+                <span>Scan Tanaman</span>
+                <span className="ct-btn-dark-circle">
+                  <ArrowUpRight size={17} />
+                </span>
               </button>
             )}
           </div>
-        )}
+        </header>
 
-        {/* Layar aktif */}
-        <main key={activeScreen} className="page-enter">
-          {children}
-        </main>
+        <div className="main-content-pad">
+          {/* Bar pintasan mobile ringkas */}
+          <div className="mobile-more-bar" aria-label="Menu tambahan mobile">
+            <select
+              aria-label="Pilih kebun"
+              className="mobile-chip-nav"
+              value={activeFarm?.id || ''}
+              onChange={(e) => setActiveFarmId(e.target.value)}
+            >
+              {state.farms.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nama}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="mobile-chip-nav"
+              onClick={() => setActiveScreen('landing')}
+            >
+              <Globe size={15} strokeWidth={1.75} /> Tentang
+            </button>
+            <button
+              type="button"
+              className={`mobile-chip-nav ${activeScreen === 'kalender' ? 'active' : ''}`}
+              onClick={() => setActiveScreen('kalender')}
+            >
+              <CalendarDays size={15} strokeWidth={1.75} /> Kalender
+            </button>
+            <button
+              type="button"
+              className={`mobile-chip-nav ${activeScreen === 'energi' ? 'active' : ''}`}
+              onClick={() => setActiveScreen('energi')}
+            >
+              <Sun size={15} strokeWidth={1.75} /> Energi surya
+            </button>
+            <button
+              type="button"
+              className={`mobile-chip-nav ${activeScreen === 'pengaturan' ? 'active' : ''}`}
+              onClick={() => setActiveScreen('pengaturan')}
+            >
+              <Settings size={15} strokeWidth={1.75} /> Pengaturan
+            </button>
+          </div>
+
+          {/* Banner offline & antrean unggah PWA */}
+          {(isOffline || state.offlineQueue.length > 0) && (
+            <div className="alert-card alert-card--warn" role="status">
+              <CloudOff size={22} strokeWidth={1.75} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>
+                  {isOffline
+                    ? 'Offline, data tersimpan di ponsel'
+                    : `${state.offlineQueue.length} foto di antrean siap dikirim`}
+                </div>
+                <p className="t-small t-soft">
+                  {isOffline
+                    ? 'Halaman utama tetap dapat dibaca. Foto scan baru antre lokal dan terkirim otomatis saat sinyal kembali.'
+                    : 'Koneksi kembali stabil. Klik tombol di kanan bila belum tersinkron.'}
+                </p>
+              </div>
+              {!isOffline && state.offlineQueue.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleSyncQueue}
+                  disabled={syncing}
+                >
+                  <RefreshCw size={16} /> {syncing ? 'Mengirim...' : 'Kirim sekarang'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Layar aktif — perpindahan instan 0 ms */}
+          <main id="isi-aplikasi">{children}</main>
+        </div>
       </div>
 
-      {/* Mobile Bottom Nav 5 item: Beranda, Tanaman, [FAB SCAN 64px], Lahan, Cermo (DESIGN.md §6 & §7) */}
+      {/* Bottom-Nav Mobile 5 Item + FAB Scan 64px Terangkat 22px (§5.1 & §6.2) */}
       <nav className="mobile-bottom-nav" aria-label="Navigasi bawah mobile">
         <button
           type="button"
@@ -414,7 +482,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             type="button"
             className="scan-fab"
             onClick={() => openScanWith()}
-            aria-label="Scan tanaman tomat"
+            aria-label="Scan tanaman"
           >
             <Camera size={28} strokeWidth={2} />
           </button>
@@ -460,7 +528,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         >
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 className="t-h2">Notifikasi & pengingat</h2>
+              <h2 className="t-h2">Notifikasi &amp; pengingat</h2>
               <button
                 type="button"
                 className="icon-btn"
@@ -478,7 +546,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {state.notifications.map((n) => (
                   <div key={n.id} className="card-subtle">
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>

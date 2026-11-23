@@ -2,6 +2,46 @@
 
 import React, { useEffect, useState } from 'react';
 
+export const StripedProgressBar: React.FC<{
+  label: string;
+  valueLabel: string;
+  percent: number;
+  color: string;
+  darkBg?: boolean;
+}> = ({ label, valueLabel, percent, color, darkBg = false }) => {
+  const clamped = Math.max(4, Math.min(100, percent));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span
+          className="t-small"
+          style={{
+            color: darkBg ? 'rgba(234, 245, 238, 0.86)' : 'var(--ink-soft)',
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </span>
+        <strong
+          className="t-small tabular-nums"
+          style={{ color: darkBg ? '#FFFFFF' : 'var(--ink)', fontWeight: 700 }}
+        >
+          {valueLabel}
+        </strong>
+      </div>
+      <div className={`striped-track ${darkBg ? 'striped-track--dark' : ''}`}>
+        <div
+          className="striped-fill"
+          style={{
+            width: `${clamped}%`,
+            backgroundColor: color,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 /* Angka menghitung naik 800ms (DESIGN.md §10) */
 export const AnimatedCounter: React.FC<{ value: number; suffix?: string; decimals?: number }> = ({
   value,
@@ -19,7 +59,7 @@ export const AnimatedCounter: React.FC<{ value: number; suffix?: string; decimal
       return;
     }
     const start = performance.now();
-    const duration = 800;
+    const duration = 260;
     let raf = 0;
 
     const tick = (now: number) => {
@@ -385,6 +425,110 @@ export const GreenAreaChart: React.FC<{
           </g>
         )}
       </svg>
+    </div>
+  );
+};
+
+/* Grafik Batang Bertumpuk Agroton (DESIGN.md v2.0 §4.1.6 & §6.6)
+   Seri: --amber #F2A91F, --tomato-500 #F2562B, --night #12241F */
+export const StackedBarChart: React.FC<{
+  data: { label: string; matang: number; setengah: number; mentah: number }[];
+  unit?: string;
+}> = ({ data, unit = 'buah' }) => {
+  const [activeIdx, setActiveIdx] = useState(data.length - 1);
+  const maxTotal = Math.max(...data.map((d) => d.matang + d.setengah + d.mentah), 1);
+  const active = data[activeIdx] || data[0];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          <span className="t-micro" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#14302A' }}>
+            <span className="ripeness-dot" style={{ background: '#F2A91F' }} /> Siap panen
+          </span>
+          <span className="t-micro" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#14302A' }}>
+            <span className="ripeness-dot" style={{ background: '#F2562B' }} /> Setengah matang
+          </span>
+          <span className="t-micro" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#14302A' }}>
+            <span className="ripeness-dot" style={{ background: '#12241F' }} /> Tumbuh / mentah
+          </span>
+        </div>
+        {active && (
+          <span
+            className="pill tabular-nums"
+            style={{ background: '#12241F', color: '#FFFFFF', fontSize: '0.75rem' }}
+          >
+            {active.label}: {active.matang + active.setengah + active.mentah} {unit}
+          </span>
+        )}
+      </div>
+
+      <div
+        role="img"
+        aria-label="Grafik batang bertumpuk jumlah buah terdeteksi per minggu"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))`,
+          gap: 12,
+          alignItems: 'end',
+          height: 190,
+          paddingTop: 10,
+          borderBottom: '1px solid var(--line)',
+        }}
+      >
+        {data.map((d, i) => {
+          const total = d.matang + d.setengah + d.mentah;
+          const totalH = Math.max(18, (total / maxTotal) * 100);
+          const hMatang = (d.matang / Math.max(total, 1)) * 100;
+          const hSetengah = (d.setengah / Math.max(total, 1)) * 100;
+          const hMentah = (d.mentah / Math.max(total, 1)) * 100;
+          const isSelected = i === activeIdx;
+
+          return (
+            <button
+              key={d.label}
+              type="button"
+              onClick={() => setActiveIdx(i)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: '0 0 8px',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+              }}
+            >
+              <span className="t-micro tabular-nums" style={{ color: isSelected ? '#12241F' : '#5B746B' }}>
+                {total}
+              </span>
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: 38,
+                  height: `${totalH}%`,
+                  borderRadius: '10px 10px 4px 4px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  outline: isSelected ? '2px solid #12241F' : 'none',
+                  outlineOffset: 2,
+                }}
+              >
+                <div style={{ height: `${hMentah}%`, background: '#12241F' }} />
+                <div style={{ height: `${hSetengah}%`, background: '#F2562B' }} />
+                <div style={{ height: `${hMatang}%`, background: '#F2A91F' }} />
+              </div>
+              <span className="t-micro" style={{ color: '#5B746B', fontWeight: isSelected ? 700 : 500 }}>
+                {d.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };

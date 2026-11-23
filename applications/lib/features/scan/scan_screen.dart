@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +11,7 @@ import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 import 'scan_results.dart';
 
-/// Layar 3 & 4: Scan (pilih bagian -> kamera/galeri/contoh -> proses -> hasil 3 tab)
+/// Layar 3 & 4: Scan (pilih bagian -> Buka kamera / Unggah foto -> proses -> hasil 3 tab)
 class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
 
@@ -22,21 +23,46 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   PlantPart _part = PlantPart.buah;
   String? _selectedPlantId;
   bool _scanning = false;
+  Uint8List? _capturedPhotoBytes;
   ScanModel? _result;
   bool _saved = false;
 
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
     try {
-      final file = await picker.pickImage(source: source, maxWidth: 960, imageQuality: 78);
+      final file = await picker.pickImage(
+        source: source,
+        maxWidth: 960,
+        imageQuality: 80,
+        preferredCameraDevice: CameraDevice.rear,
+      );
       if (file == null) return;
-      await _runScenario(_part == PlantPart.buah ? 'buah_campur' : _part == PlantPart.daun ? 'daun_bercak' : 'batang_layu');
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() => _capturedPhotoBytes = bytes);
+      await _runScenario(
+        _part == PlantPart.buah
+            ? 'buah_campur'
+            : _part == PlantPart.daun
+                ? 'daun_bercak'
+                : 'batang_layu',
+        keepPhotoBytes: true,
+      );
     } catch (_) {
-      await _runScenario(_part == PlantPart.buah ? 'buah_campur' : 'daun_bercak');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            source == ImageSource.camera
+                ? 'Kamera tidak dapat dibuka. Pastikan izin kamera aktif atau gunakan tombol "Unggah foto".'
+                : 'Gagal membaca file gambar dari galeri. Coba pilih foto JPG/PNG lain.',
+          ),
+        ),
+      );
     }
   }
 
-  Future<void> _runScenario(String scenarioId) async {
+  Future<void> _runScenario(String scenarioId, {bool keepPhotoBytes = false}) async {
     final state = ref.read(cermatProvider);
     final plant = state.plants.where((p) => p.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
     if (plant == null) return;
@@ -45,6 +71,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _scanning = true;
       _result = null;
       _saved = false;
+      if (!keepPhotoBytes) _capturedPhotoBytes = null;
     });
 
     await Future<void>.delayed(const Duration(milliseconds: 1400));
@@ -247,11 +274,23 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         children: [
           if (_scanning)
             CermatCard(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
               child: Column(
                 children: [
-                  const CermoMascot(pose: CermoPose.scan, size: 112, interactive: false),
-                  const SizedBox(height: 18),
+                  if (_capturedPhotoBytes != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.memory(
+                        _capturedPhotoBytes!,
+                        height: 190,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const CermoMascot(pose: CermoPose.scan, size: 100, interactive: false),
+                  const SizedBox(height: 14),
                   Text('Cermo sedang memindai...', style: context.displayStyle(size: 22)),
                   const SizedBox(height: 8),
                   Text(
@@ -259,7 +298,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: p.inkSoft),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   LinearProgressIndicator(
                     minHeight: 8,
                     borderRadius: BorderRadius.circular(99),
@@ -273,6 +312,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ScanResultView(
               scan: _result!,
               plant: plant,
+              photoBytes: _capturedPhotoBytes,
               lowThreshold: state.ambangKeyakinanRendah,
               saved: _saved,
               onSave: () {
@@ -284,7 +324,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 ref.read(cermatProvider.notifier).setChatPlant(plant.id);
                 context.go('/chatbot');
               },
-              onScanAgain: () => setState(() => _result = null),
+              onScanAgain: () => setState(() {
+                _result = null;
+                _capturedPhotoBytes = null;
+              }),
             )
           else ...[
             CermatCard(
@@ -297,7 +340,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Pilih tanaman & bagian yang mau difoto. Kompresi otomatis di perangkat.',
+                          'Pilih tanaman & bagian yang mau dipindai, lalu buka kamera atau unggah foto.',
                           style: TextStyle(fontSize: 14.5, color: p.inkSoft, height: 1.45),
                         ),
                       ),
@@ -319,7 +362,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     onChanged: (v) => setState(() => _selectedPlantId = v),
                   ),
                   const SizedBox(height: 16),
-                  // F2.1: Pilihan bagian tanaman berupa ikon besar (Buah / Daun / Batang)
                   const Text('1. Pilih bagian tanaman', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Row(
@@ -356,13 +398,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const Text('2. Ambil atau unggah foto (≤ 10 MB)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text('2. Buka kamera atau unggah foto (≤ 10 MB)', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
                         child: Primary3DButton(
-                          label: 'Kamera',
+                          label: 'Buka kamera',
                           icon: Icons.camera_alt_rounded,
                           tomato: true,
                           onPressed: () => _pickPhoto(ImageSource.camera),
@@ -371,8 +413,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Primary3DButton(
-                          label: 'Galeri',
-                          icon: Icons.photo_library_outlined,
+                          label: 'Unggah foto',
+                          icon: Icons.upload_rounded,
                           onPressed: () => _pickPhoto(ImageSource.gallery),
                         ),
                       ),
@@ -383,7 +425,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Uji skenario contoh langsung
             CermatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +433,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   const SizedBox(height: 6),
                   Text('Uji semua ketentuan PRD langsung tanpa perlu memotret:', style: TextStyle(fontSize: 13.5, color: p.inkSoft)),
                   const SizedBox(height: 12),
-                  _PresetRow('Buah tomat campur (3 tahap)', 'Uji F1 kotak deteksi & F6 estimasi kasar', () => _runScenario('buah_campur')),
+                  _PresetRow('Buah campur (3 tahap)', 'Uji F1 kotak deteksi & F6 estimasi kasar', () => _runScenario('buah_campur')),
                   _PresetRow('Buah matang siap panen', 'Memicu anjuran "Panen sekarang"', () => _runScenario('buah_siap')),
                   _PresetRow('Daun bercak kering (Early blight)', 'Uji F2 organik dulu + "Baca label produk"', () => _runScenario('daun_bercak')),
                   _PresetRow('Daun kuning (keyakinan 54%)', 'Uji F2.4 peringatan kuning < 60% & F3 pupuk', () => _runScenario('daun_ragu')),

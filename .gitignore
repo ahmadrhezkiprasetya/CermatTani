@@ -1,6 +1,7 @@
 # Dependencies & build output (Web - Next.js)
 node_modules/
 .next/
+.next-dev/
 out/
 tsconfig.tsbuildinfo
 .env

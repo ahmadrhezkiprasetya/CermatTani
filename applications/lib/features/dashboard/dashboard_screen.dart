@@ -103,11 +103,24 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
 
-          // Pintasan cepat fitur sekunder (Kalender, Energi surya, Pengaturan)
+          // Baris Status Cepat Agrova + Pintasan fitur sekunder (DESIGN.md v1.1 §4.2)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                CermatPill(
+                  label: 'Scan Selesai: ${state.scans.length}',
+                  background: p.leaf600,
+                  foreground: p.onLeaf,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+                const SizedBox(width: 8),
+                _QuickChip(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Perlu Perhatian: $attentionCount',
+                  onTap: () => context.go('/plants'),
+                ),
+                const SizedBox(width: 8),
                 _QuickChip(icon: Icons.calendar_month_rounded, label: 'Kalender panen', onTap: () => context.go('/calendar')),
                 const SizedBox(width: 8),
                 _QuickChip(icon: Icons.wb_sunny_outlined, label: 'Energi surya', onTap: () => context.go('/solar')),
@@ -241,7 +254,7 @@ class DashboardScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Fase tumbuh tomat', style: context.displayStyle(size: 18)),
+                    Text('Fase tumbuh tanaman', style: context.cardTitleStyle()),
                     TextButton(onPressed: () => context.go('/plants'), child: const Text('Lihat semua')),
                   ],
                 ),
@@ -287,7 +300,7 @@ class DashboardScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Kesehatan & kematangan', style: context.displayStyle(size: 18, color: Colors.white)),
+                    Text('Kesehatan & kematangan', style: context.cardTitleStyle(color: Colors.white)),
                     CermatPill(
                       label: 'Ringkasan',
                       background: AppColors.lime300.withAlpha(42),
@@ -320,7 +333,7 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text('Perkiraan hasil panen', style: context.displayStyle(size: 18))),
+                    Expanded(child: Text('Perkiraan hasil panen', style: context.cardTitleStyle())),
                     CermatPill.warn('Estimasi kasar'),
                   ],
                 ),
@@ -333,35 +346,65 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // Cuaca mikro & sensor (Simulasi)
+          // Kesehatan Tanah & Cuaca Mikro — Dark Forest Soil Health Card + Striped Bars (DESIGN v1.1 §4.2)
           CermatCard(
+            color: p.forest900,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Cuaca mikro lahan', style: context.displayStyle(size: 18)),
+                    Text('Kesehatan Tanah & Mikro', style: context.cardTitleStyle(color: Colors.white)),
                     CermatPill.simulasi(),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _MiniStat(label: 'Suhu', value: '${state.suhuUdara}°C')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _MiniStat(label: 'Udara', value: '${state.kelembapanUdara}%')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _MiniStat(label: 'Tanah', value: '${state.kelembapanTanah}%')),
-                  ],
+                const SizedBox(height: 14),
+                StripedBarWidget(
+                  label: 'Kelembapan tanah',
+                  valueLabel: '${state.kelembapanTanah}%',
+                  percent: state.kelembapanTanah.toDouble(),
+                  color: AppColors.water,
+                  darkBg: true,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 11),
+                StripedBarWidget(
+                  label: 'Suhu udara (DHT22)',
+                  valueLabel: '${state.suhuUdara} °C',
+                  percent: (state.suhuUdara / 40.0) * 100,
+                  color: AppColors.tomato500,
+                  darkBg: true,
+                ),
+                const SizedBox(height: 11),
+                StripedBarWidget(
+                  label: 'Kelembapan udara',
+                  valueLabel: '${state.kelembapanUdara}%',
+                  percent: state.kelembapanUdara.toDouble(),
+                  color: state.isDiseaseRisk ? AppColors.bad : AppColors.lime300,
+                  darkBg: true,
+                ),
+                const SizedBox(height: 11),
+                StripedBarWidget(
+                  label: 'Cahaya (BH1750)',
+                  valueLabel: '${(state.cahayaLux / 1000).toStringAsFixed(1)}k lux',
+                  percent: (state.cahayaLux / 50000.0) * 100,
+                  color: AppColors.sun400,
+                  darkBg: true,
+                ),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
-                  child: SecondaryOutlineButton(
-                    label: 'Buka sensor, irigasi & tandon',
-                    icon: Icons.water_drop_outlined,
+                  child: OutlinedButton.icon(
                     onPressed: () => context.go('/sensor'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 46),
+                      foregroundColor: AppColors.lime300,
+                      side: BorderSide(color: AppColors.lime300.withAlpha(110)),
+                      backgroundColor: AppColors.lime300.withAlpha(26),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.water_drop_outlined, size: 18),
+                    label: const Text('Buka sensor, irigasi & tandon', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -374,7 +417,7 @@ class DashboardScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Daftar tugas kebun', style: context.displayStyle(size: 18)),
+                Text('Daftar tugas kebun', style: context.cardTitleStyle()),
                 const SizedBox(height: 10),
                 for (final t in farmTasks)
                   CheckboxListTile(
@@ -397,19 +440,43 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // Kartu Ilustrasi Kebun + Jadwal Panen Gelap
+          // Kartu Ilustrasi Kebun dengan Floating Pins + Jadwal Panen Gelap (DESIGN v1.1 §4.2)
           CermatCard(
             color: p.forest900,
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const GardenLandscapeBanner(height: 140),
+                Stack(
+                  children: [
+                    const GardenLandscapeBanner(height: 148),
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: CermatPill(
+                        label: attentionCount > 0 ? '$attentionCount perlu perhatian' : 'Semua sehat',
+                        background: Colors.white.withAlpha(235),
+                        foreground: AppColors.inkLight,
+                        dotColor: attentionCount > 0 ? AppColors.warn : AppColors.ok,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: CermatPill(
+                        label: 'Tanah ${state.kelembapanTanah}%',
+                        background: Colors.white.withAlpha(235),
+                        foreground: AppColors.inkLight,
+                        dotColor: AppColors.water,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Jadwal panen dekat', style: context.displayStyle(size: 18, color: Colors.white)),
+                    Text('Jadwal panen dekat', style: context.cardTitleStyle(color: Colors.white)),
                     TextButton(
                       onPressed: () => context.go('/calendar'),
                       child: const Text('Kalender', style: TextStyle(color: AppColors.lime300)),
@@ -521,28 +588,6 @@ class _QuickChip extends StatelessWidget {
             Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.ct;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: p.surface2, borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        children: [
-          Text(value, style: context.displayStyle(size: 19)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12, color: p.inkSoft)),
-        ],
       ),
     );
   }

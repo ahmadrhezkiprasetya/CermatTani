@@ -1,22 +1,24 @@
-/* CermatTani Design Tokens — 100% sesuai DESIGN.md §3, §4, §5, §13 */
+/* CermatTani Design System Tokens — 100% sesuai DESIGN.md v2.0 §4.1, §4.2 (WCAG 2.2 AA), §13.1 */
 
 :root {
-  /* Inti */
+  /* Inti Merek */
   --leaf-600: #17803f;
   --leaf-500: #1f9d55;
   --leaf-700: #0f5e2d;
-  --leaf-hover: #157a41;
+  --leaf-hover: #147138;
   --on-leaf: #ffffff;
   --lime-300: #d8f36a;
   --on-lime: #14302a;
   --forest-900: #0e4f43;
-  --forest-800: #146354;
+  --forest-800: #136153;
+  --forest-950: #093930;
   --tomato-500: #f2562b;
   --tomato-btn: #d63d12;
-  --tomato-btn-dark: #a62d0b;
+  --tomato-700: #a9300c;
+  --tomato-btn-dark: #a9300c;
   --sun-400: #ffb63d;
 
-  /* Netral */
+  /* Netral (Rona Hijau Alami — Tema Aplikasi Mint) */
   --bg: #eef7f1;
   --surface: #ffffff;
   --surface-2: #f5faf6;
@@ -24,50 +26,75 @@
   --ink-soft: #5b746b;
   --line: #dcebe1;
 
-  /* Semantik */
+  /* Semantik [REVISI v2.0 — Seluruh pasangan lolos WCAG 2.2 AA] */
+  --ok-bg: #e2f6e9;
+  --ok-fg: #116a33;
+  --ok-soft: #e2f6e9;
+  --warn-bg: #fff0d1;
+  --warn-fg: #7a4b00;
+  --warn-soft: #fff0d1;
+  --warn-ink: #7a4b00;
+  --bad-bg: #ffe3e4;
+  --bad-fg: #9c1f25;
+  --bad-soft: #ffe3e4;
+  --bad-600: #c62f36;
+  --water-bg: #e4f1fb;
+  --water-soft: #e4f1fb;
+  --water-700: #1f76bd;
+  --sim-bg: #ece9ff;
+  --sim-soft: #ece9ff;
+  --sim-600: #5b4cd6;
+
+  /* Warna Grafik & Kematangan Tomat */
   --ok: #1f9d55;
-  --ok-soft: rgba(31, 157, 85, 0.13);
   --warn: #ffb63d;
-  --warn-ink: #8a5600;
-  --warn-soft: rgba(255, 182, 61, 0.18);
   --bad: #e5484d;
-  --bad-soft: rgba(229, 72, 77, 0.14);
   --water: #2b8fd9;
-  --water-soft: rgba(43, 143, 217, 0.14);
   --sim: #7a6cf0;
-  --sim-soft: rgba(122, 108, 240, 0.14);
-
-  /* Kematangan tomat */
-  --ripeness-raw: #5dbb63;
-  --ripeness-half: #ffb63d;
-  --ripeness-ripe: #f2562b;
-
-  /* Pastel produksi */
+  --fruit-raw: #5dbb63;
+  --fruit-mid: #ffb63d;
+  --fruit-ripe: #f2562b;
+  --ripeness-raw: var(--fruit-raw);
+  --ripeness-half: var(--fruit-mid);
+  --ripeness-ripe: var(--fruit-ripe);
   --peach-bar: #ffd8c2;
 
-  /* Radius */
-  --r-card: 24px;
-  --r-card-sm: 20px;
+  /* Tema Pemasaran "Cream Harvest" (Hanya Halaman Publik §4.1.5) */
+  --cream: #fbf8e6;
+  --sand-panel: #efeee0;
+  --butter: #ffe7a8;
+  --amber: #f2a91f;
+  --night: #12241f;
+  --night-soft: #b7cfc3;
+
+  /* Bentuk, Bayangan & Gerak (§4.6 & §4.9) */
+  --r-xs: 8px;
   --r-ctl: 14px;
+  --r-md: 20px;
+  --r-card-sm: 20px;
+  --r-card: 24px;
+  --r-hero: 28px;
   --r-pill: 999px;
 
-  /* Tipografi (DESIGN.md §4) */
+  --shadow-1: 0 1px 2px rgba(20, 48, 42, 0.06), 0 8px 24px rgba(20, 48, 42, 0.08);
+  --shadow-2: 0 12px 32px rgba(20, 48, 42, 0.16);
+  --shadow-3: 0 24px 64px rgba(20, 48, 42, 0.24);
+  --shadow-card: var(--shadow-1);
+  --shadow-card-hover: var(--shadow-2);
+  --shadow-btn: 0 6px 0 var(--leaf-700);
+  --shadow-btn-tomato: 0 6px 0 var(--tomato-700);
+  --card-hairline: rgba(20, 48, 42, 0.06);
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 400ms;
+  --dur-enter: 500ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.6, 0.5, 1);
+
   --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-
-  /* Bayangan */
-  --shadow-card: 0 1px 2px rgba(20, 48, 42, 0.06), 0 8px 24px rgba(20, 48, 42, 0.08);
-  --shadow-card-hover: 0 4px 8px rgba(20, 48, 42, 0.08), 0 14px 32px rgba(20, 48, 42, 0.11);
-
-  /* Spasi (grid 4px) */
-  --sp-1: 4px;
-  --sp-2: 8px;
-  --sp-3: 12px;
-  --sp-4: 16px;
-  --sp-5: 20px;
-  --sp-6: 24px;
-  --sp-8: 32px;
-  --sp-12: 48px;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -75,15 +102,14 @@
     --leaf-600: #3dbe74;
     --leaf-500: #3dbe74;
     --leaf-700: #2fa862;
-    --leaf-hover: #2fa862;
-    --on-leaf: #0b2619;
+    --leaf-hover: #35b26a;
+    --on-leaf: #062414;
     --lime-300: #c9e85a;
-    --on-lime: #0c1713;
+    --on-lime: #0a3a32;
     --forest-900: #0a3a32;
-    --forest-800: #0f4c41;
+    --forest-800: #0f4d42;
+    --forest-950: #072b25;
     --tomato-500: #ff6b42;
-    --tomato-btn: #d63d12;
-    --tomato-btn-dark: #9b2a0a;
     --sun-400: #ffc45e;
 
     --bg: #0c1713;
@@ -93,10 +119,28 @@
     --ink-soft: #9db8ad;
     --line: #25402f;
 
-    --warn-ink: #ffd78a;
-    --peach-bar: rgba(255, 107, 66, 0.28);
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px rgba(0, 0, 0, 0.36);
-    --shadow-card-hover: 0 4px 10px rgba(0, 0, 0, 0.34), 0 16px 34px rgba(0, 0, 0, 0.44);
+    --ok-bg: #16382a;
+    --ok-fg: #8fe0ae;
+    --ok-soft: #16382a;
+    --warn-bg: #3d3115;
+    --warn-fg: #ffd38a;
+    --warn-soft: #3d3115;
+    --warn-ink: #ffd38a;
+    --bad-bg: #42191c;
+    --bad-fg: #ffa3a7;
+    --bad-soft: #42191c;
+    --water-bg: #17324a;
+    --water-soft: #17324a;
+    --water-700: #5db2f0;
+    --sim-bg: #2a2650;
+    --sim-soft: #2a2650;
+    --sim-600: #a99cff;
+
+    --peach-bar: rgba(255, 107, 66, 0.32);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 10px 28px rgba(0, 0, 0, 0.38);
+    --shadow-2: 0 14px 36px rgba(0, 0, 0, 0.48);
+    --card-hairline: rgba(234, 245, 238, 0.08);
+    color-scheme: dark;
   }
 }
 
@@ -104,15 +148,14 @@
   --leaf-600: #3dbe74;
   --leaf-500: #3dbe74;
   --leaf-700: #2fa862;
-  --leaf-hover: #2fa862;
-  --on-leaf: #0b2619;
+  --leaf-hover: #35b26a;
+  --on-leaf: #062414;
   --lime-300: #c9e85a;
-  --on-lime: #0c1713;
+  --on-lime: #0a3a32;
   --forest-900: #0a3a32;
-  --forest-800: #0f4c41;
+  --forest-800: #0f4d42;
+  --forest-950: #072b25;
   --tomato-500: #ff6b42;
-  --tomato-btn: #d63d12;
-  --tomato-btn-dark: #9b2a0a;
   --sun-400: #ffc45e;
 
   --bg: #0c1713;
@@ -122,8 +165,26 @@
   --ink-soft: #9db8ad;
   --line: #25402f;
 
-  --warn-ink: #ffd78a;
-  --peach-bar: rgba(255, 107, 66, 0.28);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px rgba(0, 0, 0, 0.36);
-  --shadow-card-hover: 0 4px 10px rgba(0, 0, 0, 0.34), 0 16px 34px rgba(0, 0, 0, 0.44);
+  --ok-bg: #16382a;
+  --ok-fg: #8fe0ae;
+  --ok-soft: #16382a;
+  --warn-bg: #3d3115;
+  --warn-fg: #ffd38a;
+  --warn-soft: #3d3115;
+  --warn-ink: #ffd38a;
+  --bad-bg: #42191c;
+  --bad-fg: #ffa3a7;
+  --bad-soft: #42191c;
+  --water-bg: #17324a;
+  --water-soft: #17324a;
+  --water-700: #5db2f0;
+  --sim-bg: #2a2650;
+  --sim-soft: #2a2650;
+  --sim-600: #a99cff;
+
+  --peach-bar: rgba(255, 107, 66, 0.32);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 10px 28px rgba(0, 0, 0, 0.38);
+  --shadow-2: 0 14px 36px rgba(0, 0, 0, 0.48);
+  --card-hairline: rgba(234, 245, 238, 0.08);
+  color-scheme: dark;
 }

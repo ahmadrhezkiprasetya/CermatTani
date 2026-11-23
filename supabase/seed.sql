@@ -1,7 +1,3 @@
--- ============================================================================
--- CermatTani — Seed Data Basis Pengetahuan Umum (Semua Tanaman Budidaya)
--- Jalankan setelah 001_cermattani_schema.sql di Supabase SQL Editor
--- ============================================================================
 
 insert into public.knowledge_diseases (
   id, penyakit, komoditas, bagian_umum, penyebab, gejala, solusi_organik, solusi_kimia, pencegahan, sumber

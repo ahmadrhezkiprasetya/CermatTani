@@ -13,7 +13,6 @@ import {
   SensorSnapshot,
   UserProfile,
 } from '../types/cermattani';
-import { DEMO_PHOTO_PRESETS } from './knowledgeBase';
 
 function daysAgoIso(days: number, hour = 8): string {
   const d = new Date();
@@ -142,161 +141,8 @@ export const INITIAL_PLANTS: Plant[] = [
   },
 ];
 
-const presetCampur = DEMO_PHOTO_PRESETS[0].fotoUrl;
-const presetSiap = DEMO_PHOTO_PRESETS[1].fotoUrl;
-const presetBercak = DEMO_PHOTO_PRESETS[2].fotoUrl;
-const presetKuning = DEMO_PHOTO_PRESETS[3].fotoUrl;
-
-export const INITIAL_SCANS: ScanRecord[] = [
-  {
-    id: 'scan-1',
-    plantId: 'plant-1',
-    waktu: daysAgoIso(9, 7),
-    bagian: 'buah',
-    fotoUrl: presetCampur,
-    boxes: [
-      { id: 'b1', x: 16, y: 40, w: 20, h: 32, stage: 'mentah', confidence: 89 },
-      { id: 'b2', x: 42, y: 38, w: 19, h: 30, stage: 'mentah', confidence: 86 },
-      { id: 'b3', x: 66, y: 42, w: 19, h: 28, stage: 'setengah_matang', confidence: 84 },
-    ],
-    tahapDominan: 'mentah',
-    jumlahBuah: 3,
-    anjuranPanen: 'Tunggu',
-    estimasiHariMin: 6,
-    estimasiHariMax: 9,
-    estimasiDisesuaikanRiwayat: false,
-    estimasiBobotGram: 255,
-    penyakitTop3: [
-      { id: 'sehat', nama: 'Sehat', confidence: 92 },
-      { id: 'bercak_kering', nama: 'Bercak daun kering (Early blight)', confidence: 5 },
-      { id: 'bercak_bakteri', nama: 'Bercak bakteri', confidence: 3 },
-    ],
-    penyakitUtamaId: 'sehat',
-    penyakitUtamaNama: 'Sehat',
-    keyakinan: 89,
-    keyakinanRendah: false,
-    dugaanHaraId: 'cukup',
-    dugaanHaraNama: 'Hara terlihat seimbang',
-    pakaiDataSensor: true,
-  },
-  {
-    id: 'scan-2',
-    plantId: 'plant-1',
-    waktu: daysAgoIso(4, 8),
-    bagian: 'daun',
-    fotoUrl: presetBercak,
-    boxes: [],
-    tahapDominan: null,
-    jumlahBuah: 0,
-    anjuranPanen: 'Fokus daun/batang',
-    estimasiHariMin: null,
-    estimasiHariMax: null,
-    estimasiDisesuaikanRiwayat: false,
-    estimasiBobotGram: 0,
-    penyakitTop3: [
-      { id: 'bercak_kering', nama: 'Bercak daun kering (Early blight)', confidence: 84 },
-      { id: 'busuk_daun', nama: 'Busuk daun (Late blight)', confidence: 10 },
-      { id: 'sehat', nama: 'Sehat', confidence: 6 },
-    ],
-    penyakitUtamaId: 'bercak_kering',
-    penyakitUtamaNama: 'Bercak daun kering (Early blight)',
-    keyakinan: 84,
-    keyakinanRendah: false,
-    dugaanHaraId: 'kurang_kalium',
-    dugaanHaraNama: 'Dugaan kekurangan Kalium (K)',
-    pakaiDataSensor: true,
-  },
-  {
-    id: 'scan-3',
-    plantId: 'plant-1',
-    waktu: daysAgoIso(1, 7),
-    bagian: 'buah',
-    fotoUrl: presetSiap,
-    boxes: [
-      { id: 'b4', x: 14, y: 34, w: 18, h: 28, stage: 'matang', confidence: 94 },
-      { id: 'b5', x: 35, y: 45, w: 20, h: 30, stage: 'matang', confidence: 92 },
-      { id: 'b6', x: 56, y: 33, w: 18, h: 28, stage: 'matang', confidence: 91 },
-      { id: 'b7', x: 73, y: 50, w: 17, h: 26, stage: 'matang', confidence: 89 },
-    ],
-    tahapDominan: 'matang',
-    jumlahBuah: 4,
-    anjuranPanen: 'Panen sekarang',
-    estimasiHariMin: 0,
-    estimasiHariMax: 1,
-    estimasiDisesuaikanRiwayat: true,
-    estimasiBobotGram: 340,
-    penyakitTop3: [
-      { id: 'sehat', nama: 'Sehat', confidence: 91 },
-      { id: 'bercak_bakteri', nama: 'Bercak bakteri', confidence: 6 },
-      { id: 'bercak_kering', nama: 'Bercak daun kering (Early blight)', confidence: 3 },
-    ],
-    penyakitUtamaId: 'sehat',
-    penyakitUtamaNama: 'Sehat',
-    keyakinan: 92,
-    keyakinanRendah: false,
-    dugaanHaraId: 'cukup',
-    dugaanHaraNama: 'Hara terlihat seimbang',
-    pakaiDataSensor: true,
-  },
-  {
-    id: 'scan-4',
-    plantId: 'plant-2',
-    waktu: daysAgoIso(2, 9),
-    bagian: 'buah',
-    fotoUrl: presetCampur,
-    boxes: [
-      { id: 'b8', x: 16, y: 40, w: 21, h: 32, stage: 'matang', confidence: 91 },
-      { id: 'b9', x: 41, y: 38, w: 20, h: 29, stage: 'setengah_matang', confidence: 88 },
-      { id: 'b10', x: 66, y: 43, w: 19, h: 28, stage: 'mentah', confidence: 90 },
-    ],
-    tahapDominan: 'setengah_matang',
-    jumlahBuah: 3,
-    anjuranPanen: 'Tunggu',
-    estimasiHariMin: 2,
-    estimasiHariMax: 4,
-    estimasiDisesuaikanRiwayat: false,
-    estimasiBobotGram: 255,
-    penyakitTop3: [
-      { id: 'sehat', nama: 'Sehat', confidence: 90 },
-      { id: 'bercak_kering', nama: 'Bercak daun kering (Early blight)', confidence: 7 },
-      { id: 'bercak_bakteri', nama: 'Bercak bakteri', confidence: 3 },
-    ],
-    penyakitUtamaId: 'sehat',
-    penyakitUtamaNama: 'Sehat',
-    keyakinan: 90,
-    keyakinanRendah: false,
-    dugaanHaraId: 'cukup',
-    dugaanHaraNama: 'Hara terlihat seimbang',
-    pakaiDataSensor: true,
-  },
-  {
-    id: 'scan-5',
-    plantId: 'plant-3',
-    waktu: daysAgoIso(1, 16),
-    bagian: 'daun',
-    fotoUrl: presetKuning,
-    boxes: [],
-    tahapDominan: null,
-    jumlahBuah: 0,
-    anjuranPanen: 'Fokus daun/batang',
-    estimasiHariMin: null,
-    estimasiHariMax: null,
-    estimasiDisesuaikanRiwayat: false,
-    estimasiBobotGram: 0,
-    penyakitTop3: [
-      { id: 'bercak_kering', nama: 'Bercak daun kering (Early blight)', confidence: 54 },
-      { id: 'sehat', nama: 'Sehat', confidence: 31 },
-      { id: 'busuk_daun', nama: 'Busuk daun (Late blight)', confidence: 15 },
-    ],
-    penyakitUtamaId: 'bercak_kering',
-    penyakitUtamaNama: 'Bercak daun kering (Early blight)',
-    keyakinan: 54,
-    keyakinanRendah: true,
-    dugaanHaraId: 'kurang_nitrogen',
-    dugaanHaraNama: 'Dugaan kekurangan Nitrogen (N)',
-    pakaiDataSensor: true,
-  },
-];
+/* Riwayat scan dimulai kosong — hanya berisi hasil analisis nyata dari model AI */
+export const INITIAL_SCANS: ScanRecord[] = [];
 
 export const INITIAL_DEVICES: DeviceInfo[] = [
   {
@@ -449,31 +295,16 @@ export const INITIAL_TASKS: FarmTask[] = [
   },
 ];
 
-export const INITIAL_CHAT: ChatMessage[] = [
-  {
-    id: 'chat-1',
-    plantId: 'plant-1',
-    peran: 'cermo',
-    isi: 'Halo! Aku Cermo si Tomat. Aku sudah baca hasil scan terbaru kebunmu: Tomat Servo #01 punya 4 buah merah yang siap dipanen hari ini, sedangkan daun Tomat Gustavi #03 kemarin agak kuning dengan keyakinan rendah (54%). Mau tanya soal panen, penyakit, atau pupuk?',
-    waktu: daysAgoIso(0, 7),
-  },
-];
+/* Percakapan chatbot dimulai bersih tanpa pesan dummy */
+export const INITIAL_CHAT: ChatMessage[] = [];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 'notif-1',
-    judul: 'Jadwal panen hari ini',
-    isi: 'Tomat Servo #01 sudah matang. Cocok dipetik pagi ini.',
-    waktu: 'Hari ini · 07:00',
+    judul: 'Siap memindai dengan AI',
+    isi: 'Ambil foto buah, daun, atau batang di menu Scan untuk mendapatkan analisis real-time dari model AI CermatTani.',
+    waktu: 'Hari ini',
     tipe: 'panen',
-    dibaca: false,
-  },
-  {
-    id: 'notif-2',
-    judul: 'Scan daun perlu konfirmasi',
-    isi: 'Hasil daun Tomat Gustavi #03 keyakinannya 54% (< 60%). Coba foto ulang di tempat terang atau tanya penyuluh.',
-    waktu: 'Kemarin · 16:20',
-    tipe: 'penyakit',
     dibaca: false,
   },
   {

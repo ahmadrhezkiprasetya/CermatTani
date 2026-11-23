@@ -1,6 +1,7 @@
 /* Model Data Inti sesuai PRD (1).md §9 */
 
 export type ScreenId =
+  | 'landing'
   | 'beranda'
   | 'scan'
   | 'tanaman'
@@ -89,8 +90,13 @@ export interface ScanRecord {
   dugaanHaraId: string;
   dugaanHaraNama: string;
   pakaiDataSensor: boolean;
-  // Foto gagal deteksi buah (F1.5)
+  // Foto gagal deteksi buah / di luar objek tanaman (F1.5)
   tanpaBuahTerdeteksi?: boolean;
+  diluarKonteksTanaman?: boolean;
+  // Metadata hasil nyata model AI
+  aiModel?: string;
+  ringkasanAi?: string;
+  temuanVisual?: string[];
 }
 
 export interface KnowledgeDisease {
@@ -213,7 +219,6 @@ export interface OfflineQueueItem {
   plantId: string;
   bagian: PlantPart;
   fotoUrl: string;
-  presetId?: string;
   waktuAntre: string;
 }
 

@@ -226,6 +226,7 @@ class CermatPill extends StatelessWidget {
         label: label,
         background: AppColors.sim,
         foreground: Colors.white,
+        dotColor: Colors.white,
       );
 
   factory CermatPill.ok(String label) => CermatPill(
@@ -329,4 +330,104 @@ class StatusAlertCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Striped Progress Bar ala Agrova Soil Health & Microclimate (DESIGN.md v1.1 §4.2 & §5)
+class StripedBarWidget extends StatelessWidget {
+  const StripedBarWidget({
+    super.key,
+    required this.label,
+    required this.valueLabel,
+    required this.percent,
+    required this.color,
+    this.darkBg = false,
+  });
+
+  final String label;
+  final String valueLabel;
+  final double percent;
+  final Color color;
+  final bool darkBg;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.ct;
+    final frac = (percent / 100.0).clamp(0.05, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: darkBg ? Colors.white.withAlpha(220) : p.inkSoft,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              valueLabel,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: darkBg ? Colors.white : p.ink,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: Container(
+            height: 11,
+            width: double.infinity,
+            color: darkBg ? Colors.white.withAlpha(36) : p.line,
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: frac,
+              child: CustomPaint(
+                painter: _StripedFillPainter(fillColor: color),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StripedFillPainter extends CustomPainter {
+  const _StripedFillPainter({required this.fillColor});
+  final Color fillColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = fillColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(99)),
+      bgPaint,
+    );
+
+    final stripePaint = Paint()
+      ..color = Colors.white.withAlpha(58)
+      ..strokeWidth = 3.5;
+
+    for (double x = -size.height; x < size.width + size.height; x += 11) {
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + size.height, 0),
+        stripePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StripedFillPainter oldDelegate) =>
+      oldDelegate.fillColor != fillColor;
 }

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
+import { PakCermatMascot } from '../components/PakCermatMascot';
 import { GreenAreaChart } from '../components/Charts';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { downloadCsv } from '../utils/scanAnalyzer';
@@ -136,10 +137,10 @@ export const PlantsScreen: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Header & Aksi */}
+      {/* Header & Baris Status Cepat Agrova */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h2 className="t-h1">Tanaman & timeline pertumbuhan</h2>
+          <h2 className="t-h1">Tanaman &amp; timeline pertumbuhan</h2>
           <p className="t-small t-soft">
             Kebun aktif: <strong>{activeFarm?.nama}</strong> ({activeFarmPlants.length} tanaman)
           </p>
@@ -154,10 +155,27 @@ export const PlantsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Daftar kartu tanaman di kebun aktif */}
+      <div className="status-strip stagger-card">
+        <div className="status-strip-pills">
+          <span className="status-chip-solid tabular-nums">
+            <Sprout size={16} /> Tanaman Aktif: {activeFarmPlants.length}
+          </span>
+          <span className="status-chip-surface tabular-nums">
+            <span className="ripeness-dot" style={{ background: 'var(--leaf-500)' }} />
+            Total Riwayat Scan: {state.scans.length}
+          </span>
+          <span className="status-chip-surface tabular-nums">
+            <span className="ripeness-dot" style={{ background: 'var(--tomato-500)' }} />
+            Fase Panen/Berbuah:{' '}
+            {activeFarmPlants.filter((p) => p.fase === 'Berbuah' || p.fase === 'Panen').length}
+          </span>
+        </div>
+      </div>
+
+      {/* Daftar kartu tanaman di kebun aktif — Keadaan kosong pakai Pak Cermat (§8.2) */}
       {activeFarmPlants.length === 0 ? (
-        <section className="card" style={{ textAlign: 'center', padding: 36 }}>
-          <CermoMascot pose="wave" size={96} />
+        <section className="card" style={{ textAlign: 'center', padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <PakCermatMascot pose="bibit" height={150} />
           <h3 className="t-h2" style={{ marginTop: 14 }}>
             Belum ada tanaman di kebun ini
           </h3>
@@ -165,7 +183,7 @@ export const PlantsScreen: React.FC = () => {
             Tambahkan tanaman seperti tomat, cabai, selada, atau bayam supaya riwayat panennya tercatat rapi.
           </p>
           <button type="button" className="btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Tambah tanaman
+            <Plus size={18} /> Tambah tanaman pertama
           </button>
         </section>
       ) : (
@@ -192,7 +210,11 @@ export const PlantsScreen: React.FC = () => {
                   onClick={() => setSelectedPlantId(p.id)}
                   className="card-sm card-interactive"
                   style={{
-                    border: isSelected ? '2.5px solid var(--leaf-600)' : '2px solid transparent',
+                    background: isSelected
+                      ? 'linear-gradient(150deg, var(--forest-900) 0%, var(--forest-950) 100%)'
+                      : 'var(--surface)',
+                    color: isSelected ? '#FFFFFF' : 'var(--ink)',
+                    border: isSelected ? '1px solid rgba(216,243,106,0.35)' : '1px solid var(--card-hairline)',
                     textAlign: 'left',
                     cursor: 'pointer',
                     display: 'flex',
@@ -205,31 +227,55 @@ export const PlantsScreen: React.FC = () => {
                       style={{
                         width: 42,
                         height: 42,
-                        borderRadius: '50%',
+                        borderRadius: 14,
                         background: isSelected ? 'var(--lime-300)' : 'var(--surface-2)',
-                        color: 'var(--ink)',
+                        color: isSelected ? '#14302A' : 'var(--leaf-600)',
                         display: 'grid',
                         placeItems: 'center',
                       }}
                     >
-                      <Sprout size={20} strokeWidth={1.75} />
+                      <Sprout size={20} strokeWidth={1.85} />
                     </div>
-                    <span className={`pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`}>
+                    <span
+                      className={`pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`}
+                      style={
+                        isSelected && !hasIssue
+                          ? { background: 'rgba(216,243,106,0.2)', color: '#D8F36A' }
+                          : undefined
+                      }
+                    >
                       {hasIssue ? 'Perlu cek' : p.fase}
                     </span>
                   </div>
 
                   <div>
-                    <div className="t-h3">{p.nama}</div>
-                    <div className="t-micro t-soft">
+                    <div className="t-h3" style={{ color: isSelected ? '#FFFFFF' : 'var(--ink)' }}>
+                      {p.nama}
+                    </div>
+                    <div
+                      className="t-micro"
+                      style={{ color: isSelected ? 'rgba(234,245,238,0.78)' : 'var(--ink-soft)' }}
+                    >
                       {p.varietas} · {daysSince(p.tanggalTanam)} HST
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="t-micro t-soft tabular-nums">{scans.length} riwayat scan</span>
+                    <span
+                      className="t-micro tabular-nums"
+                      style={{ color: isSelected ? 'rgba(234,245,238,0.82)' : 'var(--ink-soft)' }}
+                    >
+                      {scans.length} riwayat scan
+                    </span>
                     {latest?.tahapDominan && (
-                      <span className="pill pill-neutral" style={{ fontSize: '0.75rem' }}>
+                      <span
+                        className="pill pill-neutral"
+                        style={{
+                          fontSize: '0.75rem',
+                          background: isSelected ? 'rgba(255,255,255,0.14)' : undefined,
+                          color: isSelected ? '#FFFFFF' : undefined,
+                        }}
+                      >
                         <span
                           className="ripeness-dot"
                           style={{ background: RIPENESS_REFERENCE[latest.tahapDominan].color }}

@@ -640,24 +640,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const linkTelegram = (chatIdInput?: string) => {
-    setState((prev) => ({
-      ...prev,
-      user: {
-        ...prev.user,
-        telegramChatId: chatIdInput?.trim() || `@${prev.user.nama.toLowerCase().replace(/\s+/g, '')}_tani`,
-      },
-      notifications: [
-        {
-          id: `notif-tg-${Date.now()}`,
-          judul: 'Bot Telegram tertaut',
-          isi: `Pengingat panen akan dikirim otomatis pukul ${prev.user.telegramReminderTime} WIB.`,
-          waktu: 'Baru saja',
-          tipe: 'telegram',
-          dibaca: false,
-        },
-        ...prev.notifications,
-      ],
-    }));
+    void (async () => {
+      try {
+        const code = state.user.telegramLinkCode;
+        const response = await fetch('/api/telegram/link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, chatId: chatIdInput?.trim() || undefined }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Gagal menghubungkan Telegram.');
+
+        setState((prev) => ({
+          ...prev,
+          user: { ...prev.user, telegramChatId: result.chatId },
+          notifications: [
+            {
+              id: `notif-tg-${Date.now()}`,
+              judul: 'Bot Telegram tertaut',
+              isi: `Pengingat panen aktif pukul ${prev.user.telegramReminderTime} WIB.`,
+              waktu: 'Baru saja',
+              tipe: 'telegram',
+              dibaca: false,
+            },
+            ...prev.notifications,
+          ],
+        }));
+      } catch {
+        setState((prev) => ({
+          ...prev,
+          notifications: [
+            {
+              id: `notif-tg-error-${Date.now()}`,
+              judul: 'Telegram belum tertaut',
+              isi: 'Gagal menghubungkan bot. Periksa Chat ID dan konfigurasi bot Telegram.',
+              waktu: 'Baru saja',
+              tipe: 'telegram',
+              dibaca: false,
+            },
+            ...prev.notifications,
+          ],
+        }));
+      }
+    })();
   };
 
   const unlinkTelegram = () => {

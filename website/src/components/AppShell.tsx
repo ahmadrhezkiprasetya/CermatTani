@@ -139,7 +139,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               CermatTani
             </div>
             <div className="t-micro" style={{ color: 'rgba(234,245,238,0.72)' }}>
-              Budidaya tomat cerdas
+              Budidaya cerdas untuk semua tanaman
             </div>
           </div>
         </button>

@@ -19,34 +19,39 @@ export const SolarScreen: React.FC = () => {
   const { sensor, settings } = state;
 
   // F9.2: Nilai contoh awal PERSIS PRD (1 W, 24 jam, 2 hari, DoD 0.8, η 0.85, PSH 4, f_rugi 0.7)
-  const [dayaBebanW, setDayaBebanW] = useState(1);
-  const [durasiJam, setDurasiJam] = useState(24);
   const [hariOtonomi, setHariOtonomi] = useState(2);
   const [dod, setDod] = useState(0.8);
   const [efisiensi, setEfisiensi] = useState(0.85);
-  const [psh, setPsh] = useState(4);
   const [faktorRugi, setFaktorRugi] = useState(0.7);
+  const [bebanPreset, setBebanPreset] = useState<'ringan' | 'sedang' | 'besar'>('ringan');
+  const [cuacaPreset, setCuacaPreset] = useState<'cerah' | 'berawan'>('cerah');
+
+  const simpleDayaW = bebanPreset === 'ringan' ? 1 : bebanPreset === 'sedang' ? 5 : 12;
+  const simpleDurasiJam = bebanPreset === 'besar' ? 12 : 24;
+  const simplePsh = cuacaPreset === 'cerah' ? 4 : 2.5;
 
   // Rumus eksak F9.1:
   // E_harian = P × t
   // C_baterai = E × H / (DoD × η)
   // P_panel = E / (PSH × f_rugi)
-  const eHarian = dayaBebanW * durasiJam;
+  const effectiveDayaBebanW = simpleDayaW;
+  const effectiveDurasiJam = simpleDurasiJam;
+  const effectivePsh = simplePsh;
+  const eHarian = effectiveDayaBebanW * effectiveDurasiJam;
   const cBateraiWh = dod > 0 && efisiensi > 0 ? (eHarian * hariOtonomi) / (dod * efisiensi) : 0;
-  const pPanelWp = psh > 0 && faktorRugi > 0 ? eHarian / (psh * faktorRugi) : 0;
+  const pPanelWp = effectivePsh > 0 && faktorRugi > 0 ? eHarian / (effectivePsh * faktorRugi) : 0;
   const pPanelRounded = roundToCommercialPanel(pPanelWp);
 
   const isPowerSave = sensor.bateraiPersen <= settings.ambangBateraiHemat;
   const estBackupHours = Math.max(1, Math.round((sensor.bateraiPersen / 100) * 48));
 
   const resetDefaults = () => {
-    setDayaBebanW(1);
-    setDurasiJam(24);
     setHariOtonomi(2);
     setDod(0.8);
     setEfisiensi(0.85);
-    setPsh(4);
     setFaktorRugi(0.7);
+    setBebanPreset('ringan');
+    setCuacaPreset('cerah');
   };
 
   return (
@@ -152,6 +157,26 @@ export const SolarScreen: React.FC = () => {
           </div>
         )}
 
+        <div
+          className="card-subtle"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}
+        >
+          <div>
+            <div className="t-micro" style={{ fontWeight: 800, color: 'var(--leaf-600)' }}>Rekomendasi Cermo</div>
+            <p className="t-small" style={{ marginTop: 4 }}>
+              {isPowerSave
+                ? 'Kurangi aktivitas siang: jeda scan dan matikan pompa manual. Baterai perlu waktu menyala kembali.'
+                : 'Energi cukup untuk pemakaian normal. Pantau cuaca dan usahakan pengisian tetap mendapat matahari.'}
+            </p>
+          </div>
+          <div>
+            <div className="t-micro" style={{ fontWeight: 800, color: 'var(--leaf-600)' }}>Cara hemat energi</div>
+            <p className="t-small" style={{ marginTop: 4 }}>
+              Aktifkan mode hemat otomatis, kirim data lebih jarang, dan gunakan pompa hanya saat tanah benar-benar kering.
+            </p>
+          </div>
+        </div>
+
         <div className="card-subtle">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <label htmlFor="sim-batt" className="t-small" style={{ fontWeight: 600 }}>
@@ -185,8 +210,7 @@ export const SolarScreen: React.FC = () => {
               <span className="pill pill-sim">Rancangan / Simulasi</span>
             </div>
             <p className="t-small t-soft">
-              Hitung kebutuhan energi harian, kapasitas baterai, dan ukuran panel surya untuk perangkat
-              ESP32 di lahan.
+              Pilih perangkat dan kondisi cuaca. Cermo akan mengubahnya menjadi ukuran baterai dan panel yang mudah dipakai.
             </p>
           </div>
           <button type="button" className="btn-secondary" onClick={resetDefaults}>
@@ -198,153 +222,60 @@ export const SolarScreen: React.FC = () => {
         <div className="metrics-grid-3">
           <div className="metric-card metric-card--lime">
             <div className="t-micro" style={{ fontWeight: 700 }}>
-              Energi harian (E = P × t)
+              Kebutuhan energi harian
             </div>
             <div className="metric-value">{eHarian.toFixed(1).replace('.', ',')} Wh</div>
             <div className="t-micro">
-              {dayaBebanW} W × {durasiJam} jam/hari
+              Perkiraan untuk {bebanPreset === 'ringan' ? 'sensor saja' : bebanPreset === 'sedang' ? 'sensor + internet' : 'sensor + pompa'}
             </div>
           </div>
 
           <div className="metric-card metric-card--white">
             <div className="t-micro t-soft" style={{ fontWeight: 700 }}>
-              Kapasitas baterai (C = E × H / (DoD × η))
+              Ukuran baterai disarankan
             </div>
             <div className="metric-value">≈ {Math.round(cBateraiWh)} Wh</div>
             <div className="t-micro t-soft">
-              Tepatnya {cBateraiWh.toFixed(1).replace('.', ',')} Wh (≈ {(cBateraiWh / 12).toFixed(1).replace('.', ',')} Ah @12V)
+              Untuk cadangan sekitar {hariOtonomi} hari
             </div>
           </div>
 
           <div className="metric-card metric-card--forest">
             <div className="t-micro" style={{ opacity: 0.85, fontWeight: 700 }}>
-              Daya panel (P = E / (PSH × f_rugi))
+              Ukuran panel surya
             </div>
             <div className="metric-value">
               {pPanelWp.toFixed(1).replace('.', ',')} Wp → {pPanelRounded} Wp
             </div>
             <div className="t-micro" style={{ opacity: 0.85 }}>
-              Rekomendasi panel pasaran: {pPanelRounded} Wp
+              Pilih panel komersial terdekat: {pPanelRounded} Wp
             </div>
           </div>
         </div>
 
-        {/* Input asumsi yang dapat diubah (F9.2) */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: 14,
-          }}
-        >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
           <div className="field-group">
-            <label htmlFor="calc-p" className="field-label">
-              Daya rata-rata perangkat P (Watt)
-            </label>
-            <input
-              id="calc-p"
-              type="number"
-              step="0.1"
-              min="0.1"
-              className="field-input tabular-nums"
-              value={dayaBebanW}
-              onChange={(e) => setDayaBebanW(Math.max(0.1, Number(e.target.value) || 0.1))}
-            />
+            <label htmlFor="calc-load" className="field-label">Perangkat apa yang dijalankan?</label>
+            <select id="calc-load" className="field-select" value={bebanPreset} onChange={(e) => setBebanPreset(e.target.value as typeof bebanPreset)}>
+              <option value="ringan">Sensor saja</option>
+              <option value="sedang">Sensor + internet</option>
+              <option value="besar">Sensor + pompa</option>
+            </select>
           </div>
-
           <div className="field-group">
-            <label htmlFor="calc-t" className="field-label">
-              Durasi operasi harian t (jam)
-            </label>
-            <input
-              id="calc-t"
-              type="number"
-              step="1"
-              min="1"
-              max="24"
-              className="field-input tabular-nums"
-              value={durasiJam}
-              onChange={(e) => setDurasiJam(Math.max(1, Math.min(24, Number(e.target.value) || 1)))}
-            />
+            <label htmlFor="calc-days" className="field-label">Berapa hari aman saat matahari kurang?</label>
+            <select id="calc-days" className="field-select" value={hariOtonomi} onChange={(e) => setHariOtonomi(Number(e.target.value))}>
+              <option value={1}>1 hari</option>
+              <option value={2}>2 hari</option>
+              <option value={3}>3 hari</option>
+            </select>
           </div>
-
           <div className="field-group">
-            <label htmlFor="calc-h" className="field-label">
-              Hari otonomi tanpa matahari H (hari)
-            </label>
-            <input
-              id="calc-h"
-              type="number"
-              step="0.5"
-              min="0.5"
-              className="field-input tabular-nums"
-              value={hariOtonomi}
-              onChange={(e) => setHariOtonomi(Math.max(0.5, Number(e.target.value) || 0.5))}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="calc-dod" className="field-label">
-              Depth of Discharge (DoD, 0,1–1)
-            </label>
-            <input
-              id="calc-dod"
-              type="number"
-              step="0.05"
-              min="0.2"
-              max="1"
-              className="field-input tabular-nums"
-              value={dod}
-              onChange={(e) => setDod(Math.max(0.2, Math.min(1, Number(e.target.value) || 0.8)))}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="calc-eta" className="field-label">
-              Efisiensi sistem η (0,1–1)
-            </label>
-            <input
-              id="calc-eta"
-              type="number"
-              step="0.05"
-              min="0.3"
-              max="1"
-              className="field-input tabular-nums"
-              value={efisiensi}
-              onChange={(e) => setEfisiensi(Math.max(0.3, Math.min(1, Number(e.target.value) || 0.85)))}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="calc-psh" className="field-label">
-              Peak Sun Hours PSH (jam/hari)
-            </label>
-            <input
-              id="calc-psh"
-              type="number"
-              step="0.5"
-              min="1"
-              max="8"
-              className="field-input tabular-nums"
-              value={psh}
-              onChange={(e) => setPsh(Math.max(1, Number(e.target.value) || 4))}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="calc-f" className="field-label">
-              Faktor rugi panel f_rugi (0,1–1)
-            </label>
-            <input
-              id="calc-f"
-              type="number"
-              step="0.05"
-              min="0.3"
-              max="1"
-              className="field-input tabular-nums"
-              value={faktorRugi}
-              onChange={(e) => setFaktorRugi(Math.max(0.3, Math.min(1, Number(e.target.value) || 0.7)))}
-            />
+            <label htmlFor="calc-weather" className="field-label">Biasanya cuaca di lokasi</label>
+            <select id="calc-weather" className="field-select" value={cuacaPreset} onChange={(e) => setCuacaPreset(e.target.value as typeof cuacaPreset)}>
+              <option value="cerah">Cerah, matahari cukup</option>
+              <option value="berawan">Sering mendung / hujan</option>
+            </select>
           </div>
         </div>
       </section>

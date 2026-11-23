@@ -46,26 +46,26 @@ export const OnboardingScreen: React.FC = () => {
       <div
         className="card page-enter"
         style={{
-          width: 'min(680px, 100%)',
+          width: 'min(760px, 100%)',
           padding: 0,
           overflow: 'hidden',
         }}
       >
         {/* Ilustrasi kebun datar di bagian atas (tanpa teks di dalam SVG) */}
         <div style={{ position: 'relative' }}>
-          <GardenLandscapeIllustration height={170} />
+          <GardenLandscapeIllustration height={190} />
           <div
             style={{
               position: 'absolute',
               bottom: -36,
-              left: 24,
+              left: 28,
               background: 'var(--surface)',
               borderRadius: '50%',
               padding: 8,
               boxShadow: 'var(--shadow-card)',
             }}
           >
-            <CermoMascot pose={step === 3 ? 'happy' : 'wave'} size={86} />
+            <CermoMascot pose={step === 3 ? 'happy' : 'wave'} size={96} />
           </div>
         </div>
 
@@ -93,11 +93,11 @@ export const OnboardingScreen: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h1 className="t-display" style={{ marginBottom: 8 }}>
-                  Halo! Yuk, cek tomatmu bareng Cermo.
+                  Halo! Kelola kebunmu lebih mudah bersama Cermo.
                 </h1>
                 <p className="t-body t-soft">
-                  CermatTani membantumu menilai kematangan buah, mengenali penyakit daun, menduga
-                  kebutuhan pupuk, serta memantau sensor irigasi surya — cukup dari satu foto.
+                  CermatTani membantu memantau tomat, cabai, sayuran, tanah, irigasi, dan penggunaan
+                  energi surya — cukup dengan foto atau data sensor.
                 </p>
               </div>
 
@@ -116,7 +116,7 @@ export const OnboardingScreen: React.FC = () => {
 
               <div className="card-subtle" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <span className="pill pill-ok">
-                  <Check size={14} /> Khusus komoditas tomat
+                  <Check size={14} /> Banyak jenis tanaman
                 </span>
                 <span className="pill pill-ok">
                   <Check size={14} /> Solusi organik lebih dulu
@@ -145,10 +145,10 @@ export const OnboardingScreen: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h2 className="t-h1" style={{ marginBottom: 6 }}>
-                  Buat kebun tomat pertamamu
+                  Buat kebun pertamamu
                 </h2>
                 <p className="t-body t-soft">
-                  Kamu bisa menambahkan lebih dari satu kebun (bedengan sawah maupun polybag di atap).
+                  Kamu bisa menambahkan kebun terbuka, polybag, atau bedengan dengan jenis tanaman apa pun.
                   Kosongkan bila ingin memakai kebun contoh Pak Joko.
                 </p>
               </div>
@@ -194,7 +194,7 @@ export const OnboardingScreen: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h2 className="t-h1" style={{ marginBottom: 6 }}>
-                  Catat satu tanaman tomat untuk dipantau
+                  Catat satu tanaman untuk dipantau
                 </h2>
                 <p className="t-body t-soft">
                   Setiap hasil scan akan disimpan ke timeline tanaman ini agar perkiraan panen makin
@@ -218,7 +218,7 @@ export const OnboardingScreen: React.FC = () => {
 
                 <div className="field-group">
                   <label htmlFor="ob-var" className="field-label">
-                    Varietas tomat
+                    Jenis / varietas tanaman
                   </label>
                   <select
                     id="ob-var"
@@ -231,6 +231,10 @@ export const OnboardingScreen: React.FC = () => {
                     <option value="Tomat Ceri">Tomat Ceri (polybag/urban)</option>
                     <option value="Rampai">Tomat Rampai</option>
                     <option value="Lokal">Varietas Lokal</option>
+                    <option value="Cabai Rawit">Cabai Rawit</option>
+                    <option value="Cabai Besar">Cabai Besar</option>
+                    <option value="Selada Keriting">Selada Keriting</option>
+                    <option value="Bayam Hijau">Bayam Hijau</option>
                   </select>
                 </div>
               </div>

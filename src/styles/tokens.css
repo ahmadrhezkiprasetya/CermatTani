@@ -1,0 +1,129 @@
+/* CermatTani Design Tokens — 100% sesuai DESIGN.md §3, §4, §5, §13 */
+
+:root {
+  /* Inti */
+  --leaf-600: #17803f;
+  --leaf-500: #1f9d55;
+  --leaf-700: #0f5e2d;
+  --leaf-hover: #157a41;
+  --on-leaf: #ffffff;
+  --lime-300: #d8f36a;
+  --on-lime: #14302a;
+  --forest-900: #0e4f43;
+  --forest-800: #146354;
+  --tomato-500: #f2562b;
+  --tomato-btn: #d63d12;
+  --tomato-btn-dark: #a62d0b;
+  --sun-400: #ffb63d;
+
+  /* Netral */
+  --bg: #eef7f1;
+  --surface: #ffffff;
+  --surface-2: #f5faf6;
+  --ink: #14302a;
+  --ink-soft: #5b746b;
+  --line: #dcebe1;
+
+  /* Semantik */
+  --ok: #1f9d55;
+  --ok-soft: rgba(31, 157, 85, 0.13);
+  --warn: #ffb63d;
+  --warn-ink: #8a5600;
+  --warn-soft: rgba(255, 182, 61, 0.18);
+  --bad: #e5484d;
+  --bad-soft: rgba(229, 72, 77, 0.14);
+  --water: #2b8fd9;
+  --water-soft: rgba(43, 143, 217, 0.14);
+  --sim: #7a6cf0;
+  --sim-soft: rgba(122, 108, 240, 0.14);
+
+  /* Kematangan tomat */
+  --ripeness-raw: #5dbb63;
+  --ripeness-half: #ffb63d;
+  --ripeness-ripe: #f2562b;
+
+  /* Pastel produksi */
+  --peach-bar: #ffd8c2;
+
+  /* Radius */
+  --r-card: 24px;
+  --r-card-sm: 20px;
+  --r-ctl: 14px;
+  --r-pill: 999px;
+
+  /* Tipografi (DESIGN.md §4) */
+  --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Bayangan */
+  --shadow-card: 0 1px 2px rgba(20, 48, 42, 0.06), 0 8px 24px rgba(20, 48, 42, 0.08);
+  --shadow-card-hover: 0 4px 8px rgba(20, 48, 42, 0.08), 0 14px 32px rgba(20, 48, 42, 0.11);
+
+  /* Spasi (grid 4px) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --leaf-600: #3dbe74;
+    --leaf-500: #3dbe74;
+    --leaf-700: #2fa862;
+    --leaf-hover: #2fa862;
+    --on-leaf: #0b2619;
+    --lime-300: #c9e85a;
+    --on-lime: #0c1713;
+    --forest-900: #0a3a32;
+    --forest-800: #0f4c41;
+    --tomato-500: #ff6b42;
+    --tomato-btn: #d63d12;
+    --tomato-btn-dark: #9b2a0a;
+    --sun-400: #ffc45e;
+
+    --bg: #0c1713;
+    --surface: #14231d;
+    --surface-2: #1a2d25;
+    --ink: #eaf5ee;
+    --ink-soft: #9db8ad;
+    --line: #25402f;
+
+    --warn-ink: #ffd78a;
+    --peach-bar: rgba(255, 107, 66, 0.28);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px rgba(0, 0, 0, 0.36);
+    --shadow-card-hover: 0 4px 10px rgba(0, 0, 0, 0.34), 0 16px 34px rgba(0, 0, 0, 0.44);
+  }
+}
+
+:root[data-theme="dark"] {
+  --leaf-600: #3dbe74;
+  --leaf-500: #3dbe74;
+  --leaf-700: #2fa862;
+  --leaf-hover: #2fa862;
+  --on-leaf: #0b2619;
+  --lime-300: #c9e85a;
+  --on-lime: #0c1713;
+  --forest-900: #0a3a32;
+  --forest-800: #0f4c41;
+  --tomato-500: #ff6b42;
+  --tomato-btn: #d63d12;
+  --tomato-btn-dark: #9b2a0a;
+  --sun-400: #ffc45e;
+
+  --bg: #0c1713;
+  --surface: #14231d;
+  --surface-2: #1a2d25;
+  --ink: #eaf5ee;
+  --ink-soft: #9db8ad;
+  --line: #25402f;
+
+  --warn-ink: #ffd78a;
+  --peach-bar: rgba(255, 107, 66, 0.28);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px rgba(0, 0, 0, 0.36);
+  --shadow-card-hover: 0 4px 10px rgba(0, 0, 0, 0.34), 0 16px 34px rgba(0, 0, 0, 0.44);
+}

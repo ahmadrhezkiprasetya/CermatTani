@@ -1,0 +1,38 @@
+{
+  "name": "CermatTani — Asisten Budidaya Tomat",
+  "short_name": "CermatTani",
+  "description": "Aplikasi pemantauan kematangan, penyakit, dan kebutuhan pupuk tomat berbasis foto dan sensor IoT surya.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EEF7F1",
+  "theme_color": "#17803F",
+  "lang": "id",
+  "categories": ["agriculture", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-cermo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan Tomat",
+      "short_name": "Scan",
+      "url": "/scan"
+    },
+    {
+      "name": "Tanya Cermo",
+      "short_name": "Cermo",
+      "url": "/cermo"
+    },
+    {
+      "name": "Lahan & Irigasi",
+      "short_name": "Lahan",
+      "url": "/lahan"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# Local env & OS
+.env*.local
+.DS_Store
+Thumbs.db
+*.log

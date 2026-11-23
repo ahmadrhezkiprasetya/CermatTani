@@ -141,7 +141,7 @@ export const PlantsScreen: React.FC = () => {
         <div>
           <h2 className="t-h1">Tanaman & timeline pertumbuhan</h2>
           <p className="t-small t-soft">
-            Kebun aktif: <strong>{activeFarm?.nama}</strong> ({activeFarmPlants.length} tanaman tomat)
+            Kebun aktif: <strong>{activeFarm?.nama}</strong> ({activeFarmPlants.length} tanaman)
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -162,10 +162,10 @@ export const PlantsScreen: React.FC = () => {
             Belum ada tanaman di kebun ini
           </h3>
           <p className="t-body t-soft" style={{ margin: '8px auto 18px' }}>
-            Tambahkan satu tanaman tomat dulu supaya riwayat scan dan jadwal panen tercatat rapi.
+            Tambahkan tanaman seperti tomat, cabai, selada, atau bayam supaya riwayat panennya tercatat rapi.
           </p>
           <button type="button" className="btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Tambah tanaman tomat
+            <Plus size={18} /> Tambah tanaman
           </button>
         </section>
       ) : (
@@ -405,7 +405,7 @@ export const PlantsScreen: React.FC = () => {
                         Penurunan grafik menunjukkan waktu munculnya gejala penyakit pada timeline.
                       </p>
                     </div>
-                    <GreenAreaChart points={chartPoints} unit="%" color="#1F9D55" height={170} />
+                    <GreenAreaChart points={chartPoints} unit="%" color="#1F9D55" height={140} />
                   </div>
                 </>
               )}
@@ -480,11 +480,11 @@ export const PlantsScreen: React.FC = () => {
           onClick={() => setShowAddModal(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Tambah tanaman tomat baru"
+          aria-label="Tambah tanaman baru"
         >
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 className="t-h2">Tambah tanaman tomat</h3>
+              <h3 className="t-h2">Tambah tanaman</h3>
               <button
                 type="button"
                 className="icon-btn"
@@ -504,14 +504,14 @@ export const PlantsScreen: React.FC = () => {
                   className="field-input"
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Contoh: Tomat Servo #06"
+                  placeholder="Contoh: Cabai Rawit #02"
                   required
                 />
               </div>
 
               <div className="field-group">
                 <label htmlFor="add-plant-var" className="field-label">
-                  Varietas tomat
+                  Jenis / varietas
                 </label>
                 <select
                   id="add-plant-var"
@@ -524,6 +524,10 @@ export const PlantsScreen: React.FC = () => {
                   <option value="Tomat Ceri">Tomat Ceri</option>
                   <option value="Rampai">Tomat Rampai</option>
                   <option value="Lokal">Lokal</option>
+                  <option value="Cabai Rawit">Cabai Rawit</option>
+                  <option value="Cabai Besar">Cabai Besar</option>
+                  <option value="Selada Keriting">Selada Keriting</option>
+                  <option value="Bayam Hijau">Bayam Hijau</option>
                 </select>
               </div>
 

@@ -167,8 +167,8 @@ export const DashboardScreen: React.FC = () => {
               </span>
               <h2 className="t-h2">
                 {readyToHarvestCount > 0
-                  ? `Wah, ada ${readyToHarvestCount} tomat yang siap dipanen!`
-                  : 'Halo! Yuk, cek tomatmu hari ini.'}
+                  ? `Wah, ada ${readyToHarvestCount} buah siap dipanen!`
+                  : 'Halo! Yuk, cek tanaman kebunmu hari ini.'}
               </h2>
               <p className="t-small t-soft">
                 Pilih bagian buah, daun, atau batang untuk tahu kapan panen, gejala penyakit, dan
@@ -542,9 +542,10 @@ export const DashboardScreen: React.FC = () => {
 
               <hr style={{ border: 'none', height: 1, background: 'rgba(255,255,255,0.14)', margin: '18px 0' }} />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
                 <PercentageRing percent={ripenessAvgPercent} label="Kematangan" color="#F2562B" darkBg />
                 <PercentageRing percent={state.sensor.kelembapanTanah} label="Tanah" color="#2B8FD9" darkBg />
+                <PercentageRing percent={state.sensor.levelTandonPersen} label="Tandon" color="#7CC7FF" darkBg />
                 <PercentageRing percent={state.sensor.bateraiPersen} label="Surya" color="#D8F36A" darkBg />
               </div>
             </section>

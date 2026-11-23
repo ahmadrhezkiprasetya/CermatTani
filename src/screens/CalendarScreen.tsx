@@ -104,7 +104,7 @@ export const CalendarScreen: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h2 className="t-h2">Kalender panen</h2>
-            <p className="t-small t-soft">Hari panen ditandai warna tomat merah-oranye</p>
+            <p className="t-small t-soft">Warna merah = panen, hijau = sudah dipetik, merah muda = estimasi</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="button" className="icon-btn" onClick={() => shiftMonth(-1)} aria-label="Bulan sebelumnya">
@@ -176,17 +176,20 @@ export const CalendarScreen: React.FC = () => {
                   {dayNum}
                 </span>
                 {hasHarvest && (
-                  <div style={{ display: 'flex', gap: 3 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, maxWidth: '100%' }}>
                     {dayEvents.slice(0, 3).map((ev) => (
-                      <span
-                        key={ev.id}
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: ev.sumber === 'aktual' ? 'var(--ok)' : 'var(--tomato-500)',
-                        }}
-                      />
+                      <span key={ev.id} style={{
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontSize: '0.625rem',
+                        lineHeight: 1.1,
+                        fontWeight: 800,
+                        color: ev.sumber === 'aktual' ? 'var(--leaf-600)' : 'var(--tomato-btn)',
+                      }}>
+                        {ev.sumber === 'aktual' ? 'Panen ✓' : 'Estimasi'}
+                      </span>
                     ))}
                   </div>
                 )}
@@ -316,21 +319,21 @@ export const CalendarScreen: React.FC = () => {
             <ol className="t-small" style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>
               <li>Buka bot <strong>@CermatTaniBot</strong> di aplikasi Telegram.</li>
               <li>
-                Kirim pesan <code>/link {state.user.telegramLinkCode}</code>.
+                Ketik <code>/start</code>, lalu buka menu profil Telegram untuk menemukan Chat ID numerik.
               </li>
-              <li>Klik tombol konfirmasi di bawah untuk mengaktifkan pengingat terjadwal.</li>
+              <li>Masukkan Chat ID pada kolom, lalu konfirmasi tautan.</li>
             </ol>
 
             <div className="field-group">
               <label htmlFor="tg-handle" className="field-label">
-                Username Telegram (opsional untuk demo)
+            Chat ID Telegram
               </label>
               <input
                 id="tg-handle"
                 className="field-input"
                 value={tgHandle}
                 onChange={(e) => setTgHandle(e.target.value)}
-                placeholder="@pakjoko_tani"
+            placeholder="Contoh: 123456789"
               />
             </div>
 

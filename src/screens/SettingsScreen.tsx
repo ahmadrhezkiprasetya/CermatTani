@@ -118,7 +118,7 @@ export const SettingsScreen: React.FC = () => {
             <h3 className="t-h3">Database Supabase</h3>
           </div>
           <span className={`pill ${isSupabaseConfigured ? 'pill-ok' : 'pill-warn'}`}>
-            {isSupabaseConfigured ? 'Terkonfigurasi' : 'Mode lokal (belum diisi .env.local)'}
+            {isSupabaseConfigured ? 'Terkonfigurasi' : 'Mode lokal (belum diisi .env)'}
           </span>
         </div>
 

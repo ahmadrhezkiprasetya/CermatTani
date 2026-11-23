@@ -113,6 +113,33 @@ export const INITIAL_PLANTS: Plant[] = [
     tanggalTanam: dateOffsetYmd(-58),
     fase: 'Berbuah',
   },
+  {
+    id: 'plant-7',
+    farmId: 'farm-1',
+    nama: 'Cabai Rawit #01',
+    varietas: 'Cabai Rawit',
+    bobotRataBuahGram: 8,
+    tanggalTanam: dateOffsetYmd(-38),
+    fase: 'Berbuah',
+  },
+  {
+    id: 'plant-8',
+    farmId: 'farm-1',
+    nama: 'Selada Hijau #01',
+    varietas: 'Selada Keriting',
+    bobotRataBuahGram: 150,
+    tanggalTanam: dateOffsetYmd(-24),
+    fase: 'Vegetatif',
+  },
+  {
+    id: 'plant-9',
+    farmId: 'farm-2',
+    nama: 'Bayam Hijau #01',
+    varietas: 'Bayam Hijau',
+    bobotRataBuahGram: 40,
+    tanggalTanam: dateOffsetYmd(-18),
+    fase: 'Vegetatif',
+  },
 ];
 
 const presetCampur = DEMO_PHOTO_PRESETS[0].fotoUrl;

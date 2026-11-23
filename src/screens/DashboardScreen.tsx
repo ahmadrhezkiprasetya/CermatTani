@@ -53,7 +53,10 @@ export const DashboardScreen: React.FC = () => {
   // Hitung metrik kebun aktif
   const farmPlantIds = useMemo(() => new Set(activeFarmPlants.map((p) => p.id)), [activeFarmPlants]);
   const farmScans = useMemo(
-    () => state.scans.filter((s) => farmPlantIds.has(s.plantId)),
+    () =>
+      state.scans
+        .filter((s) => farmPlantIds.has(s.plantId))
+        .sort((a, b) => b.waktu.localeCompare(a.waktu)),
     [state.scans, farmPlantIds]
   );
 

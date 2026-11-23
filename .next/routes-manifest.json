@@ -1,1 +1,110 @@
-{"version":3,"caseSensitive":false,"basePath":"","rewrites":{"beforeFiles":[],"afterFiles":[],"fallback":[]},"redirects":[{"source":"/:path+/","destination":"/:path+","permanent":true,"internal":true,"regex":"^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$"}],"headers":[{"source":"/sw.js","headers":[{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"},{"key":"Service-Worker-Allowed","value":"/"}],"regex":"^\\/sw\\.js(?:\\/)?$"}]}
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ],
+      "regex": "^/sw\\.js(?:/)?$"
+    }
+  ],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/cermo",
+      "regex": "^/cermo(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/cermo(?:/)?$"
+    },
+    {
+      "page": "/energi",
+      "regex": "^/energi(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/energi(?:/)?$"
+    },
+    {
+      "page": "/kalender",
+      "regex": "^/kalender(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kalender(?:/)?$"
+    },
+    {
+      "page": "/lahan",
+      "regex": "^/lahan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/lahan(?:/)?$"
+    },
+    {
+      "page": "/pengaturan",
+      "regex": "^/pengaturan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/pengaturan(?:/)?$"
+    },
+    {
+      "page": "/scan",
+      "regex": "^/scan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/scan(?:/)?$"
+    },
+    {
+      "page": "/tanaman",
+      "regex": "^/tanaman(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/tanaman(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

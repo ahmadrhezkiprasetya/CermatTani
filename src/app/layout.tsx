@@ -1,22 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import { Fredoka, Plus_Jakarta_Sans } from 'next/font/google';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
 import { ClientRoot } from '@/components/ClientRoot';
-
-const fredoka = Fredoka({
-  subsets: ['latin'],
-  weight: ['500', '600'],
-  variable: '--font-fredoka',
-  display: 'swap',
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-jakarta',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'CermatTani — Asisten Cermat Budidaya Tomat',
@@ -50,11 +35,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="id"
-      className={`${fredoka.variable} ${plusJakarta.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <ClientRoot>{children}</ClientRoot>
       </body>

@@ -51,9 +51,9 @@
   --r-ctl: 14px;
   --r-pill: 999px;
 
-  /* Tipografi (Next.js next/font + fallback DESIGN.md §4) */
-  --font-display: var(--font-fredoka), "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
-  --font-body: var(--font-jakarta), "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Tipografi (DESIGN.md §4) */
+  --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* Bayangan */
   --shadow-card: 0 1px 2px rgba(20, 48, 42, 0.06), 0 8px 24px rgba(20, 48, 42, 0.08);

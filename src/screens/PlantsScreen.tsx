@@ -179,7 +179,9 @@ export const PlantsScreen: React.FC = () => {
           >
             {activeFarmPlants.map((p) => {
               const isSelected = selectedPlant?.id === p.id;
-              const scans = state.scans.filter((s) => s.plantId === p.id);
+              const scans = state.scans
+                .filter((s) => s.plantId === p.id)
+                .sort((a, b) => b.waktu.localeCompare(a.waktu));
               const latest = scans[0];
               const hasIssue = latest && latest.penyakitUtamaId !== 'sehat';
 

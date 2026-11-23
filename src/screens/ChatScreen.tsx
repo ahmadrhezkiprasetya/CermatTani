@@ -30,7 +30,10 @@ export const ChatScreen: React.FC = () => {
 
   const latestScanForPlant = useMemo(() => {
     if (!selectedPlant) return null;
-    return state.scans.find((s) => s.plantId === selectedPlant.id) || null;
+    const plantScans = state.scans
+      .filter((s) => s.plantId === selectedPlant.id)
+      .sort((a, b) => b.waktu.localeCompare(a.waktu));
+    return plantScans[0] || null;
   }, [state.scans, selectedPlant]);
 
   useEffect(() => {

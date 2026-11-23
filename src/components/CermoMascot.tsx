@@ -293,7 +293,61 @@ export const CermoMascot: React.FC<CermoMascotProps> = ({
             </g>
           )}
         </svg>
-      </button>
+  );
+
+  return (
+    <div
+      className={className}
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {activeTip && (
+        <div
+          role="status"
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--surface)',
+            color: 'var(--ink)',
+            padding: '8px 12px',
+            borderRadius: '14px',
+            boxShadow: 'var(--shadow-card)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            lineHeight: 1.4,
+            width: 'max-content',
+            maxWidth: '220px',
+            textAlign: 'center',
+            zIndex: 25,
+            border: '1px solid var(--line)',
+            pointerEvents: 'none',
+          }}
+        >
+          {activeTip}
+        </div>
+      )}
+
+      {interactive ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          aria-label={`${label} — klik untuk sapa dan tips singkat`}
+          style={wrapperStyle}
+        >
+          {mascotSvg}
+        </button>
+      ) : (
+        <span role="img" aria-label={label} style={wrapperStyle}>
+          {mascotSvg}
+        </span>
+      )}
     </div>
   );
 };

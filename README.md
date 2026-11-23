@@ -5,27 +5,39 @@ Repositori menyeluruh proyek **CermatTani** (InSaintek 2026) sesuai `PRD (1).md`
 ## Struktur 3 Repositori (Monorepo + Git Subtree)
 
 ```text
-CermatTani/                  -> Repo menyeluruh (remote: origin -> CermatTani)
+CermatTani/                  -> Repo menyeluruh (origin -> CermatTani)
 ├── PRD (1).md               -> Dokumen spesifikasi produk
 ├── DESIGN (3).md            -> Dokumen sistem desain
+├── supabase/                -> Schema SQL (11 tabel + RLS + Storage + Realtime) & seed.sql
 ├── sync-repos.ps1           -> Skrip 1 perintah untuk sync ke 3 repo GitHub
-├── website/                 -> Repo khusus Website Next.js (remote: web -> CermatTani-Web)
-└── applications/            -> Repo khusus Mobile App Flutter (remote: app -> CermatTani-App)
+├── website/                 -> Repo khusus Website Next.js (web -> cermattani-web)
+└── applications/            -> Repo khusus Mobile App Flutter (app -> cermattani-app)
 ```
-
-| Remote Git | Folder | Tujuan Repo GitHub |
-|---|---|---|
-| `origin` | seluruh folder `/` | `https://github.com/ahmadrhezkiprasetya/CermatTani.git` |
-| `web` | `website/` | `https://github.com/ahmadrhezkiprasetya/CermatTani-Web.git` |
-| `app` | `applications/` | `https://github.com/ahmadrhezkiprasetya/CermatTani-App.git` |
 
 ---
 
-## 1. Cara Menjalankan Website (Next.js)
+## 1. Konfigurasi Database Supabase
+
+1. Buat project baru di https://supabase.com.
+2. Buka **SQL Editor** di dashboard Supabase, lalu jalankan berurutan:
+   - `supabase/migrations/001_cermattani_schema.sql` (membuat 11 tabel inti: `profiles`, `farms`, `plants`, `scans`, `knowledge_diseases`, `knowledge_nutrients`, `devices`, `sensor_readings`, `irrigation_events`, `harvest_events`, `chat_messages`, beserta RLS, Storage bucket `scan-photos`, dan Realtime).
+   - `supabase/seed.sql` (mengisi data awal basis pengetahuan penyakit & pupuk tomat).
+3. Ambil **Project URL**, **anon public key**, dan **service_role key** dari **Project Settings → API**.
+4. Untuk **Website (Next.js)**: salin `website/.env.example` menjadi `website/.env.local` dan isi ketiga nilai tersebut.
+5. Untuk **Mobile App (Flutter)**: jalankan dengan `--dart-define`:
+   ```powershell
+   cd applications
+   flutter pub get
+   flutter run --dart-define=SUPABASE_URL=https://PROJECT-ID.supabase.co --dart-define=SUPABASE_ANON_KEY=eyJ...
+   ```
+
+---
+
+## 2. Cara Menjalankan Website (Next.js)
 
 ```powershell
 cd website
-npm install   # cukup sekali jika node_modules belum ada
+npm install
 npm run dev
 ```
 
@@ -33,7 +45,7 @@ Buka peramban di **http://localhost:3000**.
 
 ---
 
-## 2. Cara Menjalankan Mobile App (Flutter)
+## 3. Cara Menjalankan Mobile App (Flutter)
 
 ```powershell
 cd applications
@@ -44,24 +56,10 @@ flutter run
 
 ---
 
-## 3. Cara Sinkronisasi ke 3 Repo GitHub
+## 4. Cara Sinkronisasi ke 3 Repo GitHub
 
-1. Buat 2 repo kosong baru di GitHub (tanpa README/gitignore awal):
-   - `CermatTani-Web`
-   - `CermatTani-App`
-   *(Jika nama repo berbeda, cukup ubah URL remote dengan `git remote set-url web <URL>` atau `git remote set-url app <URL>`.)*
-2. Commit semua perubahan di repo menyeluruh ini:
-   ```powershell
-   git add .
-   git commit -m "Pisahkan struktur website (Next.js) dan applications (Flutter)"
-   ```
-3. Jalankan skrip sinkronisasi 1 perintah:
-   ```powershell
-   # Push ke ketiga repo sekaligus (origin, web, dan app):
-   .\sync-repos.ps1
-
-   # Atau sync salah satu saja:
-   .\sync-repos.ps1 -Target root
-   .\sync-repos.ps1 -Target web
-   .\sync-repos.ps1 -Target app
-   ```
+```powershell
+git add .
+git commit -m "Update CermatTani"
+powershell -ExecutionPolicy Bypass -File .\sync-repos.ps1
+```

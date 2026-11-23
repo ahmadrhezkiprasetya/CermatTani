@@ -1,5 +1,5 @@
 name: cermat_tani
-description: Demo aplikasi pertanian CermatTani.
+description: Aplikasi mobile CermatTani (Flutter + Supabase) sesuai PRD dan DESIGN.
 publish_to: "none"
 version: 1.0.0+1
 
@@ -14,6 +14,7 @@ dependencies:
   google_fonts: ^6.2.1
   intl: ^0.19.0
   image_picker: ^1.1.2
+  supabase_flutter: ^2.8.0
 
 dev_dependencies:
   flutter_test:

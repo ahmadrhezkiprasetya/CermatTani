@@ -3,7 +3,11 @@ node_modules/
 .next/
 out/
 tsconfig.tsbuildinfo
+.env
 .env*.local
+!.env.example
+.env.json
+applications/.env.json
 
 # Flutter / Dart (Mobile App)
 applications/.dart_tool/

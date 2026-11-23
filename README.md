@@ -1,44 +1,67 @@
-# CermatTani
+# CermatTani (Repo Menyeluruh — Monorepo)
 
-Aplikasi **CermatTani** sesuai `PRD (1).md` dan `DESIGN (3).md` — khusus budidaya **tomat** berbasis computer vision + IoT surya + maskot **Cermo**:
-- **Website (PWA + API Routes)**: **Next.js 15 (App Router + TypeScript)** di folder `src/` dan `public/`
-- **Mobile Apps (Android / iOS)**: **Flutter (Riverpod + GoRouter)** di folder `lib/` dan `pubspec.yaml`
+Repositori menyeluruh proyek **CermatTani** (InSaintek 2026) sesuai `PRD (1).md` dan `DESIGN (3).md` — khusus budidaya **tomat** berbasis computer vision + IoT surya + maskot **Cermo**.
+
+## Struktur 3 Repositori (Monorepo + Git Subtree)
+
+```text
+CermatTani/                  -> Repo menyeluruh (remote: origin -> CermatTani)
+├── PRD (1).md               -> Dokumen spesifikasi produk
+├── DESIGN (3).md            -> Dokumen sistem desain
+├── sync-repos.ps1           -> Skrip 1 perintah untuk sync ke 3 repo GitHub
+├── website/                 -> Repo khusus Website Next.js (remote: web -> CermatTani-Web)
+└── applications/            -> Repo khusus Mobile App Flutter (remote: app -> CermatTani-App)
+```
+
+| Remote Git | Folder | Tujuan Repo GitHub |
+|---|---|---|
+| `origin` | seluruh folder `/` | `https://github.com/ahmadrhezkiprasetya/CermatTani.git` |
+| `web` | `website/` | `https://github.com/ahmadrhezkiprasetya/CermatTani-Web.git` |
+| `app` | `applications/` | `https://github.com/ahmadrhezkiprasetya/CermatTani-App.git` |
 
 ---
 
 ## 1. Cara Menjalankan Website (Next.js)
 
-Pastikan **Node.js ≥ 18** sudah terpasang.
-
-```bash
-# 1. Pasang seluruh dependensi Next.js
-npm install
-
-# 2. Jalankan server pengembangan
+```powershell
+cd website
+npm install   # cukup sekali jika node_modules belum ada
 npm run dev
 ```
 
-Lalu buka peramban di **http://localhost:3000**.
+Buka peramban di **http://localhost:3000**.
 
-Untuk build produksi:
-```bash
-npm run build
-npm run start
+---
+
+## 2. Cara Menjalankan Mobile App (Flutter)
+
+```powershell
+cd applications
+flutter create --platforms=android,ios .   # cukup sekali jika folder android/ & ios/ belum ada
+flutter pub get
+flutter run
 ```
 
 ---
 
-## 2. Cara Menjalankan Aplikasi Mobile (Flutter)
+## 3. Cara Sinkronisasi ke 3 Repo GitHub
 
-Pastikan **Flutter SDK (Dart ≥ 3.4)** sudah terpasang dan emulator Android/iOS atau perangkat fisik tersambung.
+1. Buat 2 repo kosong baru di GitHub (tanpa README/gitignore awal):
+   - `CermatTani-Web`
+   - `CermatTani-App`
+   *(Jika nama repo berbeda, cukup ubah URL remote dengan `git remote set-url web <URL>` atau `git remote set-url app <URL>`.)*
+2. Commit semua perubahan di repo menyeluruh ini:
+   ```powershell
+   git add .
+   git commit -m "Pisahkan struktur website (Next.js) dan applications (Flutter)"
+   ```
+3. Jalankan skrip sinkronisasi 1 perintah:
+   ```powershell
+   # Push ke ketiga repo sekaligus (origin, web, dan app):
+   .\sync-repos.ps1
 
-```bash
-# 1. Jika folder android/ dan ios/ belum ada di repo, buat kerangka platformnya dulu:
-flutter create --platforms=android,ios .
-
-# 2. Unduh dependensi Flutter
-flutter pub get
-
-# 3. Jalankan di emulator atau HP Android/iOS
-flutter run
-```
+   # Atau sync salah satu saja:
+   .\sync-repos.ps1 -Target root
+   .\sync-repos.ps1 -Target web
+   .\sync-repos.ps1 -Target app
+   ```

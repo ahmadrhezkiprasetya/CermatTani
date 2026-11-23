@@ -7,7 +7,9 @@ out/
 tsconfig.tsbuildinfo
 
 # Local env & OS
+.env
 .env*.local
+!.env.example
 .DS_Store
 Thumbs.db
 *.log

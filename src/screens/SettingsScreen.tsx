@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Database,
   Download,
   Globe,
+  LogOut,
   Moon,
   RotateCcw,
   ShieldCheck,
@@ -16,6 +18,8 @@ import {
 import { useApp } from '../state/AppContext';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { cermatSupabaseRepo } from '@/lib/supabase/repository';
 
 /* Layar 10: Pengaturan (akun, Telegram, ambang, tema, ekspor, privasi & hapus data) */
 export const SettingsScreen: React.FC = () => {
@@ -32,6 +36,46 @@ export const SettingsScreen: React.FC = () => {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+  const [sbEmail, setSbEmail] = useState('');
+  const [sbPassword, setSbPassword] = useState('');
+  const [sbUserEmail, setSbUserEmail] = useState<string | null>(null);
+  const [sbMsg, setSbMsg] = useState<string>('');
+  const [sbBusy, setSbBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    cermatSupabaseRepo.getCurrentSession().then((session) => {
+      setSbUserEmail(session?.user?.email ?? null);
+    });
+  }, []);
+
+  const handleSupabaseAuth = async (mode: 'login' | 'signup') => {
+    if (!sbEmail.trim() || !sbPassword) return;
+    setSbBusy(true);
+    setSbMsg('');
+    try {
+      if (mode === 'login') {
+        const res = await cermatSupabaseRepo.signIn(sbEmail.trim(), sbPassword);
+        setSbUserEmail(res.user?.email ?? sbEmail.trim());
+        setSbMsg('Berhasil masuk ke akun Supabase.');
+      } else {
+        const res = await cermatSupabaseRepo.signUp(sbEmail.trim(), sbPassword, state.user.nama);
+        setSbUserEmail(res.user?.email ?? null);
+        setSbMsg('Akun dibuat! Cek email untuk verifikasi jika konfirmasi email aktif di Supabase.');
+      }
+      setSbPassword('');
+    } catch (err) {
+      setSbMsg(err instanceof Error ? err.message : 'Gagal terhubung ke Supabase.');
+    } finally {
+      setSbBusy(false);
+    }
+  };
+
+  const handleSupabaseLogout = async () => {
+    await cermatSupabaseRepo.signOut();
+    setSbUserEmail(null);
+    setSbMsg('Berhasil keluar dari sesi Supabase.');
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +109,85 @@ export const SettingsScreen: React.FC = () => {
           Atur profil kebun, tampilan terang/gelap, ambang peringatan, dan privasi datamu.
         </p>
       </div>
+
+      {/* Koneksi Database Supabase (Akun, Kebun, Scan & AI, Basis Pengetahuan, IoT & Irigasi, Jadwal & Chat) */}
+      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Database size={20} color="var(--leaf-600)" />
+            <h3 className="t-h3">Database Supabase</h3>
+          </div>
+          <span className={`pill ${isSupabaseConfigured ? 'pill-ok' : 'pill-warn'}`}>
+            {isSupabaseConfigured ? 'Terkonfigurasi' : 'Mode lokal (belum diisi .env.local)'}
+          </span>
+        </div>
+
+        {!isSupabaseConfigured ? (
+          <div className="card-subtle">
+            <p className="t-small">
+              Untuk menyambungkan 11 tabel Supabase (Akun, Kebun, Scan &amp; AI, Basis Pengetahuan,
+              IoT &amp; Irigasi, Jadwal &amp; Chat):
+            </p>
+            <ol className="t-small t-soft" style={{ margin: '8px 0 0', paddingLeft: 20, display: 'grid', gap: 4 }}>
+              <li>Jalankan <code>supabase/migrations/001_cermattani_schema.sql</code> dan <code>supabase/seed.sql</code> di SQL Editor Supabase.</li>
+              <li>Salin <code>website/.env.example</code> menjadi <code>website/.env.local</code> lalu isi URL &amp; Key proyekmu.</li>
+              <li>Restart <code>npm run dev</code> di folder <code>website/</code>.</li>
+            </ol>
+          </div>
+        ) : sbUserEmail ? (
+          <div className="alert-card alert-card--ok">
+            <Database size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+            <div style={{ flex: 1 }}>
+              <strong>Masuk sebagai {sbUserEmail}</strong>
+              <p className="t-small" style={{ marginTop: 4 }}>
+                Akun Supabase aktif dengan Row Level Security (RLS) dan Storage foto scan terproteksi.
+              </p>
+            </div>
+            <button type="button" className="btn-secondary" onClick={handleSupabaseLogout}>
+              <LogOut size={16} /> Keluar
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+              <input
+                type="email"
+                className="field-input"
+                placeholder="Email akun petani"
+                value={sbEmail}
+                onChange={(e) => setSbEmail(e.target.value)}
+              />
+              <input
+                type="password"
+                className="field-input"
+                placeholder="Kata sandi (min 6 karakter)"
+                value={sbPassword}
+                onChange={(e) => setSbPassword(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={sbBusy}
+                onClick={() => handleSupabaseAuth('login')}
+              >
+                Masuk Supabase
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={sbBusy}
+                onClick={() => handleSupabaseAuth('signup')}
+              >
+                Daftar akun baru
+              </button>
+            </div>
+          </div>
+        )}
+
+        {sbMsg && <p className="t-small" style={{ fontWeight: 600, color: 'var(--leaf-600)' }}>{sbMsg}</p>}
+      </section>
 
       {/* Akun & Profil */}
       <section className="card">

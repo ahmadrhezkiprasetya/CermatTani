@@ -6,6 +6,12 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+# Environment rahasia lokal
+.env
+.env*.local
+.env.json
+
+# IDE & OS
 *.iml
 .idea/
 .vscode/

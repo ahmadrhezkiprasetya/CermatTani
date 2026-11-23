@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -16,10 +17,12 @@ class ScanResultView extends StatefulWidget {
     required this.onSave,
     required this.onAskCermo,
     required this.onScanAgain,
+    this.photoBytes,
   });
 
   final ScanModel scan;
   final PlantModel plant;
+  final Uint8List? photoBytes;
   final int lowThreshold;
   final bool saved;
   final VoidCallback onSave;
@@ -91,14 +94,18 @@ class _ScanResultViewState extends State<ScanResultView> {
                         ),
                       ),
                       child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          Center(
-                            child: Icon(
-                              scan.bagian == PlantPart.buah ? Icons.local_florist_rounded : Icons.eco_rounded,
-                              size: 86,
-                              color: Colors.white.withAlpha(42),
+                          if (widget.photoBytes != null)
+                            Image.memory(widget.photoBytes!, fit: BoxFit.cover)
+                          else
+                            Center(
+                              child: Icon(
+                                scan.bagian == PlantPart.buah ? Icons.local_florist_rounded : Icons.eco_rounded,
+                                size: 86,
+                                color: Colors.white.withAlpha(42),
+                              ),
                             ),
-                          ),
                           for (final b in scan.boxes)
                             Positioned(
                               left: b.leftFrac * w,

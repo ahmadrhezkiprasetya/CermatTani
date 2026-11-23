@@ -131,6 +131,15 @@ extension CermatThemeContext on BuildContext {
         height: 1.15,
         color: color ?? ct.ink,
       );
+
+  /// H3 judul kartu profesional (Plus Jakarta Sans 700 — DESIGN.md v1.1 §3)
+  TextStyle cardTitleStyle({double size = 18, Color? color}) => GoogleFonts.plusJakartaSans(
+        fontSize: size,
+        fontWeight: FontWeight.w700,
+        height: 1.3,
+        letterSpacing: -0.2,
+        color: color ?? ct.ink,
+      );
 }
 
 abstract final class AppTheme {
@@ -166,7 +175,7 @@ abstract final class AppTheme {
         displaySmall: GoogleFonts.fredoka(fontSize: 32, fontWeight: FontWeight.w600, height: 1.08, color: p.ink),
         headlineMedium: GoogleFonts.fredoka(fontSize: 26, fontWeight: FontWeight.w600, height: 1.15, color: p.ink),
         headlineSmall: GoogleFonts.fredoka(fontSize: 22, fontWeight: FontWeight.w600, height: 1.2, color: p.ink),
-        titleLarge: GoogleFonts.fredoka(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3, color: p.ink),
+        titleLarge: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, height: 1.3, color: p.ink),
         bodyLarge: GoogleFonts.plusJakartaSans(fontSize: 16, height: 1.55, color: p.ink),
         bodyMedium: GoogleFonts.plusJakartaSans(fontSize: 15, height: 1.5, color: p.ink),
         bodySmall: GoogleFonts.plusJakartaSans(fontSize: 13, height: 1.45, color: p.inkSoft),

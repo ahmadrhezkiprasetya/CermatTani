@@ -14,12 +14,11 @@ function roundToCommercialPanel(wp: number): number {
   return match || Math.ceil(wp / 50) * 50;
 }
 
-/* Layar 8: Energi Surya — Monitor INA219 (F13) + Kalkulator Perancangan (F9) */
+/* Layar 8: Energi Surya — Layout 2-kolom tenang: Monitor INA219 + Kalkulator Panel Surya */
 export const SolarScreen: React.FC = () => {
   const { state, updateSensor } = useApp();
   const { sensor, settings } = state;
 
-  // F9.2: Nilai contoh awal PERSIS PRD (1 W, 24 jam, 2 hari, DoD 0.8, η 0.85, PSH 4, f_rugi 0.7)
   const [hariOtonomi, setHariOtonomi] = useState(2);
   const [dod, setDod] = useState(0.8);
   const [efisiensi, setEfisiensi] = useState(0.85);
@@ -31,16 +30,9 @@ export const SolarScreen: React.FC = () => {
   const simpleDurasiJam = bebanPreset === 'besar' ? 12 : 24;
   const simplePsh = cuacaPreset === 'cerah' ? 4 : 2.5;
 
-  // Rumus eksak F9.1:
-  // E_harian = P × t
-  // C_baterai = E × H / (DoD × η)
-  // P_panel = E / (PSH × f_rugi)
-  const effectiveDayaBebanW = simpleDayaW;
-  const effectiveDurasiJam = simpleDurasiJam;
-  const effectivePsh = simplePsh;
-  const eHarian = effectiveDayaBebanW * effectiveDurasiJam;
+  const eHarian = simpleDayaW * simpleDurasiJam;
   const cBateraiWh = dod > 0 && efisiensi > 0 ? (eHarian * hariOtonomi) / (dod * efisiensi) : 0;
-  const pPanelWp = effectivePsh > 0 && faktorRugi > 0 ? eHarian / (effectivePsh * faktorRugi) : 0;
+  const pPanelWp = simplePsh > 0 && faktorRugi > 0 ? eHarian / (simplePsh * faktorRugi) : 0;
   const pPanelRounded = roundToCommercialPanel(pPanelWp);
 
   const isPowerSave = sensor.bateraiPersen <= settings.ambangBateraiHemat;
@@ -56,309 +48,235 @@ export const SolarScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Bagian 1: Pemantauan Energi Surya INA219 (F13) — Bento Dark Forest Hero */}
-      <section className="card-forest stagger-card" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <h2 className="t-h1" style={{ color: '#FFFFFF' }}>Pemantauan energi surya</h2>
-              <span className="pill pill-sim">Simulasi</span>
-              {isPowerSave && (
-                <span className="pill pill-warn">
-                  <Moon size={14} /> Mode hemat
-                </span>
-              )}
-            </div>
-            <p className="t-small t-soft" style={{ marginTop: 4 }}>
-              Sensor arus &amp; tegangan INA219 pada perangkat ESP32 bertenaga surya.
-            </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Baris KPI 4 Metrik Daya INA219 — Seragam & Mudah Dibaca */}
+      <section className="kpi-grid-4" aria-label="Ringkasan energi surya">
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--leaf-600)' }}>
+              <BatteryCharging size={18} />
+            </span>
+            <span className={`pill ${isPowerSave ? 'pill-warn' : 'pill-ok'}`}>
+              {isPowerSave ? 'Mode hemat' : 'Optimal'}
+            </span>
           </div>
+          <div>
+            <div className="kpi-value">{sensor.bateraiPersen}%</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Cadangan ± {estBackupHours} jam</div>
+          </div>
+        </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 14px',
-              borderRadius: 20,
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
-            }}
-          >
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--forest-900)' }}>
+              <Zap size={18} />
+            </span>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+          <div>
+            <div className="kpi-value">{sensor.teganganVolt.toFixed(1)} V</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Tegangan baterai 12V</div>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--warn-bg)', color: 'var(--warn-fg)' }}>
+              <Sun size={18} />
+            </span>
+            <span className="t-micro t-soft tabular-nums">{isPowerSave ? 32 : sensor.arusMa} mA</span>
+          </div>
+          <div>
+            <div className="kpi-value">{(isPowerSave ? 0.38 : sensor.dayaWatt).toFixed(2)} W</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Daya sesaat INA219</div>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--water-bg)', color: 'var(--water-700)' }}>
+              <Moon size={18} />
+            </span>
+            <span className="t-micro t-soft">{isPowerSave ? 'Hemat' : 'Normal'}</span>
+          </div>
+          <div>
+            <div className="kpi-value">{isPowerSave ? '30 mnt' : '5 mnt'}</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Interval kirim ESP32</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bento 2 Kolom Rapi: Monitor Baterai (Mint Cerah) + Kalkulator Surya (Putih Bersih) */}
+      <div className="dashboard-bento-row">
+        <section className="card-forest" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div>
+              <h3 className="t-h3" style={{ color: 'var(--ink)' }}>Status baterai &amp; panel</h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>Monitor daya ESP32 bertenaga surya</p>
+            </div>
             <CermoMascot
               pose={isPowerSave ? 'sleep' : 'happy'}
-              size={72}
+              size={54}
               tipOverride={
                 isPowerSave
-                  ? 'Baterai rendah! ESP32 masuk mode hemat & kirim data tiap 30 menit.'
-                  : 'Energi matahari cerah, baterai perangkat aman!'
+                  ? 'Baterai rendah! ESP32 otomatis masuk mode hemat.'
+                  : 'Energi matahari cerah, baterai aman!'
               }
             />
-            <div style={{ maxWidth: 160 }}>
-              <div className="t-micro" style={{ color: '#D8F36A' }}>
-                {isPowerSave ? 'Mode hemat aktif' : 'Pengisian optimal'}
-              </div>
-              <div className="t-micro t-soft">
-                {isPowerSave ? 'Cermo istirahat sementara' : 'Panel menyerap sinar stabil'}
-              </div>
-            </div>
           </div>
-        </div>
 
-        {/* Visualisasi baterai bergelombang + sinar matahari berputar 8s + Striped Gauge */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: 18,
-            alignItems: 'center',
-          }}
-        >
           <div
             style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 20,
-              padding: 18,
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 16,
+              padding: 16,
               display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              gap: 14,
+              flexWrap: 'wrap',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 12, flexWrap: 'wrap' }}>
-              <SolarBatteryVisual batteryPercent={sensor.bateraiPersen} powerSave={isPowerSave} />
-              <div>
-                <div className="font-display tabular-nums" style={{ fontSize: '2.5rem', lineHeight: 1.05, color: isPowerSave ? '#FFB63D' : '#D8F36A' }}>
-                  {sensor.bateraiPersen}%
-                </div>
-                <span className="t-small t-soft">
-                  Cadangan: <strong style={{ color: '#FFFFFF' }}>± {estBackupHours} jam</strong>
-                </span>
-              </div>
+            <SolarBatteryVisual batteryPercent={sensor.bateraiPersen} powerSave={isPowerSave} />
+            <div style={{ flex: '1 1 150px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <StripedProgressBar
+                label="Kapasitas tersimpan"
+                valueLabel={`${sensor.bateraiPersen}%`}
+                percent={sensor.bateraiPersen}
+                color={isPowerSave ? 'var(--warn)' : 'var(--leaf-500)'}
+              />
+              <p className="t-micro t-soft" style={{ lineHeight: 1.5 }}>
+                {isPowerSave
+                  ? 'Mode hemat aktif: jeda scan sementara & gunakan pompa hanya saat tanah sangat kering.'
+                  : 'Pasokan daya stabil. Pastikan permukaan panel bebas bayangan daun atau debu.'}
+              </p>
             </div>
-            <StripedProgressBar
-              label="Kapasitas daya tersimpan"
-              valueLabel={`${sensor.bateraiPersen}%`}
-              percent={sensor.bateraiPersen}
-              color={isPowerSave ? '#FFB63D' : '#D8F36A'}
-              darkBg
+          </div>
+
+          <div
+            style={{
+              marginTop: 'auto',
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 14,
+              padding: '12px 14px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <label htmlFor="sim-batt" className="t-micro" style={{ color: 'var(--ink)' }}>
+                Uji simulasi level baterai (≤ {settings.ambangBateraiHemat}% = Mode hemat)
+              </label>
+              <strong className="t-micro tabular-nums" style={{ color: 'var(--leaf-600)' }}>{sensor.bateraiPersen}%</strong>
+            </div>
+            <input
+              id="sim-batt"
+              type="range"
+              min={8}
+              max={100}
+              value={sensor.bateraiPersen}
+              onChange={(e) => {
+                const pct = Number(e.target.value);
+                const volt = Number((11.1 + (pct / 100) * 1.9).toFixed(1));
+                updateSensor({ bateraiPersen: pct, teganganVolt: volt });
+              }}
+              className="range-slider"
             />
           </div>
+        </section>
 
-          {/* Tegangan, Arus, Daya & Status Mode Hemat (F13.1, F13.2) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-            {[
-              {
-                label: 'Tegangan (INA219)',
-                val: `${sensor.teganganVolt.toFixed(1)} V`,
-                sub: 'Baterai 12V nominal',
-                icon: Zap,
-              },
-              {
-                label: 'Arus beban',
-                val: `${isPowerSave ? 32 : sensor.arusMa} mA`,
-                sub: isPowerSave ? 'Arus hemat daya' : 'Operasi sensor aktif',
-                icon: BatteryCharging,
-              },
-              {
-                label: 'Daya sesaat',
-                val: `${(isPowerSave ? 0.38 : sensor.dayaWatt).toFixed(2)} W`,
-                sub: 'Konsumsi ESP32 + sensor',
-                icon: Sun,
-              },
-              {
-                label: 'Interval kirim',
-                val: isPowerSave ? '30 menit' : '5 menit',
-                sub: isPowerSave ? 'Mode hemat aktif' : 'Mode normal',
-                icon: Moon,
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 16,
-                    padding: '14px 16px',
-                  }}
+        {/* Kalkulator Perancangan Tenaga Surya */}
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Calculator size={19} color="var(--leaf-600)" />
+              <div>
+                <h3 className="t-h3">Kalkulator panel surya</h3>
+                <p className="t-micro t-soft">Estimasi baterai &amp; panel sesuai kebutuhan</p>
+              </div>
+            </div>
+            <button type="button" className="btn-ghost" onClick={resetDefaults}>
+              <RotateCcw size={15} /> Reset
+            </button>
+          </div>
+
+          <div className="solar-res-grid">
+            <div className="card-subtle" style={{ textAlign: 'center', padding: '14px 10px' }}>
+              <div className="t-micro t-soft">Energi harian</div>
+              <div className="font-display tabular-nums" style={{ fontSize: '1.35rem', marginTop: 4 }}>
+                {eHarian.toFixed(0)} Wh
+              </div>
+            </div>
+            <div className="card-subtle" style={{ textAlign: 'center', padding: '14px 10px' }}>
+              <div className="t-micro t-soft">Baterai</div>
+              <div className="font-display tabular-nums" style={{ fontSize: '1.35rem', marginTop: 4 }}>
+                ≈ {Math.round(cBateraiWh)} Wh
+              </div>
+            </div>
+            <div
+              className="card-subtle"
+              style={{
+                textAlign: 'center',
+                padding: '14px 10px',
+                background: 'var(--ok-bg)',
+                borderColor: 'rgba(23,128,63,0.2)',
+              }}
+            >
+              <div className="t-micro" style={{ color: 'var(--ok-fg)' }}>Panel disarankan</div>
+              <div className="font-display tabular-nums" style={{ fontSize: '1.35rem', marginTop: 4, color: 'var(--ok-fg)' }}>
+                {pPanelRounded} Wp
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div className="field-group">
+              <label htmlFor="calc-load" className="field-label">Perangkat yang dijalankan</label>
+              <select
+                id="calc-load"
+                className="field-select"
+                value={bebanPreset}
+                onChange={(e) => setBebanPreset(e.target.value as typeof bebanPreset)}
+              >
+                <option value="ringan">Sensor saja (1 W · 24 jam)</option>
+                <option value="sedang">Sensor + internet (5 W · 24 jam)</option>
+                <option value="besar">Sensor + pompa kecil (12 W · 12 jam)</option>
+              </select>
+            </div>
+            <div className="form-grid-2">
+              <div className="field-group">
+                <label htmlFor="calc-days" className="field-label">Cadangan mendung</label>
+                <select
+                  id="calc-days"
+                  className="field-select"
+                  value={hariOtonomi}
+                  onChange={(e) => setHariOtonomi(Number(e.target.value))}
                 >
-                  <div className="t-micro t-soft" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Icon size={14} color="#D8F36A" /> {item.label}
-                  </div>
-                  <div className="font-display tabular-nums" style={{ fontSize: '1.6rem', marginTop: 4, color: '#FFFFFF' }}>
-                    {item.val}
-                  </div>
-                  <div className="t-micro t-soft" style={{ marginTop: 2 }}>
-                    {item.sub}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Mode Hemat Alert & Slider uji baterai (F13.2) */}
-        {isPowerSave && (
-          <div
-            role="status"
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 12,
-              padding: '14px 16px',
-              borderRadius: 16,
-              background: 'rgba(255,182,61,0.16)',
-              borderLeft: '4px solid #FFB63D',
-              color: '#FFF6E0',
-            }}
-          >
-            <Moon size={20} style={{ flexShrink: 0, color: '#FFB63D' }} />
-            <div className="t-small">
-              <strong>Mode hemat aktif (baterai ≤ {settings.ambangBateraiHemat}%).</strong> ESP32
-              mengirim data lebih jarang (tiap 30 menit) untuk menjaga pasokan daya sampai matahari
-              kembali mengisi panel. Cermo ikut istirahat sementara.
-            </div>
-          </div>
-        )}
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 12,
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 16,
-            padding: '14px 16px',
-          }}
-        >
-          <div>
-            <div className="t-micro" style={{ fontWeight: 800, color: '#D8F36A' }}>Rekomendasi Cermo</div>
-            <p className="t-small" style={{ marginTop: 4, color: '#EAF5EE' }}>
-              {isPowerSave
-                ? 'Kurangi aktivitas siang: jeda scan dan matikan pompa manual. Baterai perlu waktu mengisi kembali.'
-                : 'Energi cukup untuk pemakaian normal. Pantau cuaca dan usahakan panel tetap mendapat sinar matahari.'}
-            </p>
-          </div>
-          <div>
-            <div className="t-micro" style={{ fontWeight: 800, color: '#D8F36A' }}>Cara hemat energi</div>
-            <p className="t-small" style={{ marginTop: 4, color: '#EAF5EE' }}>
-              Aktifkan mode hemat otomatis, kirim data lebih jarang, dan gunakan pompa hanya saat tanah benar-benar kering.
-            </p>
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: '12px 16px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
-            <label htmlFor="sim-batt" className="t-small" style={{ fontWeight: 600, color: '#EAF5EE' }}>
-              Uji simulasi level baterai (turunkan ≤ {settings.ambangBateraiHemat}% untuk melihat Mode hemat &amp; Cermo tidur)
-            </label>
-            <strong className="tabular-nums" style={{ color: '#D8F36A' }}>{sensor.bateraiPersen}%</strong>
-          </div>
-          <input
-            id="sim-batt"
-            type="range"
-            min={8}
-            max={100}
-            value={sensor.bateraiPersen}
-            onChange={(e) => {
-              const pct = Number(e.target.value);
-              const volt = Number((11.1 + (pct / 100) * 1.9).toFixed(1));
-              updateSensor({ bateraiPersen: pct, teganganVolt: volt });
-            }}
-            className="range-slider"
-          />
-        </div>
-      </section>
-
-      {/* Bagian 2: Kalkulator Perancangan Tenaga Surya (F9.1, F9.2) */}
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Calculator size={22} color="var(--leaf-600)" />
-              <h2 className="t-h2">Kalkulator perancangan tenaga surya</h2>
-              <span className="pill pill-sim">Rancangan / Simulasi</span>
-            </div>
-            <p className="t-small t-soft">
-              Pilih perangkat dan kondisi cuaca. Cermo akan mengubahnya menjadi ukuran baterai dan panel yang mudah dipakai.
-            </p>
-          </div>
-          <button type="button" className="btn-secondary" onClick={resetDefaults}>
-            <RotateCcw size={16} /> Nilai awal PRD
-          </button>
-        </div>
-
-        {/* Kartu Hasil Perhitungan (3 kartu metrik: Lime, Putih, Forest) */}
-        <div className="metrics-grid-3">
-          <div className="metric-card metric-card--lime">
-            <div className="t-micro" style={{ fontWeight: 700 }}>
-              Kebutuhan energi harian
-            </div>
-            <div className="metric-value">{eHarian.toFixed(1).replace('.', ',')} Wh</div>
-            <div className="t-micro">
-              Perkiraan untuk {bebanPreset === 'ringan' ? 'sensor saja' : bebanPreset === 'sedang' ? 'sensor + internet' : 'sensor + pompa'}
+                  <option value={1}>1 hari</option>
+                  <option value={2}>2 hari</option>
+                  <option value={3}>3 hari</option>
+                </select>
+              </div>
+              <div className="field-group">
+                <label htmlFor="calc-weather" className="field-label">Cuaca lokasi</label>
+                <select
+                  id="calc-weather"
+                  className="field-select"
+                  value={cuacaPreset}
+                  onChange={(e) => setCuacaPreset(e.target.value as typeof cuacaPreset)}
+                >
+                  <option value="cerah">Cerah (4 jam puncak)</option>
+                  <option value="berawan">Sering mendung (2,5 jam)</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="metric-card metric-card--white">
-            <div className="t-micro t-soft" style={{ fontWeight: 700 }}>
-              Ukuran baterai disarankan
-            </div>
-            <div className="metric-value">≈ {Math.round(cBateraiWh)} Wh</div>
-            <div className="t-micro t-soft">
-              Untuk cadangan sekitar {hariOtonomi} hari
-            </div>
-          </div>
-
-          <div className="metric-card metric-card--forest">
-            <div className="t-micro" style={{ opacity: 0.85, fontWeight: 700 }}>
-              Ukuran panel surya
-            </div>
-            <div className="metric-value">
-              {pPanelWp.toFixed(1).replace('.', ',')} Wp → {pPanelRounded} Wp
-            </div>
-            <div className="t-micro" style={{ opacity: 0.85 }}>
-              Pilih panel komersial terdekat: {pPanelRounded} Wp
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div className="field-group">
-            <label htmlFor="calc-load" className="field-label">Perangkat apa yang dijalankan?</label>
-            <select id="calc-load" className="field-select" value={bebanPreset} onChange={(e) => setBebanPreset(e.target.value as typeof bebanPreset)}>
-              <option value="ringan">Sensor saja</option>
-              <option value="sedang">Sensor + internet</option>
-              <option value="besar">Sensor + pompa</option>
-            </select>
-          </div>
-          <div className="field-group">
-            <label htmlFor="calc-days" className="field-label">Berapa hari aman saat matahari kurang?</label>
-            <select id="calc-days" className="field-select" value={hariOtonomi} onChange={(e) => setHariOtonomi(Number(e.target.value))}>
-              <option value={1}>1 hari</option>
-              <option value={2}>2 hari</option>
-              <option value={3}>3 hari</option>
-            </select>
-          </div>
-          <div className="field-group">
-            <label htmlFor="calc-weather" className="field-label">Biasanya cuaca di lokasi</label>
-            <select id="calc-weather" className="field-select" value={cuacaPreset} onChange={(e) => setCuacaPreset(e.target.value as typeof cuacaPreset)}>
-              <option value="cerah">Cerah, matahari cukup</option>
-              <option value="berawan">Sering mendung / hujan</option>
-            </select>
-          </div>
-        </div>
-      </section>
+          <p className="t-micro t-soft" style={{ marginTop: 'auto' }}>
+            Perhitungan tepat: {pPanelWp.toFixed(1).replace('.', ',')} Wp dibulatkan ke panel komersial terdekat {pPanelRounded} Wp (DoD 80%, efisiensi 85%).
+          </p>
+        </section>
+      </div>
     </div>
   );
 };

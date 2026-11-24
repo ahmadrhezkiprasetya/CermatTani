@@ -3,13 +3,16 @@
 import React, { useMemo, useState } from 'react';
 import {
   BellRing,
+  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Copy,
   Plus,
   RefreshCw,
   Send,
+  Sparkles,
   Unlink,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
@@ -17,12 +20,46 @@ import { CermoMascot } from '../components/CermoMascot';
 
 const DAYS_HEADER = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
-/* Layar 6: Kalender Panen & Notifikasi Bot Telegram (F7.1–F7.3) */
+function getLocalTodayYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatFullDateId(ymd: string): string {
+  try {
+    return new Date(`${ymd}T00:00:00`).toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return ymd;
+  }
+}
+
+function getRelativeDayLabel(targetYmd: string, todayYmd: string): string {
+  const diff = Math.round(
+    (new Date(`${targetYmd}T00:00:00`).getTime() - new Date(`${todayYmd}T00:00:00`).getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
+  if (diff === 0) return 'Hari ini';
+  if (diff === 1) return 'Besok';
+  if (diff > 1) return `${diff} hari lagi`;
+  return `${Math.abs(diff)} hari lalu`;
+}
+
+/* Layar 6: Kalender Panen, Agenda Terdekat & Pengingat Otomatis (F7.1–F7.3) */
 export const CalendarScreen: React.FC = () => {
   const {
     state,
     addHarvestEvent,
     markHarvestActual,
+    updateReminderSchedule,
+    triggerTestReminderAlert,
     linkTelegram,
     unlinkTelegram,
     regenerateTelegramCode,
@@ -31,15 +68,17 @@ export const CalendarScreen: React.FC = () => {
   } = useApp();
 
   const today = new Date();
-  const todayYmd = today.toISOString().slice(0, 10);
+  const todayYmd = getLocalTodayYmd();
 
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedYmd, setSelectedYmd] = useState(todayYmd);
+  const [reminderTab, setReminderTab] = useState<'harian' | 'telegram'>('harian');
 
   // Form tambah jadwal manual
   const [plantId, setPlantId] = useState(state.plants[0]?.id || '');
   const [catatan, setCatatan] = useState('');
+  const [addedNotice, setAddedNotice] = useState(false);
   const [tgHandle, setTgHandle] = useState('');
   const [copied, setCopied] = useState(false);
   const [tgPreviewSent, setTgPreviewSent] = useState(false);
@@ -67,6 +106,25 @@ export const CalendarScreen: React.FC = () => {
     return map;
   }, [state.harvestEvents]);
 
+  const upcomingHarvests = useMemo(
+    () =>
+      state.harvestEvents
+        .filter((ev) => ev.sumber === 'estimasi')
+        .sort((a, b) => a.tanggal.localeCompare(b.tanggal))
+        .slice(0, 4),
+    [state.harvestEvents]
+  );
+
+  const doneHarvestCount = useMemo(
+    () => state.harvestEvents.filter((ev) => ev.sumber === 'aktual').length,
+    [state.harvestEvents]
+  );
+
+  const activeRemindersCount = useMemo(
+    () => state.settings.jadwalPengingat.filter((r) => r.aktif).length,
+    [state.settings.jadwalPengingat]
+  );
+
   const selectedDayEvents = eventsByDate.get(selectedYmd) || [];
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('id-ID', {
@@ -74,10 +132,22 @@ export const CalendarScreen: React.FC = () => {
     year: 'numeric',
   });
 
+  const isViewingCurrentMonth =
+    viewYear === today.getFullYear() && viewMonth === today.getMonth();
+
   const shiftMonth = (delta: number) => {
     const next = new Date(viewYear, viewMonth + delta, 1);
     setViewYear(next.getFullYear());
     setViewMonth(next.getMonth());
+  };
+
+  const jumpToDate = (ymd: string) => {
+    setSelectedYmd(ymd);
+    const dt = new Date(`${ymd}T00:00:00`);
+    if (!Number.isNaN(dt.getTime())) {
+      setViewYear(dt.getFullYear());
+      setViewMonth(dt.getMonth());
+    }
   };
 
   const handleAddHarvest = (e: React.FormEvent) => {
@@ -90,6 +160,8 @@ export const CalendarScreen: React.FC = () => {
       catatan: catatan.trim() || 'Jadwal panen manual',
     });
     setCatatan('');
+    setAddedNotice(true);
+    window.setTimeout(() => setAddedNotice(false), 2000);
   };
 
   const handleCopyCode = () => {
@@ -99,322 +171,565 @@ export const CalendarScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: 24, alignItems: 'start' }}>
-      {/* Kolom Kiri: Kalender Panen (sel hari dengan chip tomat kecil, panen --tomato-500) */}
-      <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <h2 className="t-h2">Kalender panen</h2>
-            <p className="t-small t-soft">Warna merah = panen, hijau = sudah dipetik, merah muda = estimasi</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button type="button" className="icon-btn" onClick={() => shiftMonth(-1)} aria-label="Bulan sebelumnya">
-              <ChevronLeft size={20} />
-            </button>
-            <span className="font-display" style={{ minWidth: 132, textAlign: 'center', fontWeight: 600 }}>
-              {monthLabel}
-            </span>
-            <button type="button" className="icon-btn" onClick={() => shiftMonth(1)} aria-label="Bulan berikutnya">
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Legenda warna panen */}
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
-          <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="ripeness-dot" style={{ background: 'var(--tomato-500)' }} /> Estimasi panen
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Bar Ringkasan Cepat */}
+      <section
+        className="card"
+        style={{
+          padding: '13px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span className="pill pill-warn tabular-nums">
+            {upcomingHarvests.length} menunggu dipetik
           </span>
-          <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="ripeness-dot" style={{ background: 'var(--ok)' }} /> Sudah dipanen
+          <span className="pill pill-ok tabular-nums">
+            {doneHarvestCount} sudah dipanen
+          </span>
+          <span className="pill pill-neutral tabular-nums">
+            {activeRemindersCount} pengingat harian aktif
           </span>
         </div>
 
-        {/* Nama hari */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 8 }}>
-          {DAYS_HEADER.map((d) => (
-            <div key={d} className="t-micro t-soft" style={{ textAlign: 'center', fontWeight: 700 }}>
-              {d}
-            </div>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(!isViewingCurrentMonth || selectedYmd !== todayYmd) && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ minHeight: 34, padding: '4px 12px', fontSize: '0.8rem' }}
+              onClick={() => jumpToDate(todayYmd)}
+            >
+              Ke hari ini
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 34, padding: '4px 12px', fontSize: '0.8rem' }}
+            onClick={() => triggerTestReminderAlert()}
+          >
+            <Sparkles size={14} /> Uji alert
+          </button>
         </div>
+      </section>
 
-        {/* Grid tanggal */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
-          {calendarDays.map((ymd, idx) => {
-            if (!ymd) return <div key={`empty-${idx}`} />;
-            const dayNum = Number(ymd.slice(8, 10));
-            const dayEvents = eventsByDate.get(ymd) || [];
-            const hasHarvest = dayEvents.length > 0;
-            const isSelected = ymd === selectedYmd;
-            const isToday = ymd === todayYmd;
-
-            return (
-              <button
-                key={ymd}
-                type="button"
-                onClick={() => setSelectedYmd(ymd)}
-                style={{
-                  minHeight: 54,
-                  borderRadius: 14,
-                  border: isSelected
-                    ? '2px solid var(--leaf-600)'
-                    : isToday
-                      ? '2px dashed var(--leaf-500)'
-                      : '1px solid var(--line)',
-                  background: hasHarvest
-                    ? 'rgba(242, 86, 43, 0.14)'
-                    : isSelected
-                      ? 'var(--surface-2)'
-                      : 'var(--surface)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                  padding: 4,
-                }}
-              >
-                <span
-                  className="tabular-nums"
-                  style={{
-                    fontWeight: hasHarvest || isToday ? 700 : 500,
-                    fontSize: '0.9375rem',
-                    color: hasHarvest ? 'var(--tomato-btn)' : 'var(--ink)',
-                  }}
+      {/* Tata Letak 2 Kolom Seimbang: Kiri (Kalender + Antrean Panen Terdekat) | Kanan (Agenda Tanggal + Pengingat) */}
+      <div className="calendar-layout">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          {/* Kartu Kalender Bulanan */}
+          <section className="card">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
+              <div>
+                <h2 className="t-h3" style={{ fontSize: '1.15rem' }}>Kalender panen</h2>
+                <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+                  Pilih tanggal untuk melihat atau menjadwalkan petik
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  style={{ width: 36, height: 36 }}
+                  onClick={() => shiftMonth(-1)}
+                  aria-label="Bulan sebelumnya"
                 >
-                  {dayNum}
+                  <ChevronLeft size={17} />
+                </button>
+                <span
+                  className="font-display"
+                  style={{ minWidth: 132, textAlign: 'center', fontWeight: 600, fontSize: '0.98rem' }}
+                >
+                  {monthLabel}
                 </span>
-                {hasHarvest && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, maxWidth: '100%' }}>
-                    {dayEvents.slice(0, 3).map((ev) => (
-                      <span key={ev.id} style={{
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        fontSize: '0.625rem',
-                        lineHeight: 1.1,
-                        fontWeight: 800,
-                        color: ev.sumber === 'aktual' ? 'var(--leaf-600)' : 'var(--tomato-btn)',
-                      }}>
-                        {ev.sumber === 'aktual' ? 'Panen ✓' : 'Estimasi'}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  style={{ width: 36, height: 36 }}
+                  onClick={() => shiftMonth(1)}
+                  aria-label="Bulan berikutnya"
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </div>
 
-        {/* Detail tanggal terpilih */}
-        <hr className="card-divider" />
-        <div>
-          <h3 className="t-h3" style={{ marginBottom: 10 }}>
-            Jadwal tanggal {selectedYmd}
-          </h3>
-          {selectedDayEvents.length === 0 ? (
-            <p className="t-small t-soft" style={{ marginBottom: 12 }}>
-              Belum ada jadwal panen pada tanggal ini.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              {selectedDayEvents.map((ev) => {
-                const plant = state.plants.find((p) => p.id === ev.plantId);
+            {/* Legenda warna */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+              <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className="ripeness-dot" style={{ background: 'var(--tomato-500)' }} /> Estimasi panen
+              </span>
+              <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className="ripeness-dot" style={{ background: 'var(--ok)' }} /> Sudah dipanen
+              </span>
+              <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 4,
+                    background: 'var(--cream-warm)',
+                    border: '1.5px solid var(--cream-border)',
+                  }}
+                />{' '}
+                Hari ini
+              </span>
+            </div>
+
+            {/* Nama hari */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 8 }}>
+              {DAYS_HEADER.map((d) => (
+                <div key={d} className="t-micro t-soft" style={{ textAlign: 'center', fontWeight: 700 }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Grid tanggal dengan animasi perpindahan bulan halus */}
+            <div
+              key={`${viewYear}-${viewMonth}`}
+              className="tab-fade"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}
+            >
+              {calendarDays.map((ymd, idx) => {
+                if (!ymd) return <div key={`empty-${idx}`} />;
+                const dayNum = Number(ymd.slice(8, 10));
+                const dayEvents = eventsByDate.get(ymd) || [];
+                const hasHarvest = dayEvents.length > 0;
+                const isSelected = ymd === selectedYmd;
+                const isToday = ymd === todayYmd;
+
                 return (
-                  <div
-                    key={ev.id}
-                    className="card-subtle"
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
+                  <button
+                    key={ymd}
+                    type="button"
+                    onClick={() => setSelectedYmd(ymd)}
+                    className={`cal-day-cell ${
+                      isSelected
+                        ? 'cal-day-cell--selected'
+                        : isToday
+                          ? 'cal-day-cell--today'
+                          : hasHarvest
+                            ? 'cal-day-cell--has'
+                            : ''
+                    }`}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong>{plant?.nama || 'Tomat'}</strong>
-                        <span className={`pill ${ev.sumber === 'aktual' ? 'pill-ok' : 'pill-warn'}`}>
-                          {ev.sumber === 'aktual' ? 'Sudah dipanen' : 'Estimasi scan'}
-                        </span>
+                    <span
+                      className="tabular-nums"
+                      style={{
+                        fontWeight: hasHarvest || isToday || isSelected ? 700 : 500,
+                        fontSize: '0.88rem',
+                        color: isSelected ? 'var(--ok-fg)' : 'var(--ink)',
+                      }}
+                    >
+                      {dayNum}
+                    </span>
+                    {hasHarvest && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {dayEvents.slice(0, 3).map((ev) => (
+                          <span
+                            key={ev.id}
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              background: ev.sumber === 'aktual' ? 'var(--ok)' : 'var(--tomato-500)',
+                            }}
+                          />
+                        ))}
                       </div>
-                      <p className="t-small t-soft">{ev.catatan}</p>
-                    </div>
-                    {ev.sumber === 'estimasi' && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        style={{ minHeight: 42, padding: '6px 12px', fontSize: '0.875rem' }}
-                        onClick={() => markHarvestActual(ev.id)}
-                      >
-                        <Check size={16} /> Tandai sudah panen
-                      </button>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
-          )}
+          </section>
 
-          {/* Tambah jadwal panen */}
-          <form onSubmit={handleAddHarvest} style={{ display: 'grid', gap: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <select
-                className="field-select"
-                value={plantId}
-                onChange={(e) => setPlantId(e.target.value)}
-                aria-label="Pilih tanaman"
-              >
-                {state.plants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nama}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="field-input"
-                value={catatan}
-                onChange={(e) => setCatatan(e.target.value)}
-                placeholder="Catatan panen..."
-              />
-            </div>
-            <button type="submit" className="btn-primary">
-              <Plus size={18} /> Jadwalkan panen di {selectedYmd}
-            </button>
-          </form>
-        </div>
-      </section>
-
-      {/* Kolom Kanan: Notifikasi Bot Telegram (F7.2 & F7.3) */}
-      <section className="card stagger-card stagger-1" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <CermoMascot
-              pose={state.user.telegramChatId ? 'happy' : 'wave'}
-              size={58}
-              tipOverride="Tautkan Telegram sekali saja agar Cermo bisa mengingatkan panen otomatis!"
-            />
-            <div>
-              <h2 className="t-h2">Pengingat Telegram</h2>
-              <p className="t-small t-soft">Tautkan sekali dengan kode 6 digit</p>
-            </div>
-          </div>
-          <span className={`pill ${state.user.telegramChatId ? 'pill-ok' : 'pill-neutral'}`}>
-            {state.user.telegramChatId ? 'Tertaut' : 'Belum tertaut'}
-          </span>
-        </div>
-
-        {!state.user.telegramChatId ? (
-          <>
-            <div className="card-forest" style={{ textAlign: 'center', padding: 20 }}>
-              <div className="t-micro" style={{ color: 'rgba(234,245,238,0.8)' }}>
-                Kode tautan 6 digit kamu
-              </div>
-              <div
-                className="font-display tabular-nums"
-                style={{ fontSize: '2.25rem', letterSpacing: '0.18em', color: '#D8F36A', margin: '6px 0' }}
-              >
-                {state.user.telegramLinkCode}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10 }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ minHeight: 42, padding: '6px 14px', fontSize: '0.875rem' }}
-                  onClick={handleCopyCode}
-                >
-                  <Copy size={16} /> {copied ? 'Tersalin!' : 'Salin perintah'}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ minHeight: 42, padding: '6px 14px', fontSize: '0.875rem' }}
-                  onClick={regenerateTelegramCode}
-                >
-                  <RefreshCw size={16} /> Kode baru
-                </button>
-              </div>
-            </div>
-
-            <ol className="t-small" style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>
-              <li>Buka bot <strong>@CermatTaniBot</strong> di aplikasi Telegram.</li>
-              <li>
-                Ketik <code>/start</code>, lalu buka menu profil Telegram untuk menemukan Chat ID numerik.
-              </li>
-              <li>Masukkan Chat ID pada kolom, lalu konfirmasi tautan.</li>
-            </ol>
-
-            <div className="field-group">
-              <label htmlFor="tg-handle" className="field-label">
-            Chat ID Telegram
-              </label>
-              <input
-                id="tg-handle"
-                className="field-input"
-                value={tgHandle}
-                onChange={(e) => setTgHandle(e.target.value)}
-            placeholder="Contoh: 123456789"
-              />
-            </div>
-
-            <button type="button" className="btn-primary" onClick={() => linkTelegram(tgHandle)}>
-              <Send size={18} /> Konfirmasi tautan Telegram
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="alert-card alert-card--ok">
-              <BellRing size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+          {/* Daftar Panen Terdekat — Klik untuk langsung lompat ke tanggalnya */}
+          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div>
-                <strong>Tersambung ke {state.user.telegramChatId}</strong>
-                <p className="t-small" style={{ marginTop: 4 }}>
-                  Bot mengirim pengingat panen & peringatan kelembapan tinggi setiap hari pukul{' '}
-                  <strong>{state.user.telegramReminderTime} WIB</strong>.
+                <h3 className="t-h3">Antrean panen terdekat</h3>
+                <p className="t-micro t-soft">Klik item untuk langsung membuka tanggalnya di kalender</p>
+              </div>
+              <CalendarDays size={18} color="var(--leaf-600)" />
+            </div>
+
+            {upcomingHarvests.length === 0 ? (
+              <div className="card-subtle" style={{ textAlign: 'center', padding: 18 }}>
+                <p className="t-small t-soft">
+                  Semua jadwal panen sudah selesai! Pilih tanggal di atas untuk menjadwalkan panen baru.
                 </p>
               </div>
-            </div>
-
-            <div className="field-group">
-              <label htmlFor="tg-time" className="field-label">
-                Jam kirim pengingat harian (WIB)
-              </label>
-              <input
-                id="tg-time"
-                type="time"
-                className="field-input"
-                value={state.user.telegramReminderTime}
-                onChange={(e) => updateUserProfile({ telegramReminderTime: e.target.value })}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  sendTestTelegramReminder();
-                  setTgPreviewSent(true);
-                }}
-              >
-                <Send size={18} /> Uji kirim pengingat sekarang
-              </button>
-              <button type="button" className="btn-ghost" onClick={unlinkTelegram}>
-                <Unlink size={16} /> Putuskan tautan
-              </button>
-            </div>
-
-            {tgPreviewSent && (
-              <div className="card-subtle" role="status">
-                <div className="t-micro" style={{ fontWeight: 700, color: 'var(--leaf-600)' }}>
-                  Pratinjau pesan terkirim (@CermatTaniBot):
-                </div>
-                <p className="t-small" style={{ marginTop: 4 }}>
-                  "Halo {state.user.nama}! Pengingat panen CermatTani ({state.user.telegramReminderTime}{' '}
-                  WIB): Tomat Servo #01 sudah masuk jadwal panen. Yuk cek kebunmu!"
-                </p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
+                {upcomingHarvests.map((ev) => {
+                  const plant = state.plants.find((p) => p.id === ev.plantId);
+                  const rel = getRelativeDayLabel(ev.tanggal, todayYmd);
+                  const isActive = ev.tanggal === selectedYmd;
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={() => jumpToDate(ev.tanggal)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') jumpToDate(ev.tanggal);
+                      }}
+                      className="card-subtle card-interactive"
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: isActive ? 'var(--leaf-600)' : 'var(--line)',
+                        background: isActive ? 'var(--surface-accent)' : 'var(--surface-2)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        padding: '12px 14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                        <strong style={{ fontSize: '0.88rem' }}>{plant?.nama || 'Tanaman'}</strong>
+                        <span className={`pill ${rel === 'Hari ini' ? 'pill-bad' : 'pill-warn'}`}>
+                          {rel}
+                        </span>
+                      </div>
+                      <p className="t-micro t-soft" style={{ lineHeight: 1.4 }}>{ev.catatan}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                        <span className="t-micro t-soft tabular-nums">{ev.tanggal}</span>
+                        <button
+                          type="button"
+                          className="alert-toast-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markHarvestActual(ev.id);
+                          }}
+                        >
+                          <Check size={12} /> Panen
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </>
-        )}
-      </section>
+          </section>
+        </div>
+
+        {/* Kolom Kanan: Agenda Tanggal Terpilih + Pengingat Otomatis (Harian & Telegram) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          {/* Kartu 1: Detail Agenda Tanggal Terpilih */}
+          <section key={selectedYmd} className="card step-transition" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div>
+                <span className="t-micro" style={{ color: 'var(--leaf-600)' }}>
+                  Agenda tanggal terpilih
+                </span>
+                <h3 className="t-h3" style={{ marginTop: 2, textTransform: 'capitalize' }}>
+                  {formatFullDateId(selectedYmd)}
+                </h3>
+              </div>
+              <span className="pill pill-neutral tabular-nums">
+                {selectedDayEvents.length} jadwal
+              </span>
+            </div>
+
+            {selectedDayEvents.length === 0 ? (
+              <div className="card-subtle" style={{ padding: '14px 16px' }}>
+                <p className="t-small t-soft">
+                  Belum ada jadwal panen pada tanggal ini. Tambahkan jadwal cepat di bawah.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {selectedDayEvents.map((ev) => {
+                  const plant = state.plants.find((p) => p.id === ev.plantId);
+                  return (
+                    <div
+                      key={ev.id}
+                      className="card-subtle"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 10,
+                        flexWrap: 'wrap',
+                        padding: '12px 14px',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '0.9rem' }}>{plant?.nama || 'Tomat'}</strong>
+                          <span className={`pill ${ev.sumber === 'aktual' ? 'pill-ok' : 'pill-warn'}`}>
+                            {ev.sumber === 'aktual' ? 'Sudah dipanen' : 'Estimasi'}
+                          </span>
+                        </div>
+                        <p className="t-small t-soft" style={{ marginTop: 3 }}>{ev.catatan}</p>
+                      </div>
+                      {ev.sumber === 'estimasi' && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ minHeight: 36, padding: '5px 11px', fontSize: '0.8rem' }}
+                          onClick={() => markHarvestActual(ev.id)}
+                        >
+                          <Check size={15} /> Tandai panen
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Form Tambah Jadwal Cepat */}
+            <form
+              onSubmit={handleAddHarvest}
+              style={{
+                display: 'grid',
+                gap: 10,
+                paddingTop: 12,
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <div className="form-grid-2">
+                <select
+                  className="field-select"
+                  style={{ minHeight: 42, fontSize: '0.88rem' }}
+                  value={plantId}
+                  onChange={(e) => setPlantId(e.target.value)}
+                  aria-label="Pilih tanaman"
+                >
+                  {state.plants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nama}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="field-input"
+                  style={{ minHeight: 42, fontSize: '0.88rem' }}
+                  value={catatan}
+                  onChange={(e) => setCatatan(e.target.value)}
+                  placeholder="Catatan panen (opsional)"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                  <Plus size={17} /> Tambah jadwal panen
+                </button>
+                {addedNotice && <span className="pill pill-ok">Tersimpan!</span>}
+              </div>
+            </form>
+          </section>
+
+          {/* Kartu 2: Pengingat Otomatis (Tab Jadwal Harian | Bot Telegram) */}
+          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <CermoMascot
+                  pose={state.user.telegramChatId ? 'happy' : 'wave'}
+                  size={48}
+                  tipOverride="Atur jam pengingat harian atau tautkan Telegram agar jadwal panen & siram tidak terlewat!"
+                />
+                <div>
+                  <h3 className="t-h3">Pengingat otomatis</h3>
+                  <p className="t-micro t-soft">Alert pojok kanan atas &amp; Bot Telegram</p>
+                </div>
+              </div>
+
+              <div className="seg-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={reminderTab === 'harian'}
+                  className={`seg-tab ${reminderTab === 'harian' ? 'active' : ''}`}
+                  onClick={() => setReminderTab('harian')}
+                >
+                  Harian ({activeRemindersCount})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={reminderTab === 'telegram'}
+                  className={`seg-tab ${reminderTab === 'telegram' ? 'active' : ''}`}
+                  onClick={() => setReminderTab('telegram')}
+                >
+                  Telegram
+                </button>
+              </div>
+            </div>
+
+            {reminderTab === 'harian' ? (
+              <div key="rem-harian" className="tab-fade" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {state.settings.jadwalPengingat.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`schedule-row ${!item.aktif ? 'schedule-row--off' : ''}`}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ minWidth: 130, flex: 1 }}>
+                      <strong style={{ fontSize: '0.84rem', display: 'block' }}>{item.label}</strong>
+                      <span className="t-micro t-soft">Setiap hari · WIB</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Clock size={14} color="var(--ink-soft)" />
+                      <input
+                        type="time"
+                        className="time-pill-input"
+                        aria-label={`Jam ${item.label}`}
+                        value={item.jam}
+                        onChange={(e) => updateReminderSchedule(item.id, { jam: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={item.aktif}
+                        aria-label={`Aktifkan ${item.label}`}
+                        className="alert-switch"
+                        onClick={() => updateReminderSchedule(item.id, { aktif: !item.aktif })}
+                      >
+                        <span className="alert-switch-thumb" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div key="rem-telegram" className="tab-fade" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {!state.user.telegramChatId ? (
+                  <>
+                    <div className="card-forest" style={{ textAlign: 'center', padding: 18 }}>
+                      <div className="t-micro t-soft">Kode tautan 6 digit kamu</div>
+                      <div
+                        className="font-display tabular-nums"
+                        style={{
+                          fontSize: '2rem',
+                          letterSpacing: '0.18em',
+                          color: 'var(--leaf-700)',
+                          margin: '6px 0',
+                        }}
+                      >
+                        {state.user.telegramLinkCode}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.8rem' }}
+                          onClick={handleCopyCode}
+                        >
+                          <Copy size={14} /> {copied ? 'Tersalin!' : 'Salin perintah'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.8rem' }}
+                          onClick={regenerateTelegramCode}
+                        >
+                          <RefreshCw size={14} /> Kode baru
+                        </button>
+                      </div>
+                    </div>
+
+                    <ol className="t-small t-soft" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
+                      <li>Buka bot <strong style={{ color: 'var(--ink)' }}>@CermatTaniBot</strong> di Telegram.</li>
+                      <li>Ketik <code>/start</code> lalu salin Chat ID numerik akunmu.</li>
+                      <li>Tempel Chat ID di bawah dan konfirmasi tautan.</li>
+                    </ol>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <input
+                        id="tg-handle"
+                        className="field-input"
+                        style={{ flex: '1 1 160px', minHeight: 42 }}
+                        value={tgHandle}
+                        onChange={(e) => setTgHandle(e.target.value)}
+                        placeholder="Chat ID (mis. 123456789)"
+                        aria-label="Chat ID Telegram"
+                      />
+                      <button type="button" className="btn-primary" onClick={() => linkTelegram(tgHandle)}>
+                        <Send size={16} /> Tautkan
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="alert-card alert-card--ok">
+                      <BellRing size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+                      <div>
+                        <strong>Tersambung ke {state.user.telegramChatId}</strong>
+                        <p className="t-small t-soft" style={{ marginTop: 3 }}>
+                          Pengingat harian dikirim setiap pukul <strong>{state.user.telegramReminderTime} WIB</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                      <label htmlFor="tg-time" className="t-small" style={{ fontWeight: 700 }}>
+                        Jam pengingat Telegram (WIB)
+                      </label>
+                      <input
+                        id="tg-time"
+                        type="time"
+                        className="time-pill-input"
+                        value={state.user.telegramReminderTime}
+                        onChange={(e) => updateUserProfile({ telegramReminderTime: e.target.value })}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => {
+                          sendTestTelegramReminder();
+                          setTgPreviewSent(true);
+                        }}
+                      >
+                        <Send size={16} /> Uji kirim sekarang
+                      </button>
+                      <button type="button" className="btn-ghost" onClick={unlinkTelegram}>
+                        <Unlink size={15} /> Putuskan
+                      </button>
+                    </div>
+
+                    {tgPreviewSent && (
+                      <div className="card-subtle" role="status">
+                        <div className="t-micro" style={{ fontWeight: 700, color: 'var(--leaf-600)' }}>
+                          Pratinjau pesan terkirim (@CermatTaniBot):
+                        </div>
+                        <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                          &ldquo;Halo {state.user.nama}! Pengingat panen CermatTani ({state.user.telegramReminderTime}{' '}
+                          WIB): cek jadwal panen hari ini di kebunmu!&rdquo;
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     </div>
   );
 };

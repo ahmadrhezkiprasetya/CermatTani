@@ -300,12 +300,26 @@ export const INITIAL_CHAT: ChatMessage[] = [];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
+    id: 'notif-siram-1',
+    judul: 'Jadwal siram aktif (07:00 & 16:30)',
+    isi: 'Pengingat waktu siram pagi dan sore sudah dijadwalkan. Kamu dapat mengubah jamnya kapan saja di tab Atur Jadwal.',
+    waktu: 'Hari ini',
+    tipe: 'siram',
+    dibaca: false,
+    severity: 'info',
+    actionLabel: 'Buka Lahan',
+    actionScreen: 'lahan',
+  },
+  {
     id: 'notif-1',
-    judul: 'Siap memindai dengan AI',
-    isi: 'Ambil foto buah, daun, atau batang di menu Scan untuk mendapatkan analisis real-time dari model AI CermatTani.',
+    judul: 'Siap memindai dengan Gemini AI',
+    isi: 'Ambil foto buah, daun, atau batang di menu Scan untuk mendapatkan analisis real-time sesuai Dataset Agronomi.',
     waktu: 'Hari ini',
     tipe: 'panen',
     dibaca: false,
+    severity: 'ok',
+    actionLabel: 'Buka Scan',
+    actionScreen: 'scan',
   },
   {
     id: 'notif-3',
@@ -314,6 +328,9 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     waktu: 'Kemarin · 12:15',
     tipe: 'tandon',
     dibaca: true,
+    severity: 'info',
+    actionLabel: 'Cek Irigasi',
+    actionScreen: 'lahan',
   },
 ];
 
@@ -329,4 +346,48 @@ export const INITIAL_SETTINGS: AppSettings = {
   ambangTandonRendah: 20,
   ambangBateraiHemat: 20,
   simulasikanOffline: false,
+  peringatanOtomatisSensor: true,
+  notifikasiBrowser: false,
+  jadwalPengingat: [
+    {
+      id: 'rem-siram-pagi',
+      label: 'Waktu siram pagi',
+      kategori: 'siram',
+      jam: '07:00',
+      aktif: true,
+      catatan: 'Siram langsung di pangkal batang sebelum matahari terik agar air terserap optimal.',
+    },
+    {
+      id: 'rem-siram-sore',
+      label: 'Waktu siram sore',
+      kategori: 'siram',
+      jam: '16:30',
+      aktif: true,
+      catatan: 'Periksa kelembapan tanah sore ini dan siram secukupnya bila tanah mulai kering.',
+    },
+    {
+      id: 'rem-cek-daun',
+      label: 'Cek daun & gejala penyakit',
+      kategori: 'cek_daun',
+      jam: '08:30',
+      aktif: true,
+      catatan: 'Amati bagian bawah daun dan lakukan scan foto bila muncul bercak atau menguning.',
+    },
+    {
+      id: 'rem-pupuk',
+      label: 'Jadwal pemupukan organik',
+      kategori: 'pupuk',
+      jam: '09:00',
+      aktif: false,
+      catatan: 'Tambahkan kompos matang atau POC ringan sesuai fase tumbuh tanaman.',
+    },
+    {
+      id: 'rem-panen',
+      label: 'Pengingat panen harian',
+      kategori: 'panen',
+      jam: '07:15',
+      aktif: true,
+      catatan: 'Cek buah tomat matang merah merata di kalender panen untuk dipetik pagi hari.',
+    },
+  ],
 };

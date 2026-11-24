@@ -3,29 +3,25 @@
 import React, { useMemo, useState } from 'react';
 import {
   ArrowUpRight,
+  Box,
   CalendarDays,
   Camera,
   CheckCircle2,
   Circle,
-  CloudSun,
+  Droplets,
   Leaf,
   Plus,
   Sparkles,
   Sprout,
+  Sun,
   X,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { PakCermatMascot } from '../components/PakCermatMascot';
 import {
-  AgrovaFarmMap,
-  IrrigationSoilVisual,
-} from '../components/Illustrations';
-import {
   AnimatedCounter,
   GreenAreaChart,
-  HealthSemiGauge,
-  PercentageRing,
   ProductionBarChart,
   StripedProgressBar,
 } from '../components/Charts';
@@ -34,7 +30,7 @@ import { GrowthPhase } from '../types/cermattani';
 
 const PHASES: GrowthPhase[] = ['Bibit', 'Vegetatif', 'Berbunga', 'Berbuah', 'Panen'];
 
-/* Layar Beranda Aplikasi — 100% sesuai DESIGN.md v2.0 §5.1, §6.3, §6.6, §6.7, §8.3, §9.2 */
+/* Beranda — Ringan 100% tanpa WebGL (Simulasi 3D fokus di halaman Lahan agar performa enteng di semua perangkat) */
 export const DashboardScreen: React.FC = () => {
   const {
     state,
@@ -46,11 +42,12 @@ export const DashboardScreen: React.FC = () => {
     addTask,
     addFarm,
     addPlant,
-    setActiveFarmId,
   } = useApp();
 
+  const [bottomTab, setBottomTab] = useState<'aktivitas' | 'grafik'>('aktivitas');
   const [chartMode, setChartMode] = useState<'batang' | 'area'>('batang');
   const [newTaskText, setNewTaskText] = useState('');
+
   const [showAddFarm, setShowAddFarm] = useState(false);
   const [farmNama, setFarmNama] = useState('');
   const [farmLokasi, setFarmLokasi] = useState('');
@@ -101,17 +98,9 @@ export const DashboardScreen: React.FC = () => {
     );
   }, [activeFarmPlants.length, attentionCount]);
 
-  const ripenessAvgPercent = useMemo(() => {
-    const fruitScans = farmScans.filter((s) => s.tahapDominan);
-    if (fruitScans.length === 0) return 0;
-    const scoreMap = { mentah: 35, setengah_matang: 70, matang: 96 };
-    const avg = fruitScans.reduce((acc, s) => acc + scoreMap[s.tahapDominan!], 0) / fruitScans.length;
-    return Math.round(avg);
-  }, [farmScans]);
-
   const estimatedTotalKg = useMemo(() => {
     const grams = farmScans.reduce((sum, s) => sum + (s.estimasiBobotGram || 0), 0);
-    return Number((grams / 1000).toFixed(2));
+    return Number((grams / 1000).toFixed(1));
   }, [farmScans]);
 
   const latestFruitScan = useMemo(
@@ -178,544 +167,659 @@ export const DashboardScreen: React.FC = () => {
     setShowAddPlant(false);
   };
 
-  const ripePinLabel = latestFruitScan?.tahapDominan
-    ? `${RIPENESS_REFERENCE[latestFruitScan.tahapDominan].label}: ${latestFruitScan.keyakinan}%`
-    : 'Belum ada scan buah';
-
   return (
-    <div className="dashboard-layout">
-      {/* AREA UTAMA TENGAH */}
-      <div className="dashboard-center">
-        {/* Baris Pil Penghitung + Tombol Gelap Panah Bulat "+ Tambah tanaman" (Agrova §5.1 & §6.1) */}
-        <div className="status-strip">
-          <div className="status-strip-pills">
-            <span className="status-chip-solid tabular-nums">
-              <CheckCircle2 size={15} /> Scan selesai: {state.scans.length}
-            </span>
-            <button
-              type="button"
-              className="status-chip-surface tabular-nums"
-              onClick={() => setActiveScreen('tanaman')}
-              style={{ cursor: 'pointer' }}
-            >
-              <span
-                className="ripeness-dot"
-                style={{ background: attentionCount > 0 ? 'var(--warn)' : 'var(--ok)' }}
-              />
-              Perlu perhatian: {attentionCount}
-            </button>
-            <button
-              type="button"
-              className="status-chip-surface tabular-nums"
-              onClick={() => setActiveScreen('kalender')}
-              style={{ cursor: 'pointer' }}
-            >
-              <span className="ripeness-dot" style={{ background: 'var(--fruit-ripe)' }} />
-              Siap panen: {readyToHarvestCount} buah
-            </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* 1. Hero Aksi Ringkas bersama Maskot Pak Cermat */}
+      {activeFarmPlants.length === 0 ? (
+        <section
+          className="card"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 18,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 260px' }}>
+            <PakCermatMascot pose="bibit" height={110} />
+            <div>
+              <h2 className="t-h2">Kebun ini belum memiliki tanaman</h2>
+              <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                Tambahkan satu tanaman pertama agar CermatTani dapat memantau kematangan dan jadwal panennya.
+              </p>
+            </div>
+          </div>
+          <button type="button" className="btn-primary" onClick={() => setShowAddPlant(true)}>
+            <Plus size={18} /> Tambah tanaman
+          </button>
+        </section>
+      ) : (
+        <section
+          className="card"
+          style={{
+            background:
+              'radial-gradient(circle at 96% 12%, color-mix(in srgb, var(--cream-warm) 88%, transparent), transparent 48%), radial-gradient(circle at 4% 92%, color-mix(in srgb, var(--surface-milk) 72%, transparent), transparent 44%), var(--surface)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 18,
+            flexWrap: 'wrap',
+            padding: '18px 22px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 280px', minWidth: 0 }}>
+            <CermoMascot
+              pose={isDiseaseRisk ? 'worried' : readyToHarvestCount > 0 ? 'happy' : 'wave'}
+              size={78}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Sparkles size={13} /> Analisis AI Gemini · Keputusan dalam 5 detik
+              </span>
+              <h2 className="t-h2" style={{ fontSize: 'clamp(1.125rem, 1.8vw, 1.35rem)', lineHeight: 1.25 }}>
+                {readyToHarvestCount > 0
+                  ? `Ada ${readyToHarvestCount} buah siap dipetik hari ini`
+                  : 'Cek kesehatan & kematangan kebunmu'}
+              </h2>
+              <p className="t-small t-soft">
+                Pindai buah, daun, atau batang untuk estimasi panen, solusi organik lebih dulu, dan saran pupuk.
+              </p>
+            </div>
           </div>
 
-          <button type="button" className="ct-btn-dark" onClick={() => setShowAddPlant(true)}>
-            <span>+ Tambah tanaman</span>
-            <span className="ct-btn-dark-circle">
-              <ArrowUpRight size={17} />
-            </span>
-          </button>
-        </div>
-
-        {/* Keadaan Kosong (§9.2): Pak Cermat menanam bibit + 1 tombol */}
-        {activeFarmPlants.length === 0 ? (
-          <section
-            className="card"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 24,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <PakCermatMascot pose="bibit" height={140} />
-              <div>
-                <h2 className="t-h1">Kebun ini belum memiliki tanaman</h2>
-                <p className="t-body t-soft" style={{ marginTop: 6 }}>
-                  Tambahkan satu tanaman pertama agar Cermo dapat memantau kematangan dan jadwal panennya.
-                </p>
-              </div>
-            </div>
-            <button type="button" className="btn-primary" onClick={() => setShowAddPlant(true)}>
-              <Plus size={18} /> Tambah tanaman pertama
-            </button>
-          </section>
-        ) : (
-          /* Hero Scan bersama Cermo si Tomat (HANYA Cermo di kartu ini per §8.3) */
-          <section
-            className="card"
-            style={{
-              background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 64%, rgba(216,243,106,0.22) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 20,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flex: '1 1 310px' }}>
-              <CermoMascot
-                pose={isDiseaseRisk ? 'worried' : readyToHarvestCount > 0 ? 'happy' : 'wave'}
-                size={96}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span className="pill pill-ok" style={{ alignSelf: 'flex-start' }}>
-                  <Sparkles size={13} /> Foto dulu, keputusan dalam 5 detik
-                </span>
-                <h2 className="t-h2">
-                  {readyToHarvestCount > 0
-                    ? `Wah, ada ${readyToHarvestCount} buah siap dipanen!`
-                    : 'Halo! Yuk, cek tanaman kebunmu hari ini.'}
-                </h2>
-                <p className="t-small t-soft">
-                  Pilih bagian buah, daun, atau batang untuk tahu kapan panen, solusi organik lebih
-                  dulu, dan saran pupuk yang aman.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 215 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '0 1 240px', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button
                 type="button"
                 className="btn-primary"
                 onClick={() => openScanWith('buah')}
-                style={{ width: '100%' }}
+                style={{ flex: 1 }}
               >
-                <Camera size={20} strokeWidth={2} /> Scan tanaman
+                <Camera size={18} /> Scan tanaman
               </button>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                {(['buah', 'daun', 'batang'] as const).map((part) => (
-                  <button
-                    key={part}
-                    type="button"
-                    className="btn-secondary"
-                    style={{
-                      minHeight: 42,
-                      padding: '6px 8px',
-                      fontSize: '0.84rem',
-                      textTransform: 'capitalize',
-                    }}
-                    onClick={() => openScanWith(part)}
-                  >
-                    {part}
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowAddPlant(true)}
+                title="Tambah tanaman baru"
+                aria-label="Tambah tanaman baru"
+                style={{ padding: '8px 12px', flexShrink: 0 }}
+              >
+                <Plus size={18} />
+              </button>
             </div>
-          </section>
-        )}
-
-        {/* Peringatan Risiko Penyakit F11 (HANYA tampil bila ambang terlewati) */}
-        {isDiseaseRisk && (
-          <div className="alert-card alert-card--warn" role="alert">
-            <CermoMascot pose="worried" size={56} interactive={false} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                <strong className="t-h3">Risiko jamur daun meningkat!</strong>
-                <span className="pill pill-sim">Simulasi</span>
-              </div>
-              <p className="t-small">
-                Kelembapan udara mencapai <strong>{state.sensor.kelembapanUdara}%</strong> (melewati batas{' '}
-                {state.settings.ambangKelembapanRisikoPenyakit}%). Scan daun hari ini untuk pencegahan dini.
-              </p>
-              <div style={{ marginTop: 10 }}>
-                <button type="button" className="btn-tomato" onClick={() => openScanWith('daun')}>
-                  <Camera size={18} /> Scan daun sekarang
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {(['buah', 'daun', 'batang'] as const).map((part) => (
+                <button
+                  key={part}
+                  type="button"
+                  className="btn-ghost"
+                  style={{
+                    minHeight: 34,
+                    padding: '4px 6px',
+                    fontSize: '0.78rem',
+                    textTransform: 'capitalize',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--line)',
+                    borderRadius: 9,
+                  }}
+                  onClick={() => openScanWith(part)}
+                >
+                  {part}
                 </button>
-              </div>
+              ))}
             </div>
-          </div>
-        )}
-
-        {/* Peringatan Tandon Kritis F12.2 */}
-        {isTankLow && (
-          <div className="alert-card alert-card--bad" role="alert">
-            <CermoMascot pose="water" size={56} interactive={false} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                <strong className="t-h3">Tandon tinggal {state.sensor.levelTandonPersen}%</strong>
-                <span className="pill pill-sim">Simulasi</span>
-              </div>
-              <p className="t-small">
-                Tandon tinggal {state.sensor.levelTandonPersen}%. Pompa kutahan dulu supaya tidak kering.
-              </p>
-              <div style={{ marginTop: 10 }}>
-                <button type="button" className="btn-secondary" onClick={() => setActiveScreen('lahan')}>
-                  Buka monitor tandon
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 4 Ubin Statistik Agrova (§6.6) */}
-        <section className="stat-tiles-4" aria-label="Ringkasan statistik kebun">
-          <div className="stat-tile">
-            <span className="t-small t-soft">Tanaman</span>
-            <span className="stat-tile-value">{activeFarmPlants.length}</span>
-            <span className="t-micro t-soft">petak tercatat</span>
-          </div>
-          <div className="stat-tile">
-            <span className="t-small t-soft">Kebun</span>
-            <span className="stat-tile-value">{state.farms.length}</span>
-            <span className="t-micro t-soft">{activeFarm?.luasLabel || 'lahan aktif'}</span>
-          </div>
-          <div className="stat-tile">
-            <span className="t-small t-soft">Scan bulan ini</span>
-            <span className="stat-tile-value">{state.scans.length}</span>
-            <span className="t-micro t-soft">riwayat tersimpan</span>
-          </div>
-          <div className="stat-tile">
-            <span className="t-small t-soft">Kelembapan</span>
-            <span className="stat-tile-value">{state.sensor.kelembapanTanah}%</span>
-            <span className="t-micro" style={{ color: 'var(--sim-600)' }}>● Simulasi</span>
           </div>
         </section>
+      )}
 
-        {/* 3 Kartu Metrik Varian (Plant Monitor §6.3: Lime sorot, Putih, Forest penekanan) */}
-        <section className="metrics-grid-3" aria-label="Metrik utama kebun">
-          <div className="metric-card metric-card--lime">
-            <div className="metric-top-row">
-              <div className="metric-icon-circle">
-                <Sparkles size={20} strokeWidth={1.75} />
-              </div>
-              <span className="t-micro" style={{ fontWeight: 700 }}>Panen siap</span>
-            </div>
-            <div className="metric-value">
-              <AnimatedCounter value={readyToHarvestCount} />
-            </div>
-            <div className="metric-label">Buah siap dipetik</div>
-          </div>
-
-          <div className="metric-card metric-card--white">
-            <div className="metric-top-row">
-              <div className="metric-icon-circle">
-                <Sprout size={20} strokeWidth={1.75} />
-              </div>
-              <span className="pill pill-ok">{healthyPercent}% sehat</span>
-            </div>
-            <div className="metric-value">
-              <AnimatedCounter value={activeFarmPlants.length} />
-            </div>
-            <div className="metric-label">Tanaman dipantau</div>
-          </div>
-
-          <div className="metric-card metric-card--forest">
-            <div className="metric-top-row">
-              <div className="metric-icon-circle">
-                <Leaf size={20} strokeWidth={1.75} />
-              </div>
-              <span className="pill" style={{ background: 'rgba(255,255,255,0.14)', color: '#FFFFFF' }}>
-                Estimasi kasar
-              </span>
-            </div>
-            <div className="metric-value">
-              ± <AnimatedCounter value={estimatedTotalKg} decimals={1} suffix=" kg" />
-            </div>
-            <div className="metric-label" style={{ color: '#CFE6D8' }}>Perkiraan hasil panen</div>
-          </div>
-        </section>
-
-        {/* Bento Row: Kartu Kesehatan Tanah (--forest-900 §6.6) + Gauge & Cuaca Mikro */}
-        <div className="dashboard-bento-row">
-          <section className="card-forest" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-              <div>
-                <h3 className="t-h3" style={{ color: '#FFFFFF' }}>Kesehatan tanah &amp; unsur hara</h3>
-                <p className="t-small t-soft">Kelembapan tanah &amp; N, P, K (mg/kg)</p>
-              </div>
+      {/* Peringatan Kritis (Hanya muncul bila ambang terlewati) */}
+      {isDiseaseRisk && (
+        <div className="alert-card alert-card--warn" role="alert" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <CermoMascot pose="worried" size={48} interactive={false} />
+          <div style={{ flex: '1 1 220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <strong className="t-small" style={{ fontWeight: 700 }}>Risiko jamur daun meningkat</strong>
               <span className="pill pill-sim">Simulasi</span>
             </div>
+            <p className="t-small t-soft" style={{ marginTop: 2 }}>
+              Kelembapan udara {state.sensor.kelembapanUdara}% melewati batas {state.settings.ambangKelembapanRisikoPenyakit}%. Disarankan cek daun hari ini.
+            </p>
+          </div>
+          <button type="button" className="btn-tomato" onClick={() => openScanWith('daun')}>
+            Scan daun
+          </button>
+        </div>
+      )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13, flex: 1 }}>
-              <StripedProgressBar
-                label="Kelembapan tanah"
-                valueLabel={`${state.sensor.kelembapanTanah}%`}
-                percent={state.sensor.kelembapanTanah}
-                color="#2B8FD9"
-                darkBg
-              />
-              <StripedProgressBar
-                label="Nitrogen (N)"
-                valueLabel={`${state.sensor.nitrogenMgKg} mg/kg`}
-                percent={Math.min(100, Math.round((state.sensor.nitrogenMgKg / 80) * 100))}
-                color="#D8F36A"
-                darkBg
-              />
-              <StripedProgressBar
-                label="Fosfor (P)"
-                valueLabel={`${state.sensor.fosforMgKg} mg/kg`}
-                percent={Math.min(100, Math.round((state.sensor.fosforMgKg / 60) * 100))}
-                color="#FFB63D"
-                darkBg
-              />
-              <StripedProgressBar
-                label="Kalium (K)"
-                valueLabel={`${state.sensor.kaliumMgKg} mg/kg`}
-                percent={Math.min(100, Math.round((state.sensor.kaliumMgKg / 90) * 100))}
-                color="#3DBE74"
-                darkBg
-              />
+      {isTankLow && (
+        <div className="alert-card alert-card--bad" role="alert" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <CermoMascot pose="water" size={48} interactive={false} />
+          <div style={{ flex: '1 1 220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <strong className="t-small" style={{ fontWeight: 700 }}>Tandon air kritis ({state.sensor.levelTandonPersen}%)</strong>
+              <span className="pill pill-sim">Simulasi</span>
             </div>
+            <p className="t-small t-soft" style={{ marginTop: 2 }}>
+              Pengaman interlock menahan pompa agar tidak berjalan kering. Isi ulang tandon di halaman Lahan.
+            </p>
+          </div>
+          <button type="button" className="btn-secondary" onClick={() => setActiveScreen('lahan')}>
+            Buka Lahan
+          </button>
+        </div>
+      )}
 
+      {/* 2. Baris KPI 4 Kartu Seragam (4 Kolom Desktop -> 2x2 Tablet & HP) */}
+      <section className="kpi-grid-4" aria-label="Ringkasan utama kebun">
+        <button
+          type="button"
+          className="kpi-card stagger-card stagger-1"
+          onClick={() => setActiveScreen('tanaman')}
+          style={{ textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--leaf-600)' }}>
+              <Sprout size={18} />
+            </span>
+            <span className="pill pill-ok">{healthyPercent}% sehat</span>
+          </div>
+          <div>
+            <div className="kpi-value">
+              <AnimatedCounter value={activeFarmPlants.length} />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Tanaman dipantau</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="kpi-card stagger-card stagger-2"
+          onClick={() => setActiveScreen('kalender')}
+          style={{ textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'rgba(239,91,47,0.12)', color: 'var(--tomato-btn)' }}>
+              <Sparkles size={18} />
+            </span>
+            <span className="t-micro t-soft tabular-nums">± {estimatedTotalKg} kg</span>
+          </div>
+          <div>
+            <div className="kpi-value">
+              <AnimatedCounter value={readyToHarvestCount} />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Buah siap dipetik</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="kpi-card stagger-card stagger-3"
+          onClick={() => openScanWith('buah')}
+          style={{ textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--forest-900)' }}>
+              <Camera size={18} />
+            </span>
+            <span className="t-micro t-soft">
+              {attentionCount > 0 ? `${attentionCount} perhatian` : 'Gemini AI'}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value">
+              <AnimatedCounter value={state.scans.length} />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Riwayat scan AI</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="kpi-card stagger-card stagger-4"
+          onClick={() => setActiveScreen('lahan')}
+          style={{ textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--water-bg)', color: 'var(--water-700)' }}>
+              <Droplets size={18} />
+            </span>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+          <div>
+            <div className="kpi-value">
+              <AnimatedCounter value={state.sensor.kelembapanTanah} suffix="%" />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Kelembapan tanah</div>
+          </div>
+        </button>
+      </section>
+
+      {/* 3. Baris Bento Tengah Seimbang: Kondisi Lahan (+ Pintu Simulasi 3D) | Jadwal Panen Dekat */}
+      <div className="dashboard-bento-row">
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <h3 className="t-h3">Kondisi lahan &amp; iklim</h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>Ringkasan sensor tanah, udara &amp; tandon</p>
+            </div>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, flex: 1 }}>
+            <StripedProgressBar
+              label="Kelembapan tanah (ideal 45–65%)"
+              valueLabel={`${state.sensor.kelembapanTanah}%`}
+              percent={state.sensor.kelembapanTanah}
+              color="var(--water)"
+            />
+            <StripedProgressBar
+              label="Suhu udara lahan"
+              valueLabel={`${state.sensor.suhuUdara} °C`}
+              percent={Math.min(100, Math.round((state.sensor.suhuUdara / 40) * 100))}
+              color="var(--fruit-ripe)"
+            />
+            <StripedProgressBar
+              label="Kelembapan udara"
+              valueLabel={`${state.sensor.kelembapanUdara}%`}
+              percent={state.sensor.kelembapanUdara}
+              color={isDiseaseRisk ? 'var(--bad-600)' : 'var(--leaf-500)'}
+            />
+            <StripedProgressBar
+              label="Level air tandon"
+              valueLabel={`${state.sensor.levelTandonPersen}%`}
+              percent={state.sensor.levelTandonPersen}
+              color={isTankLow ? 'var(--bad-600)' : 'var(--water-700)'}
+            />
+          </div>
+
+          {/* Footer: NPK + Pintasan ke Simulasi Kebun 3D di halaman Lahan */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              flexWrap: 'wrap',
+              paddingTop: 12,
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span className="pill pill-neutral tabular-nums">N {state.sensor.nitrogenMgKg}</span>
+              <span className="pill pill-neutral tabular-nums">P {state.sensor.fosforMgKg}</span>
+              <span className="pill pill-neutral tabular-nums">K {state.sensor.kaliumMgKg}</span>
+              <span className="pill pill-ok tabular-nums">
+                <Sun size={12} /> {state.sensor.bateraiPersen}%
+              </span>
+            </div>
             <button
               type="button"
+              className="btn-secondary"
+              style={{ minHeight: 38, padding: '6px 12px', fontSize: '0.8rem' }}
               onClick={() => setActiveScreen('lahan')}
+            >
+              <Box size={15} color="var(--leaf-600)" /> Buka Simulasi 3D <ArrowUpRight size={14} />
+            </button>
+          </div>
+        </section>
+
+        {/* Jadwal Panen Dekat — Kartu Aksen Mint Cerah */}
+        <section className="card-forest" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div>
+              <h3 className="t-h3" style={{ color: 'var(--ink)' }}>Jadwal panen dekat</h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>Estimasi petik &amp; pengingat otomatis</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveScreen('kalender')}
+              className="btn-secondary"
               style={{
-                border: '1px solid rgba(216,243,106,0.34)',
-                background: 'rgba(216,243,106,0.14)',
-                color: '#D8F36A',
-                borderRadius: 14,
-                minHeight: 46,
+                minHeight: 32,
+                borderRadius: 999,
+                padding: '4px 12px',
                 fontWeight: 700,
-                fontSize: '0.875rem',
+                fontSize: '0.75rem',
+              }}
+            >
+              Kalender
+            </button>
+          </div>
+
+          {upcomingHarvests.length === 0 ? (
+            <div style={{ margin: 'auto 0', padding: '16px 0' }}>
+              <p className="t-small t-soft">
+                Belum ada jadwal panen. Scan buah untuk menjadwalkan otomatis di kalender.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+              {upcomingHarvests.map((ev) => {
+                const plant = state.plants.find((p) => p.id === ev.plantId);
+                const isToday = ev.tanggal === new Date().toISOString().slice(0, 10);
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setActiveScreen('kalender')}
+                    className="card-interactive"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 13,
+                      padding: '10px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    <span
+                      className="ripeness-dot"
+                      style={{
+                        width: 9,
+                        height: 9,
+                        background: isToday ? 'var(--fruit-ripe)' : 'var(--fruit-mid)',
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {plant?.nama || 'Tanaman'}
+                      </div>
+                      <div className="t-micro t-soft">
+                        {isToday ? 'Hari ini — siap petik' : ev.tanggal}
+                      </div>
+                    </div>
+                    <CalendarDays size={16} color="var(--leaf-600)" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 8,
+              paddingTop: 10,
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            <span className="t-micro t-soft">
+              {state.farms.length} kebun terdaftar
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowAddFarm(true)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--leaf-700)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
+                gap: 4,
               }}
             >
-              Kelola pompa air &amp; tandon <ArrowUpRight size={16} />
-            </button>
-          </section>
-
-          {/* Gauge Kesiapan & Cuaca Mikro (§6.6) */}
-          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CloudSun size={20} color="var(--leaf-600)" />
-                <h3 className="t-h3">Gauge &amp; cuaca mikro</h3>
-              </div>
-              <span className="pill pill-sim">Simulasi</span>
-            </div>
-
-            <div
-              style={{
-                background: 'var(--forest-900)',
-                color: '#FFFFFF',
-                borderRadius: 20,
-                padding: '14px 12px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-              }}
-            >
-              <HealthSemiGauge value={healthyPercent} subtitle="Kesehatan kebun" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
-                <PercentageRing percent={ripenessAvgPercent} label="Matang" color="#F2562B" size={58} darkBg />
-                <PercentageRing percent={state.sensor.kelembapanTanah} label="Tanah" color="#2B8FD9" size={58} darkBg />
-                <PercentageRing percent={state.sensor.levelTandonPersen} label="Tandon" color="#7CC7FF" size={58} darkBg />
-                <PercentageRing percent={state.sensor.bateraiPersen} label="Surya" color="#D8F36A" size={58} darkBg />
-              </div>
-            </div>
-
-            {/* Suhu gradasi --leaf-500 -> --sun-400 + kelembapan & cahaya (§6.6) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span className="t-small t-soft">Suhu udara lahan</span>
-                  <strong className="t-small tabular-nums">{state.sensor.suhuUdara} °C</strong>
-                </div>
-                <div
-                  style={{
-                    position: 'relative',
-                    height: 10,
-                    borderRadius: 999,
-                    background: 'linear-gradient(90deg, #1F9D55 0%, #FFB63D 100%)',
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: -4,
-                      left: `${Math.min(94, Math.max(6, (state.sensor.suhuUdara / 40) * 100))}%`,
-                      width: 18,
-                      height: 18,
-                      borderRadius: '50%',
-                      background: '#FFFFFF',
-                      border: '3px solid #14302A',
-                      transform: 'translateX(-50%)',
-                    }}
-                  />
-                </div>
-              </div>
-              <StripedProgressBar
-                label="Kelembapan udara"
-                valueLabel={`${state.sensor.kelembapanUdara}%`}
-                percent={state.sensor.kelembapanUdara}
-                color={isDiseaseRisk ? '#C62F36' : '#1F9D55'}
-              />
-              <StripedProgressBar
-                label="Cahaya siang"
-                valueLabel={`${(state.sensor.cahayaLux / 1000).toFixed(1)}k lux`}
-                percent={Math.min(100, Math.round((state.sensor.cahayaLux / 50000) * 100))}
-                color="#FFB63D"
-              />
-            </div>
-          </section>
-        </div>
-
-        {/* 3 Kartu Foto Tugas Bersematan Status (Agrova §6.3) */}
-        <section className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div>
-              <h3 className="t-h3">Aktivitas terakhir kebun</h3>
-              <p className="t-small t-soft">Scan buah, scan daun, dan siklus pompa air terbaru</p>
-            </div>
-            <button type="button" className="btn-ghost" onClick={() => setActiveScreen('tanaman')}>
-              Semua riwayat <ArrowUpRight size={16} />
-            </button>
-          </div>
-
-          <div className="activity-photo-grid">
-            <button type="button" className="activity-photo-card" onClick={() => openScanWith('buah')}>
-              <div className="activity-photo-media">
-                {latestFruitScan ? (
-                  <img
-                    src={latestFruitScan.fotoUrl}
-                    alt="Scan buah terakhir"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: '#FFFFFF' }}>
-                    <Camera size={28} />
-                  </div>
-                )}
-                <div className="activity-photo-scrim" />
-              </div>
-              <span className="pill pill-ok activity-photo-chip">
-                {latestFruitScan?.tahapDominan
-                  ? `Selesai · ${RIPENESS_REFERENCE[latestFruitScan.tahapDominan].label}`
-                  : 'Menunggu scan'}
-              </span>
-              <div className="activity-photo-body">
-                <strong className="t-small" style={{ color: '#FFFFFF' }}>
-                  {latestFruitScan?.anjuranPanen || 'Scan buah pertama'}
-                </strong>
-                <span className="t-micro" style={{ color: '#CFE6D8' }}>
-                  {latestFruitScan ? `${latestFruitScan.jumlahBuah} buah ditemukan` : 'Klik untuk memindai'}
-                </span>
-              </div>
-            </button>
-
-            <button type="button" className="activity-photo-card" onClick={() => openScanWith('daun')}>
-              <div className="activity-photo-media">
-                {latestLeafScan ? (
-                  <img
-                    src={latestLeafScan.fotoUrl}
-                    alt="Scan daun terakhir"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: '#FFFFFF' }}>
-                    <Leaf size={28} />
-                  </div>
-                )}
-                <div className="activity-photo-scrim" />
-              </div>
-              <span
-                className={`pill activity-photo-chip ${
-                  latestLeafScan && latestLeafScan.penyakitUtamaId !== 'sehat' ? 'pill-warn' : 'pill-ok'
-                }`}
-              >
-                {latestLeafScan
-                  ? latestLeafScan.penyakitUtamaId === 'sehat'
-                    ? 'Selesai · Sehat'
-                    : 'Perlu cek'
-                  : 'Menunggu scan'}
-              </span>
-              <div className="activity-photo-body">
-                <strong
-                  className="t-small"
-                  style={{ color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {latestLeafScan?.penyakitUtamaNama || 'Scan daun pertama'}
-                </strong>
-                <span className="t-micro" style={{ color: '#CFE6D8' }}>
-                  {latestLeafScan?.dugaanHaraNama || 'Cek penyakit & pupuk'}
-                </span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="activity-photo-card"
-              onClick={() => setActiveScreen('lahan')}
-              style={{ background: '#0E4F43' }}
-            >
-              <div className="activity-photo-media" style={{ display: 'grid', placeItems: 'center', padding: '12px 10px 44px' }}>
-                <IrrigationSoilVisual
-                  pumpOn={state.settings.pompaMenyala}
-                  moisture={state.sensor.kelembapanTanah}
-                />
-                <div className="activity-photo-scrim" />
-              </div>
-              <span className="pill pill-sim activity-photo-chip">
-                {state.settings.pompaMenyala ? 'Berjalan · Pompa' : 'Siaga · Simulasi'}
-              </span>
-              <div className="activity-photo-body">
-                <strong className="t-small" style={{ color: '#FFFFFF' }}>
-                  Tanah {state.sensor.kelembapanTanah}% · Tandon {state.sensor.levelTandonPersen}%
-                </strong>
-                <span className="t-micro" style={{ color: '#CFE6D8' }}>
-                  {state.irrigationEvents.length} siklus pompa tercatat
-                </span>
-              </div>
+              <Plus size={14} /> Tambah kebun
             </button>
           </div>
         </section>
+      </div>
 
-        {/* Grafik Hasil Panen + Fase Tumbuh & Daftar Tugas */}
-        <div className="dashboard-two-col">
-          <div className="dashboard-col">
-            <section className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h3 className="t-h3">Perkiraan hasil panen mingguan</h3>
-                    <span className="pill pill-warn">Estimasi kasar</span>
+      {/* 4. Baris Bento Bawah Seimbang: Tugas Harian | Aktivitas & Grafik Panen */}
+      <div className="dashboard-bento-row">
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div>
+              <h3 className="t-h3">Tugas kebun hari ini</h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>Langkah perawatan harian</p>
+            </div>
+            <span className="pill pill-ok tabular-nums">
+              {farmTasks.filter((t) => t.selesai).length}/{farmTasks.length} selesai
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            {farmTasks.slice(0, 4).map((t) => (
+              <div
+                key={t.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--line)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleTask(t.id)}
+                  aria-label={`Tandai tugas ${t.judul}`}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    padding: 2,
+                    color: t.selesai ? 'var(--leaf-600)' : 'var(--ink-soft)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {t.selesai ? <CheckCircle2 size={19} /> : <Circle size={19} />}
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    className="t-small"
+                    style={{
+                      fontWeight: 600,
+                      textDecoration: t.selesai ? 'line-through' : 'none',
+                      opacity: t.selesai ? 0.55 : 1,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {t.judul}
                   </div>
-                  <p className="t-small t-soft">Dari jumlah buah foto scan × bobot rata-rata</p>
+                  <span className="t-micro t-soft">{t.waktuLabel}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', padding: 4, borderRadius: 12 }}>
+                {t.plantId && !t.selesai && (
                   <button
                     type="button"
+                    className="btn-ghost"
+                    style={{ minHeight: 30, padding: '2px 8px', fontSize: '0.78rem', flexShrink: 0 }}
+                    onClick={() => openScanWith(t.kategori === 'cek' ? 'daun' : 'buah', t.plantId)}
+                  >
+                    Scan
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleAddTask} style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="field-input"
+              style={{ minHeight: 40, padding: '8px 12px', fontSize: '0.875rem' }}
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              placeholder="Tambah tugas baru..."
+              aria-label="Tambah tugas baru"
+            />
+            <button type="submit" className="btn-secondary" style={{ minHeight: 40, padding: '6px 12px', flexShrink: 0 }} aria-label="Tambah tugas">
+              <Plus size={16} />
+            </button>
+          </form>
+        </section>
+
+        {/* Aktivitas Terbaru & Grafik/Fase Tumbuh (Rapi dalam 1 Kartu Berimbang) */}
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <h3 className="t-h3">
+                {bottomTab === 'aktivitas' ? 'Aktivitas terbaru' : 'Perkiraan panen & fase'}
+              </h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+                {bottomTab === 'aktivitas'
+                  ? 'Pintasan scan buah, daun & irigasi'
+                  : 'Estimasi kasar mingguan & fase tumbuh'}
+              </p>
+            </div>
+
+            <div className="seg-tabs" role="tablist" aria-label="Tampilan aktivitas atau grafik">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bottomTab === 'aktivitas'}
+                className={`seg-tab ${bottomTab === 'aktivitas' ? 'active' : ''}`}
+                onClick={() => setBottomTab('aktivitas')}
+              >
+                Aktivitas
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bottomTab === 'grafik'}
+                className={`seg-tab ${bottomTab === 'grafik' ? 'active' : ''}`}
+                onClick={() => setBottomTab('grafik')}
+              >
+                Grafik
+              </button>
+            </div>
+          </div>
+
+          {bottomTab === 'aktivitas' ? (
+            <div key="tab-aktivitas" className="tab-fade" style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="card-subtle card-interactive"
+                onClick={() => openScanWith('buah')}
+                style={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                }}
+              >
+                <span className="kpi-icon" style={{ background: 'rgba(242,86,43,0.12)', color: 'var(--tomato-btn)' }}>
+                  <Camera size={17} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="t-small" style={{ fontWeight: 700 }}>
+                    {latestFruitScan?.anjuranPanen || 'Scan buah pertama'}
+                  </div>
+                  <div className="t-micro t-soft">
+                    {latestFruitScan
+                      ? `${latestFruitScan.jumlahBuah} buah terdeteksi`
+                      : 'Cek kematangan & hari panen'}
+                  </div>
+                </div>
+                <span className="pill pill-ok">
+                  {latestFruitScan?.tahapDominan
+                    ? RIPENESS_REFERENCE[latestFruitScan.tahapDominan].label
+                    : 'Siap'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="card-subtle card-interactive"
+                onClick={() => openScanWith('daun')}
+                style={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                }}
+              >
+                <span className="kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--leaf-600)' }}>
+                  <Leaf size={17} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    className="t-small"
+                    style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {latestLeafScan?.penyakitUtamaNama || 'Scan daun pertama'}
+                  </div>
+                  <div className="t-micro t-soft">
+                    {latestLeafScan?.dugaanHaraNama || 'Deteksi penyakit & dugaan hara'}
+                  </div>
+                </div>
+                <span
+                  className={`pill ${
+                    latestLeafScan && latestLeafScan.penyakitUtamaId !== 'sehat' ? 'pill-warn' : 'pill-ok'
+                  }`}
+                >
+                  {latestLeafScan
+                    ? latestLeafScan.penyakitUtamaId === 'sehat'
+                      ? 'Sehat'
+                      : 'Cek'
+                    : 'Siap'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="card-subtle card-interactive"
+                onClick={() => setActiveScreen('lahan')}
+                style={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                }}
+              >
+                <span className="kpi-icon" style={{ background: 'var(--water-bg)', color: 'var(--water-700)' }}>
+                  <Droplets size={17} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="t-small" style={{ fontWeight: 700 }}>
+                    Irigasi {state.settings.irigasiOtomatis ? 'otomatis' : 'manual'}
+                  </div>
+                  <div className="t-micro t-soft">
+                    {state.irrigationEvents.length} siklus · Tandon {state.sensor.levelTandonPersen}%
+                  </div>
+                </div>
+                <span className="pill pill-sim">
+                  {state.settings.pompaMenyala ? 'Aktif' : 'Siaga'}
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div key="tab-grafik" className="tab-fade" style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="pill pill-warn">Estimasi kasar</span>
+                <div className="seg-tabs">
+                  <button
+                    type="button"
+                    className={`seg-tab ${chartMode === 'batang' ? 'active' : ''}`}
                     onClick={() => setChartMode('batang')}
-                    style={{
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: 9,
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      background: chartMode === 'batang' ? 'var(--forest-900)' : 'transparent',
-                      color: chartMode === 'batang' ? '#D8F36A' : 'var(--ink-soft)',
-                    }}
                   >
                     Batang
                   </button>
                   <button
                     type="button"
+                    className={`seg-tab ${chartMode === 'area' ? 'active' : ''}`}
                     onClick={() => setChartMode('area')}
-                    style={{
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: 9,
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      background: chartMode === 'area' ? 'var(--forest-900)' : 'transparent',
-                      color: chartMode === 'area' ? '#D8F36A' : 'var(--ink-soft)',
-                    }}
                   >
                     Tren
                   </button>
@@ -732,13 +836,7 @@ export const DashboardScreen: React.FC = () => {
                 />
               )}
 
-              <hr className="card-divider" />
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span className="t-small" style={{ fontWeight: 700 }}>Sebaran fase tumbuh</span>
-                <span className="t-micro t-soft">{activeFarmPlants.length} tanaman</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
+              <div className="phase-grid-5">
                 {PHASES.map((phase, idx) => {
                   const count = activeFarmPlants.filter((p) => p.fase === phase).length;
                   const dotColors = ['#5DBB63', '#1F9D55', '#FFB63D', '#F2562B', '#D63D12'];
@@ -750,274 +848,36 @@ export const DashboardScreen: React.FC = () => {
                       style={{
                         border: '1px solid var(--line)',
                         background: 'var(--surface-2)',
-                        borderRadius: 14,
-                        padding: '10px 4px',
+                        borderRadius: 11,
+                        padding: '8px 4px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 2,
                       }}
                     >
                       <span
                         className="font-display tabular-nums"
                         style={{
-                          fontSize: '1.15rem',
+                          fontSize: '1.05rem',
                           fontWeight: 600,
                           color: count > 0 ? dotColors[idx] : 'var(--ink-soft)',
                         }}
                       >
                         {count}
                       </span>
-                      <span className="t-micro" style={{ color: 'var(--ink-soft)' }}>
-                        {phase}
-                      </span>
+                      <span className="t-micro t-soft" style={{ fontSize: '0.7rem' }}>{phase}</span>
                     </button>
                   );
                 })}
               </div>
-            </section>
-          </div>
-
-          {/* Daftar Tugas Kebun */}
-          <div className="dashboard-col">
-            <section className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div>
-                  <h3 className="t-h3">Daftar tugas kebun</h3>
-                  <p className="t-small t-soft">Langkah harian agar panen tepat waktu</p>
-                </div>
-                <span className="pill pill-ok tabular-nums">
-                  {farmTasks.filter((t) => t.selesai).length}/{farmTasks.length} selesai
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {farmTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '10px 12px',
-                      borderRadius: 14,
-                      background: 'var(--surface-2)',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleTask(t.id)}
-                      aria-label={`Tandai tugas ${t.judul}`}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        padding: 4,
-                        color: t.selesai ? 'var(--leaf-600)' : 'var(--ink-soft)',
-                        minWidth: 40,
-                        minHeight: 40,
-                        display: 'grid',
-                        placeItems: 'center',
-                      }}
-                    >
-                      {t.selesai ? <CheckCircle2 size={21} /> : <Circle size={21} />}
-                    </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        className="t-small"
-                        style={{
-                          fontWeight: 600,
-                          textDecoration: t.selesai ? 'line-through' : 'none',
-                          opacity: t.selesai ? 0.6 : 1,
-                        }}
-                      >
-                        {t.judul}
-                      </div>
-                      <span className="t-micro t-soft">{t.waktuLabel}</span>
-                    </div>
-                    {t.plantId && !t.selesai && (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ minHeight: 38, padding: '4px 10px', fontSize: '0.82rem' }}
-                        onClick={() => openScanWith(t.kategori === 'cek' ? 'daun' : 'buah', t.plantId)}
-                      >
-                        Scan
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <form onSubmit={handleAddTask} style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <input
-                  className="field-input"
-                  value={newTaskText}
-                  onChange={(e) => setNewTaskText(e.target.value)}
-                  placeholder="Tambah tugas kebun..."
-                  aria-label="Tambah tugas baru"
-                />
-                <button type="submit" className="btn-secondary" style={{ flexShrink: 0 }}>
-                  <Plus size={18} /> Tambah
-                </button>
-              </form>
-            </section>
-          </div>
-        </div>
-      </div>
-
-      {/* PANEL KANAN 340px: Peta Kebun Interaktif Agrova (§6.7) + Kartu Gelap Jadwal Panen */}
-      <aside className="dashboard-right-panel" aria-label="Peta kebun dan jadwal panen">
-        <AgrovaFarmMap
-          moisture={state.sensor.kelembapanTanah}
-          healthyPercent={healthyPercent}
-          attentionCount={attentionCount}
-          ripeLabel={ripePinLabel}
-          onPinClick={(target) => {
-            if (target === 'scan') openScanWith('buah');
-            else setActiveScreen(target);
-          }}
-        />
-
-        {/* Jadwal Panen (Kartu Gelap --forest-900 §5.1) */}
-        <section className="card-forest" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="t-h3" style={{ color: '#FFFFFF' }}>Jadwal panen dekat</h3>
-            <button
-              type="button"
-              onClick={() => setActiveScreen('kalender')}
-              style={{
-                border: 'none',
-                background: 'rgba(216,243,106,0.18)',
-                color: '#D8F36A',
-                borderRadius: 999,
-                padding: '6px 12px',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: 'pointer',
-              }}
-            >
-              Kalender
-            </button>
-          </div>
-
-          {upcomingHarvests.length === 0 ? (
-            <p className="t-small" style={{ color: '#CFE6D8' }}>
-              Belum ada jadwal panen. Scan buah untuk menjadwalkan otomatis.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {upcomingHarvests.map((ev) => {
-                const plant = state.plants.find((p) => p.id === ev.plantId);
-                const isToday = ev.tanggal === new Date().toISOString().slice(0, 10);
-                return (
-                  <div
-                    key={ev.id}
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 16,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <span
-                      className="ripeness-dot"
-                      style={{
-                        width: 11,
-                        height: 11,
-                        background: isToday ? 'var(--fruit-ripe)' : 'var(--fruit-mid)',
-                      }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.9125rem' }}>
-                        {plant?.nama || 'Tanaman'}
-                      </div>
-                      <div className="t-micro" style={{ color: '#CFE6D8' }}>
-                        {isToday ? 'Hari ini — siap petik' : ev.tanggal}
-                      </div>
-                    </div>
-                    <CalendarDays size={18} color="#D8F36A" />
-                  </div>
-                );
-              })}
             </div>
           )}
         </section>
+      </div>
 
-        {/* Kartu Kelola Kebun */}
-        <section className="card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 className="t-h3">Kebun aktif</h3>
-            <button
-              type="button"
-              className="btn-ghost"
-              style={{ minHeight: 38, padding: '4px 10px' }}
-              onClick={() => setShowAddFarm((v) => !v)}
-            >
-              <Plus size={16} /> Kebun
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {state.farms.map((f) => {
-              const isSelected = f.id === activeFarm?.id;
-              const pCount = state.plants.filter((p) => p.farmId === f.id).length;
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setActiveFarmId(f.id)}
-                  style={{
-                    border: isSelected ? '2px solid var(--leaf-600)' : '1.5px solid var(--line)',
-                    background: isSelected ? 'var(--surface-2)' : 'transparent',
-                    borderRadius: 16,
-                    padding: '12px 14px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{f.nama}</div>
-                    <div className="t-micro t-soft">{f.lokasi}</div>
-                  </div>
-                  <span className="pill pill-ok">{pCount} tanaman</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {showAddFarm && (
-            <form onSubmit={handleCreateFarm} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-              <input
-                className="field-input"
-                placeholder="Nama kebun baru"
-                value={farmNama}
-                onChange={(e) => setFarmNama(e.target.value)}
-                required
-              />
-              <input
-                className="field-input"
-                placeholder="Lokasi (mis. Lembang)"
-                value={farmLokasi}
-                onChange={(e) => setFarmLokasi(e.target.value)}
-              />
-              <button type="submit" className="btn-primary">
-                Simpan kebun
-              </button>
-            </form>
-          )}
-        </section>
-      </aside>
-
-      {/* Modal Cepat "+ Tambah tanaman" */}
+      {/* Modal Tambah Tanaman */}
       {showAddPlant && (
         <div
           className="modal-backdrop"
@@ -1030,7 +890,7 @@ export const DashboardScreen: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 className="t-h2">Tambah tanaman baru</h2>
               <button type="button" className="icon-btn" onClick={() => setShowAddPlant(false)} aria-label="Tutup">
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             <form onSubmit={handleQuickAddPlant} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1047,7 +907,7 @@ export const DashboardScreen: React.FC = () => {
                   required
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="form-grid-2">
                 <div className="field-group">
                   <label htmlFor="dash-plant-var" className="field-label">
                     Jenis / varietas
@@ -1086,6 +946,52 @@ export const DashboardScreen: React.FC = () => {
               </div>
               <button type="submit" className="btn-primary">
                 Simpan tanaman
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tambah Kebun */}
+      {showAddFarm && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowAddFarm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tambah kebun baru"
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 className="t-h2">Tambah kebun baru</h2>
+              <button type="button" className="icon-btn" onClick={() => setShowAddFarm(false)} aria-label="Tutup">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateFarm} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="field-group">
+                <label htmlFor="dash-farm-name" className="field-label">Nama kebun</label>
+                <input
+                  id="dash-farm-name"
+                  className="field-input"
+                  placeholder="Contoh: Greenhouse Blok B"
+                  value={farmNama}
+                  onChange={(e) => setFarmNama(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="field-group">
+                <label htmlFor="dash-farm-loc" className="field-label">Lokasi</label>
+                <input
+                  id="dash-farm-loc"
+                  className="field-input"
+                  placeholder="Contoh: Lembang, Bandung"
+                  value={farmLokasi}
+                  onChange={(e) => setFarmLokasi(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn-primary">
+                Simpan kebun
               </button>
             </form>
           </div>

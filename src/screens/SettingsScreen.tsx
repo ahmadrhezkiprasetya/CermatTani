@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  BellRing,
+  Clock,
   Database,
   Download,
   Globe,
@@ -10,6 +12,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Sliders,
+  Sparkles,
   Sun,
   Trash2,
   User,
@@ -29,6 +32,9 @@ export const SettingsScreen: React.FC = () => {
     updateUserProfile,
     updateSettings,
     updateSensor,
+    updateReminderSchedule,
+    triggerTestReminderAlert,
+    requestBrowserNotifications,
     setActiveScreen,
     reopenOnboarding,
     resetDemoData,
@@ -103,50 +109,33 @@ export const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 880 }}>
-      {/* Bento Summary Header — Forest-900 */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920, margin: '0 auto', width: '100%' }}>
+      {/* Header Ringkas Pengaturan */}
       <section
-        className="card-forest stagger-card"
+        className="card stagger-card"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 16,
           flexWrap: 'wrap',
+          padding: '18px 22px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              background: 'rgba(216,243,106,0.14)',
-              border: '1px solid rgba(216,243,106,0.24)',
-              borderRadius: 18,
-              padding: 4,
-            }}
-          >
-            <CermoMascot pose="wave" size={64} />
-          </div>
+          <CermoMascot pose="wave" size={56} />
           <div>
-            <h2 className="t-h1" style={{ color: '#FFFFFF' }}>Pengaturan</h2>
+            <h2 className="t-h2" style={{ fontSize: '1.3rem' }}>Pengaturan kebun &amp; akun</h2>
             <p className="t-small t-soft" style={{ marginTop: 2 }}>
-              Atur profil kebun, tampilan terang/gelap, ambang peringatan, dan privasi datamu.
+              Kelola profil, tampilan terang/gelap, ambang peringatan, dan data lokalmu.
             </p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span
-            className="pill"
-            style={{
-              background: isSupabaseConfigured ? 'var(--lime-300)' : 'rgba(255,255,255,0.14)',
-              color: isSupabaseConfigured ? '#14302A' : '#EAF5EE',
-            }}
-          >
+          <span className={`pill ${isSupabaseConfigured ? 'pill-ok' : 'pill-neutral'}`}>
             {isSupabaseConfigured ? 'Supabase aktif' : 'Mode lokal'}
           </span>
-          <span
-            className="pill"
-            style={{ background: 'rgba(255,255,255,0.14)', color: '#EAF5EE' }}
-          >
+          <span className="pill pill-neutral">
             Tema: {state.settings.tema === 'dark' ? 'Gelap' : state.settings.tema === 'light' ? 'Terang' : 'Sistem'}
           </span>
         </div>
@@ -311,6 +300,118 @@ export const SettingsScreen: React.FC = () => {
             <p className="t-micro t-soft">Versi 1.0 fokus bahasa Indonesia sehari-hari; bahasa Inggris di fase 2.</p>
           </div>
           <span className="pill pill-ok">Bahasa Indonesia (Aktif)</span>
+        </div>
+      </section>
+
+      {/* Jadwal Pengingat & Alert Kanan Atas */}
+      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <BellRing size={20} color="var(--leaf-600)" />
+            <div>
+              <h3 className="t-h3">Jadwal pengingat &amp; alert kanan atas</h3>
+              <p className="t-micro t-soft">
+                Atur jam siram, cek daun, pemupukan, dan panen. Peringatan muncul otomatis di pojok kanan atas.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 38, padding: '6px 12px', fontSize: '0.82rem' }}
+            onClick={() => triggerTestReminderAlert()}
+          >
+            <Sparkles size={15} /> Uji alert kanan atas
+          </button>
+        </div>
+
+        <div className="form-grid-2">
+          <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div>
+              <strong className="t-small" style={{ display: 'block' }}>Alert otomatis sensor</strong>
+              <span className="t-micro t-soft">Tanah kering, tandon rendah, risiko jamur &amp; baterai</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={state.settings.peringatanOtomatisSensor}
+              aria-label="Toggle alert otomatis sensor"
+              className="alert-switch"
+              onClick={() =>
+                updateSettings({
+                  peringatanOtomatisSensor: !state.settings.peringatanOtomatisSensor,
+                })
+              }
+            >
+              <span className="alert-switch-thumb" />
+            </button>
+          </div>
+
+          <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div>
+              <strong className="t-small" style={{ display: 'block' }}>Notifikasi perangkat/browser</strong>
+              <span className="t-micro t-soft">Kirim notifikasi sistem saat jadwal tiba</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={state.settings.notifikasiBrowser}
+              aria-label="Toggle notifikasi browser"
+              className="alert-switch"
+              onClick={() => {
+                if (state.settings.notifikasiBrowser) {
+                  updateSettings({ notifikasiBrowser: false });
+                } else {
+                  void requestBrowserNotifications();
+                }
+              }}
+            >
+              <span className="alert-switch-thumb" />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+          {state.settings.jadwalPengingat.map((item) => (
+            <div
+              key={item.id}
+              className={`schedule-row ${!item.aktif ? 'schedule-row--off' : ''}`}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <strong style={{ fontSize: '0.88rem' }}>{item.label}</strong>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={item.aktif}
+                  aria-label={`Aktifkan ${item.label}`}
+                  className="alert-switch"
+                  onClick={() => updateReminderSchedule(item.id, { aktif: !item.aktif })}
+                >
+                  <span className="alert-switch-thumb" />
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Clock size={14} color="var(--ink-soft)" />
+                  <input
+                    type="time"
+                    className="time-pill-input"
+                    aria-label={`Jam ${item.label}`}
+                    value={item.jam}
+                    onChange={(e) => updateReminderSchedule(item.id, { jam: e.target.value })}
+                  />
+                  <span className="t-micro t-soft">WIB</span>
+                </div>
+                <button
+                  type="button"
+                  className="alert-toast-action"
+                  onClick={() => triggerTestReminderAlert(item.id)}
+                >
+                  Uji
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

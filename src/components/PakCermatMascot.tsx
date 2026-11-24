@@ -52,9 +52,8 @@ const POSE_ASSETS: Record<
   },
 };
 
-/* Karakter pendamping Pak Cermat — DESIGN.md v2.0 §8.2 & §8.3
-   Digunakan di halaman publik, onboarding, keadaan kosong, dan penanda keberhasilan.
-   Tidak dipasangkan di dalam kartu yang sama dengan Cermo si Tomat. */
+/* Maskot resmi CermatTani (Pak Cermat — 8 pose PNG transparan bersih)
+   Digunakan secara konsisten di seluruh website: Landing Page, Onboarding, Sidebar, Dashboard, Scan, Chat, dan semua halaman fitur. */
 export const PakCermatMascot: React.FC<{
   pose?: PakCermatPose;
   height?: number;
@@ -77,9 +76,10 @@ export const PakCermatMascot: React.FC<{
         display: 'block',
         userSelect: 'none',
         clipPath: asset.trimLeft ? `inset(0 0 0 ${asset.trimLeft}px)` : undefined,
+        transition: 'transform 280ms var(--ease-out), filter 280ms var(--ease-out)',
         filter: stickerBorder
-          ? 'drop-shadow(0 0 2px #FFFFFF) drop-shadow(0 0 2px #FFFFFF) drop-shadow(0 8px 18px rgba(20,48,42,0.18))'
-          : 'drop-shadow(0 10px 20px rgba(20,48,42,0.16))',
+          ? 'drop-shadow(0 6px 12px rgba(36,62,50,0.12))'
+          : 'drop-shadow(0 8px 16px rgba(36,62,50,0.12))',
       }}
     />
   );

@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     'Aplikasi web (PWA) yang membantu petani dan pelaku urban farming menilai kematangan buah, mengenali penyakit, dan menduga kebutuhan pupuk tomat dari foto serta sensor IoT surya.',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/icon-cermo.svg',
-    apple: '/icon-cermo.svg',
+    icon: '/mascot/pak-cermat/03_petani_mengamati_tomat.png',
+    apple: '/mascot/pak-cermat/03_petani_mengamati_tomat.png',
   },
   appleWebApp: {
     capable: true,

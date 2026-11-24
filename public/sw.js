@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cermattani-next-pwa-v3';
-const CORE_ASSETS = ['/manifest.webmanifest', '/icon-cermo.svg'];
+const CACHE_NAME = 'cermattani-next-pwa-v4';
+const CORE_ASSETS = ['/manifest.webmanifest', '/mascot/pak-cermat/03_petani_mengamati_tomat.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

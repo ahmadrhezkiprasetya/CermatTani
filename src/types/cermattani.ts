@@ -200,6 +200,17 @@ export interface FarmTask {
   plantId?: string;
 }
 
+export type ReminderCategory = 'siram' | 'pupuk' | 'cek_daun' | 'panen';
+
+export interface ReminderSchedule {
+  id: string;
+  label: string;
+  kategori: ReminderCategory;
+  jam: string; // HH:MM (24 jam)
+  aktif: boolean;
+  catatan: string;
+}
+
 export interface AppSettings {
   tema: ThemePreference;
   ambangKeyakinanRendah: number; // F2.4 default 60
@@ -212,6 +223,9 @@ export interface AppSettings {
   ambangTandonRendah: number; // F12.2 default 20
   ambangBateraiHemat: number; // F13.2 default 20
   simulasikanOffline: boolean;
+  jadwalPengingat: ReminderSchedule[];
+  peringatanOtomatisSensor: boolean;
+  notifikasiBrowser: boolean;
 }
 
 export interface OfflineQueueItem {
@@ -227,6 +241,20 @@ export interface NotificationItem {
   judul: string;
   isi: string;
   waktu: string;
-  tipe: 'telegram' | 'penyakit' | 'tandon' | 'panen' | 'energi';
+  tipe: 'siram' | 'pupuk' | 'telegram' | 'penyakit' | 'tandon' | 'panen' | 'energi';
   dibaca: boolean;
+  severity?: 'info' | 'warn' | 'bad' | 'ok';
+  actionLabel?: string;
+  actionScreen?: Exclude<ScreenId, 'landing'>;
+}
+
+export interface LiveAlertToast {
+  id: string;
+  judul: string;
+  isi: string;
+  waktu: string;
+  tipe: NotificationItem['tipe'];
+  severity: 'info' | 'warn' | 'bad' | 'ok';
+  actionLabel?: string;
+  actionScreen?: Exclude<ScreenId, 'landing'>;
 }

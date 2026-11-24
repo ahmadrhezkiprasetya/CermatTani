@@ -152,7 +152,7 @@ export const AgrovaFarmMap: React.FC<{
           ];
 
   return (
-    <div className="agrova-map-panel" style={{ height: expanded ? 340 : 252, transition: 'height 200ms ease' }}>
+    <div className="agrova-map-panel" style={{ height: expanded ? 320 : 224, transition: 'height 200ms ease' }}>
       <div
         style={{
           width: '100%',

@@ -360,7 +360,7 @@ export const ScanScreen: React.FC = () => {
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 960 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920, margin: '0 auto', width: '100%' }}>
       {/* STEP 1 & 2: Pilih bagian tanaman -> Buka kamera / Unggah foto */}
       {stage === 'pick' && (
         <>
@@ -368,21 +368,19 @@ export const ScanScreen: React.FC = () => {
             className="card stagger-card"
             style={{
               background:
-                'linear-gradient(145deg, var(--surface) 0%, var(--surface) 64%, rgba(216,243,106,0.14) 100%)',
+                'radial-gradient(circle at 96% 8%, rgba(216,243,106,0.18), transparent 44%), var(--surface)',
+              padding: '24px 26px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-              <CermoMascot pose="wave" size={86} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 22 }}>
+              <CermoMascot pose="wave" size={76} />
               <div style={{ flex: '1 1 260px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                  <span className="pill pill-ok">
-                    <Sparkles size={13} /> Foto dulu, keputusan dalam 5 detik
-                  </span>
-                </div>
-                <h2 className="t-h1">Scan tanaman</h2>
-                <p className="t-body t-soft" style={{ marginTop: 2 }}>
-                  Pilih tanaman dan bagian yang ingin dipindai, lalu buka kamera langsung atau unggah
-                  foto dari perangkatmu.
+                <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Sparkles size={13} /> Gemini Vision AI · Dataset Agronomi Khusus
+                </span>
+                <h2 className="t-h2" style={{ marginTop: 2 }}>Scan kondisi tanaman</h2>
+                <p className="t-small t-soft" style={{ marginTop: 3 }}>
+                  Pilih tanaman dan bagian yang ingin diperiksa, lalu ambil foto langsung atau unggah dari galeri.
                 </p>
               </div>
             </div>
@@ -437,21 +435,21 @@ export const ScanScreen: React.FC = () => {
                       id: 'buah',
                       title: 'Buah',
                       desc: 'Cek kematangan, hari panen & perkiraan hasil',
-                      color: '#F2562B',
+                      color: 'var(--fruit-ripe)',
                       icon: Sparkles,
                     },
                     {
                       id: 'daun',
                       title: 'Daun',
                       desc: 'Kenali bercak/penyakit & dugaan kekurangan pupuk',
-                      color: '#1F9D55',
+                      color: 'var(--leaf-500)',
                       icon: Leaf,
                     },
                     {
                       id: 'batang',
                       title: 'Batang',
                       desc: 'Deteksi gejala layu batang & pangkal tanaman',
-                      color: '#0E4F43',
+                      color: 'var(--forest-900)',
                       icon: Sprout,
                     },
                   ] as const
@@ -464,35 +462,37 @@ export const ScanScreen: React.FC = () => {
                       type="button"
                       onClick={() => setSelectedPart(part.id)}
                       aria-pressed={active}
+                      className="card-interactive"
                       style={{
-                        border: active ? `2.5px solid ${part.color}` : '1.5px solid var(--line)',
-                        background: active ? 'var(--surface-2)' : 'var(--surface)',
-                        borderRadius: 20,
-                        padding: 18,
+                        border: active ? '2px solid var(--leaf-600)' : '1px solid var(--line)',
+                        background: active ? 'var(--ok-bg)' : 'var(--surface-2)',
+                        borderRadius: 16,
+                        padding: 16,
                         textAlign: 'left',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 10,
-                        transition: 'transform 160ms ease, border-color 160ms ease',
+                        transition: 'transform 160ms ease, border-color 160ms ease, background 160ms ease',
                       }}
                     >
                       <div
                         style={{
-                          width: 52,
-                          height: 52,
-                          borderRadius: 16,
-                          background: active ? part.color : 'var(--surface-2)',
+                          width: 42,
+                          height: 42,
+                          borderRadius: 12,
+                          background: active ? part.color : 'var(--surface)',
                           color: active ? '#FFFFFF' : part.color,
+                          border: active ? 'none' : '1px solid var(--line)',
                           display: 'grid',
                           placeItems: 'center',
                         }}
                       >
-                        <Icon size={26} strokeWidth={1.75} />
+                        <Icon size={21} strokeWidth={1.75} />
                       </div>
                       <div>
-                        <div className="t-h3">{part.title}</div>
-                        <p className="t-small t-soft" style={{ marginTop: 2 }}>
+                        <div className="t-h3" style={{ fontSize: '1rem' }}>{part.title}</div>
+                        <p className="t-micro t-soft" style={{ marginTop: 3, fontWeight: 500 }}>
                           {part.desc}
                         </p>
                       </div>
@@ -759,7 +759,7 @@ export const ScanScreen: React.FC = () => {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
                 gap: 20,
                 alignItems: 'center',
               }}

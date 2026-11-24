@@ -3,9 +3,15 @@
 import React, { useMemo, useState } from 'react';
 import {
   AlertCircle,
+  CalendarDays,
   Camera,
+  Check,
   Download,
+  Leaf,
+  MessageCircle,
   Plus,
+  Search,
+  Sparkles,
   Sprout,
   X,
 } from 'lucide-react';
@@ -16,6 +22,8 @@ import { GreenAreaChart } from '../components/Charts';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { GrowthPhase, ScanRecord } from '../types/cermattani';
+
+const GROWTH_PHASES: GrowthPhase[] = ['Bibit', 'Vegetatif', 'Berbunga', 'Berbuah', 'Panen'];
 
 function daysSince(ymd: string): number {
   const start = new Date(ymd).getTime();
@@ -36,12 +44,35 @@ function formatDateShort(iso: string): string {
   }
 }
 
-/* Layar 5: Tanaman & Timeline pertumbuhan per tanaman (F4.1–F4.3, X1, X4) */
+function formatDateId(ymd: string): string {
+  try {
+    return new Date(`${ymd}T00:00:00`).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return ymd;
+  }
+}
+
+/* Layar 5: Tanaman & Timeline — Master–Detail Rapi & Nyaman Digunakan (F4.1–F4.3) */
 export const PlantsScreen: React.FC = () => {
-  const { state, activeFarm, activeFarmPlants, addPlant, openScanWith } = useApp();
+  const {
+    state,
+    activeFarm,
+    activeFarmPlants,
+    addPlant,
+    openScanWith,
+    openChatWithPlant,
+    setActiveScreen,
+  } = useApp();
+
   const [selectedPlantId, setSelectedPlantId] = useState<string>(
     activeFarmPlants[0]?.id || state.plants[0]?.id || ''
   );
+  const [phaseFilter, setPhaseFilter] = useState<'semua' | 'berbuah' | 'tumbuh' | 'perhatian'>('semua');
+  const [localSearch, setLocalSearch] = useState('');
   const [openedScan, setOpenedScan] = useState<ScanRecord | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -51,12 +82,47 @@ export const PlantsScreen: React.FC = () => {
   const [tanggalTanam, setTanggalTanam] = useState(new Date().toISOString().slice(0, 10));
   const [fase, setFase] = useState<GrowthPhase>('Vegetatif');
 
+  const plantMetaMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { scans: ScanRecord[]; latest?: ScanRecord; hasIssue: boolean; nextHarvest?: string }
+    >();
+    for (const p of activeFarmPlants) {
+      const scans = state.scans
+        .filter((s) => s.plantId === p.id)
+        .sort((a, b) => b.waktu.localeCompare(a.waktu));
+      const latest = scans[0];
+      const hasIssue = Boolean(latest && latest.penyakitUtamaId !== 'sehat');
+      const nextEv = state.harvestEvents
+        .filter((h) => h.plantId === p.id && h.sumber === 'estimasi')
+        .sort((a, b) => a.tanggal.localeCompare(b.tanggal))[0];
+      map.set(p.id, { scans, latest, hasIssue, nextHarvest: nextEv?.tanggal });
+    }
+    return map;
+  }, [activeFarmPlants, state.scans, state.harvestEvents]);
+
+  const filteredPlants = useMemo(() => {
+    const q = localSearch.trim().toLowerCase();
+    return activeFarmPlants.filter((p) => {
+      const meta = plantMetaMap.get(p.id);
+      if (q && !p.nama.toLowerCase().includes(q) && !p.varietas.toLowerCase().includes(q)) {
+        return false;
+      }
+      if (phaseFilter === 'berbuah') return p.fase === 'Berbuah' || p.fase === 'Panen';
+      if (phaseFilter === 'tumbuh') return p.fase === 'Bibit' || p.fase === 'Vegetatif' || p.fase === 'Berbunga';
+      if (phaseFilter === 'perhatian') return Boolean(meta?.hasIssue);
+      return true;
+    });
+  }, [activeFarmPlants, plantMetaMap, localSearch, phaseFilter]);
+
   const selectedPlant = useMemo(
     () =>
+      filteredPlants.find((p) => p.id === selectedPlantId) ||
       activeFarmPlants.find((p) => p.id === selectedPlantId) ||
+      filteredPlants[0] ||
       activeFarmPlants[0] ||
       null,
-    [activeFarmPlants, selectedPlantId]
+    [filteredPlants, activeFarmPlants, selectedPlantId]
   );
 
   // Semua scan tanaman terpilih urut dari terlama -> terbaru untuk timeline
@@ -67,13 +133,11 @@ export const PlantsScreen: React.FC = () => {
       .sort((a, b) => a.waktu.localeCompare(b.waktu));
   }, [state.scans, selectedPlant]);
 
-  // F4.2: Tandai kapan penyakit pertama kali muncul
   const firstDiseaseScanId = useMemo(
     () => plantScansChrono.find((s) => s.penyakitUtamaId !== 'sehat')?.id || null,
     [plantScansChrono]
   );
 
-  // Data grafik perkembangan (skor kesehatan / kematangan per scan)
   const chartPoints = useMemo(() => {
     return plantScansChrono.map((s) => {
       const score =
@@ -86,6 +150,16 @@ export const PlantsScreen: React.FC = () => {
       };
     });
   }, [plantScansChrono]);
+
+  const attentionCount = useMemo(
+    () => activeFarmPlants.filter((p) => plantMetaMap.get(p.id)?.hasIssue).length,
+    [activeFarmPlants, plantMetaMap]
+  );
+
+  const fruitingCount = useMemo(
+    () => activeFarmPlants.filter((p) => p.fase === 'Berbuah' || p.fase === 'Panen').length,
+    [activeFarmPlants]
+  );
 
   const handleExportCsv = () => {
     const headers = [
@@ -131,50 +205,115 @@ export const PlantsScreen: React.FC = () => {
       fase,
     });
     setSelectedPlantId(created.id);
+    setPhaseFilter('semua');
     setNama('');
     setShowAddModal(false);
   };
 
+  const selectedMeta = selectedPlant ? plantMetaMap.get(selectedPlant.id) : undefined;
+  const selectedPhaseIndex = selectedPlant
+    ? Math.max(0, GROWTH_PHASES.indexOf(selectedPlant.fase))
+    : 0;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Header & Baris Status Cepat Agrova */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2 className="t-h1">Tanaman &amp; timeline pertumbuhan</h2>
-          <p className="t-small t-soft">
-            Kebun aktif: <strong>{activeFarm?.nama}</strong> ({activeFarmPlants.length} tanaman)
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn-secondary" onClick={handleExportCsv}>
-            <Download size={18} /> Ekspor CSV
-          </button>
-          <button type="button" className="btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Tambah tanaman
-          </button>
-        </div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Bar Atas: Filter Fase + Cari Cepat + Aksi */}
+      <section
+        className="card"
+        style={{
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="seg-tabs" role="tablist" aria-label="Filter tanaman">
+            {(
+              [
+                { id: 'semua', label: `Semua (${activeFarmPlants.length})` },
+                { id: 'berbuah', label: `Berbuah (${fruitingCount})` },
+                { id: 'tumbuh', label: 'Tumbuh' },
+                ...(attentionCount > 0 ? [{ id: 'perhatian' as const, label: `Cek (${attentionCount})` }] : []),
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={phaseFilter === tab.id}
+                className={`seg-tab ${phaseFilter === tab.id ? 'active' : ''}`}
+                onClick={() => setPhaseFilter(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      <div className="status-strip stagger-card">
-        <div className="status-strip-pills">
-          <span className="status-chip-solid tabular-nums">
-            <Sprout size={16} /> Tanaman Aktif: {activeFarmPlants.length}
-          </span>
-          <span className="status-chip-surface tabular-nums">
-            <span className="ripeness-dot" style={{ background: 'var(--leaf-500)' }} />
-            Total Riwayat Scan: {state.scans.length}
-          </span>
-          <span className="status-chip-surface tabular-nums">
-            <span className="ripeness-dot" style={{ background: 'var(--tomato-500)' }} />
-            Fase Panen/Berbuah:{' '}
-            {activeFarmPlants.filter((p) => p.fase === 'Berbuah' || p.fase === 'Panen').length}
-          </span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '0 11px',
+              minHeight: 36,
+              borderRadius: 11,
+              background: 'var(--surface-2)',
+              border: '1px solid var(--line)',
+            }}
+          >
+            <Search size={14} color="var(--ink-soft)" />
+            <input
+              type="search"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Filter petak..."
+              aria-label="Filter daftar tanaman"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '0.82rem',
+                width: 130,
+                color: 'var(--ink)',
+              }}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Daftar kartu tanaman di kebun aktif — Keadaan kosong pakai Pak Cermat (§8.2) */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 38, padding: '6px 13px', fontSize: '0.84rem' }}
+            onClick={handleExportCsv}
+          >
+            <Download size={15} /> Ekspor CSV
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ minHeight: 38, padding: '6px 14px', fontSize: '0.84rem' }}
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus size={16} /> Tambah tanaman
+          </button>
+        </div>
+      </section>
+
       {activeFarmPlants.length === 0 ? (
-        <section className="card" style={{ textAlign: 'center', padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <section
+          className="card"
+          style={{
+            textAlign: 'center',
+            padding: 36,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
           <PakCermatMascot pose="bibit" height={150} />
           <h3 className="t-h2" style={{ marginTop: 14 }}>
             Belum ada tanaman di kebun ini
@@ -187,277 +326,364 @@ export const PlantsScreen: React.FC = () => {
           </button>
         </section>
       ) : (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {activeFarmPlants.map((p) => {
-              const isSelected = selectedPlant?.id === p.id;
-              const scans = state.scans
-                .filter((s) => s.plantId === p.id)
-                .sort((a, b) => b.waktu.localeCompare(a.waktu));
-              const latest = scans[0];
-              const hasIssue = latest && latest.penyakitUtamaId !== 'sehat';
-
-              return (
+        /* Tata Letak Master–Detail: Daftar Petak Kiri (scroll lokal / swipe HP) + Detail Lengkap Kanan */
+        <div className="plants-layout">
+          <aside className="plants-list-col" aria-label="Daftar tanaman kebun">
+            {filteredPlants.length === 0 ? (
+              <div className="card-subtle" style={{ textAlign: 'center', padding: 20 }}>
+                <p className="t-small t-soft">Tidak ada tanaman yang cocok dengan filter.</p>
                 <button
-                  key={p.id}
                   type="button"
-                  onClick={() => setSelectedPlantId(p.id)}
-                  className="card-sm card-interactive"
-                  style={{
-                    background: isSelected
-                      ? 'linear-gradient(150deg, var(--forest-900) 0%, var(--forest-950) 100%)'
-                      : 'var(--surface)',
-                    color: isSelected ? '#FFFFFF' : 'var(--ink)',
-                    border: isSelected ? '1px solid rgba(216,243,106,0.35)' : '1px solid var(--card-hairline)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
+                  className="btn-ghost"
+                  style={{ marginTop: 6 }}
+                  onClick={() => {
+                    setPhaseFilter('semua');
+                    setLocalSearch('');
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  Reset filter
+                </button>
+              </div>
+            ) : (
+              filteredPlants.map((p) => {
+                const isSelected = selectedPlant?.id === p.id;
+                const meta = plantMetaMap.get(p.id);
+                const hasIssue = Boolean(meta?.hasIssue);
+                const scanCount = meta?.scans.length || 0;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedPlantId(p.id)}
+                    className={`plant-row-btn ${isSelected ? 'active' : ''}`}
+                  >
                     <div
                       style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 14,
-                        background: isSelected ? 'var(--lime-300)' : 'var(--surface-2)',
-                        color: isSelected ? '#14302A' : 'var(--leaf-600)',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        background: isSelected ? 'var(--leaf-600)' : 'var(--surface-2)',
+                        color: isSelected ? '#FFFFFF' : 'var(--leaf-600)',
                         display: 'grid',
                         placeItems: 'center',
+                        flexShrink: 0,
+                        transition: 'background 200ms ease, color 200ms ease',
                       }}
                     >
-                      <Sprout size={20} strokeWidth={1.85} />
+                      <Sprout size={19} strokeWidth={1.9} />
                     </div>
-                    <span
-                      className={`pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`}
-                      style={
-                        isSelected && !hasIssue
-                          ? { background: 'rgba(216,243,106,0.2)', color: '#D8F36A' }
-                          : undefined
-                      }
-                    >
-                      {hasIssue ? 'Perlu cek' : p.fase}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="t-h3" style={{ color: isSelected ? '#FFFFFF' : 'var(--ink)' }}>
-                      {p.nama}
-                    </div>
-                    <div
-                      className="t-micro"
-                      style={{ color: isSelected ? 'rgba(234,245,238,0.78)' : 'var(--ink-soft)' }}
-                    >
-                      {p.varietas} · {daysSince(p.tanggalTanam)} HST
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span
-                      className="t-micro tabular-nums"
-                      style={{ color: isSelected ? 'rgba(234,245,238,0.82)' : 'var(--ink-soft)' }}
-                    >
-                      {scans.length} riwayat scan
-                    </span>
-                    {latest?.tahapDominan && (
-                      <span
-                        className="pill pill-neutral"
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
                         style={{
-                          fontSize: '0.75rem',
-                          background: isSelected ? 'rgba(255,255,255,0.14)' : undefined,
-                          color: isSelected ? '#FFFFFF' : undefined,
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          color: 'var(--ink)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
-                        <span
-                          className="ripeness-dot"
-                          style={{ background: RIPENESS_REFERENCE[latest.tahapDominan].color }}
-                        />
-                        {RIPENESS_REFERENCE[latest.tahapDominan].label}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                        {p.nama}
+                      </div>
+                      <div className="t-micro t-soft" style={{ marginTop: 1 }}>
+                        {p.varietas} · {daysSince(p.tanggalTanam)} HST · {scanCount} scan
+                      </div>
+                    </div>
+                    <span className={`pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`} style={{ flexShrink: 0 }}>
+                      {hasIssue ? 'Cek' : p.fase}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </aside>
 
-          {/* Detail & Timeline Tanaman Terpilih (F4) */}
+          {/* Panel Kanan: Detail, Progres Fase & Jejak Scan Tanaman Terpilih */}
           {selectedPlant && (
-            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <section
+              key={selectedPlant.id}
+              className="card step-transition"
+              style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+            >
+              {/* Kepala Detail Tanaman */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: 14,
+                  flexWrap: 'wrap',
+                  paddingBottom: 16,
+                  borderBottom: '1px solid var(--line)',
+                }}
+              >
                 <div>
-                  <span className="pill pill-ok" style={{ marginBottom: 6 }}>
-                    Fase {selectedPlant.fase} · {daysSince(selectedPlant.tanggalTanam)} hari setelah tanam
-                  </span>
-                  <h3 className="t-h2">{selectedPlant.nama}</h3>
-                  <p className="t-small t-soft">
-                    Varietas {selectedPlant.varietas} · Tanam {selectedPlant.tanggalTanam}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <span className={`pill ${selectedMeta?.hasIssue ? 'pill-bad' : 'pill-ok'}`}>
+                      {selectedMeta?.hasIssue ? 'Perlu perhatian' : `Fase ${selectedPlant.fase}`}
+                    </span>
+                    <span className="pill pill-neutral tabular-nums">
+                      {daysSince(selectedPlant.tanggalTanam)} HST
+                    </span>
+                  </div>
+                  <h2 className="t-h2" style={{ fontSize: '1.4rem' }}>{selectedPlant.nama}</h2>
+                  <p className="t-small t-soft" style={{ marginTop: 2 }}>
+                    Varietas <strong>{selectedPlant.varietas}</strong> · Tanam {formatDateId(selectedPlant.tanggalTanam)}
                   </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-tomato"
+                    onClick={() => openScanWith('buah', selectedPlant.id)}
+                  >
+                    <Camera size={17} /> Scan tanaman
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => openChatWithPlant(selectedPlant.id)}
+                  >
+                    <MessageCircle size={16} /> Tanya Cermo
+                  </button>
+                </div>
+              </div>
+
+              {/* Jalur Progres 5 Fase Pertumbuhan */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="t-small" style={{ fontWeight: 700 }}>Tahap pertumbuhan tanaman</span>
+                  <span className="t-micro t-soft">
+                    Langkah {selectedPhaseIndex + 1} dari {GROWTH_PHASES.length}
+                  </span>
+                </div>
+                <div className="growth-stepper">
+                  {GROWTH_PHASES.map((phaseName, idx) => {
+                    const isDone = idx < selectedPhaseIndex;
+                    const isCurrent = idx === selectedPhaseIndex;
+                    return (
+                      <div
+                        key={phaseName}
+                        className={`growth-step ${
+                          isCurrent ? 'growth-step--current' : isDone ? 'growth-step--done' : ''
+                        }`}
+                      >
+                        <span
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: isCurrent
+                              ? 'rgba(255,255,255,0.22)'
+                              : isDone
+                                ? 'var(--leaf-600)'
+                                : 'var(--surface)',
+                            color: isCurrent || isDone ? '#FFFFFF' : 'var(--ink-soft)',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            display: 'grid',
+                            placeItems: 'center',
+                          }}
+                        >
+                          {isDone ? <Check size={13} strokeWidth={2.6} /> : idx + 1}
+                        </span>
+                        <span
+                          className="t-micro"
+                          style={{
+                            color: isCurrent ? '#FFFFFF' : isDone ? 'var(--ok-fg)' : 'var(--ink-soft)',
+                          }}
+                        >
+                          {phaseName}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Strip 3 Metrik Ringkas Tanaman */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+                <div className="card-subtle" style={{ padding: '12px 14px' }}>
+                  <div className="t-micro t-soft">Total pemeriksaan AI</div>
+                  <div className="font-display tabular-nums" style={{ fontSize: '1.35rem', marginTop: 2 }}>
+                    {plantScansChrono.length} kali
+                  </div>
+                </div>
+                <div className="card-subtle" style={{ padding: '12px 14px' }}>
+                  <div className="t-micro t-soft">Status terakhir</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: 4, color: 'var(--ink)' }}>
+                    {selectedMeta?.latest
+                      ? selectedMeta.latest.penyakitUtamaNama
+                      : 'Belum pernah dipindai'}
+                  </div>
                 </div>
                 <button
                   type="button"
-                  className="btn-tomato"
-                  onClick={() => openScanWith('buah', selectedPlant.id)}
+                  className="card-subtle card-interactive"
+                  onClick={() => setActiveScreen('kalender')}
+                  style={{ padding: '12px 14px', textAlign: 'left', cursor: 'pointer' }}
                 >
-                  <Camera size={18} /> Scan tanaman ini
+                  <div className="t-micro t-soft" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <CalendarDays size={13} color="var(--leaf-600)" /> Estimasi panen
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: 4, color: 'var(--ink)' }}>
+                    {selectedMeta?.nextHarvest ? formatDateId(selectedMeta.nextHarvest) : 'Atur di kalender'}
+                  </div>
                 </button>
               </div>
 
+              {/* Riwayat Scan & Grafik Kesehatan */}
               {plantScansChrono.length === 0 ? (
-                <div className="card-subtle" style={{ textAlign: 'center', padding: 28 }}>
-                  <CermoMascot pose="wave" size={82} />
-                  <p className="t-body" style={{ marginTop: 10, fontWeight: 600 }}>
-                    Belum ada scan. Foto satu tomat untuk mulai.
-                  </p>
+                <div
+                  className="card-forest"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 18,
+                    flexWrap: 'wrap',
+                    padding: '22px 24px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 240px' }}>
+                    <CermoMascot pose="wave" size={82} />
+                    <div>
+                      <strong style={{ fontSize: '1rem', display: 'block' }}>
+                        Belum ada catatan scan untuk {selectedPlant.nama}
+                      </strong>
+                      <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                        Ambil 1 foto buah, daun, atau batang agar timeline pertumbuhan dan jadwal panennya terisi otomatis.
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ minHeight: 38, padding: '6px 13px', fontSize: '0.84rem' }}
+                      onClick={() => openScanWith('buah', selectedPlant.id)}
+                    >
+                      <Sparkles size={15} /> Scan Buah
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ minHeight: 38, padding: '6px 13px', fontSize: '0.84rem' }}
+                      onClick={() => openScanWith('daun', selectedPlant.id)}
+                    >
+                      <Leaf size={15} /> Scan Daun
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
-                  {/* Timeline bergelombang dengan avatar bulat & titik merah penyakit (DESIGN.md §7, F4.2) */}
+                  {/* Daftar Kartu Jejak Scan Rapi */}
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                      <h4 className="t-h3">Jejak scan (klik lingkaran untuk buka detail)</h4>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 12,
+                        flexWrap: 'wrap',
+                        gap: 8,
+                      }}
+                    >
+                      <h3 className="t-h3">Jejak pemeriksaan AI (klik kartu untuk detail)</h3>
                       {firstDiseaseScanId && (
                         <span className="pill pill-bad">
-                          <AlertCircle size={14} /> Penyakit pertama muncul ditandai merah
+                          <AlertCircle size={14} /> Gejala pertama ditandai merah
                         </span>
                       )}
                     </div>
 
-                    <div style={{ position: 'relative', overflowX: 'auto', padding: '16px 8px 12px' }}>
-                      {/* Garis bergelombang SVG di belakang avatar */}
-                      <svg
-                        viewBox="0 0 600 40"
-                        preserveAspectRatio="none"
-                        width="100%"
-                        height="40"
-                        aria-hidden="true"
-                        style={{
-                          position: 'absolute',
-                          top: 34,
-                          left: 0,
-                          right: 0,
-                          pointerEvents: 'none',
-                        }}
-                      >
-                        <path
-                          d="M 10 20 Q 85 2, 160 20 T 310 20 T 460 20 T 590 20"
-                          fill="none"
-                          stroke="var(--leaf-500)"
-                          strokeOpacity="0.45"
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-
-                      <div
-                        style={{
-                          position: 'relative',
-                          display: 'flex',
-                          gap: 20,
-                          minWidth: 'max-content',
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        {plantScansChrono.map((scan, idx) => {
-                          const isDisease = scan.penyakitUtamaId !== 'sehat';
-                          const isFirstDisease = scan.id === firstDiseaseScanId;
-                          return (
-                            <button
-                              key={scan.id}
-                              type="button"
-                              onClick={() => setOpenedScan(scan)}
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: 8,
-                                width: 148,
-                                paddingTop: idx % 2 === 1 ? 14 : 0,
-                              }}
-                            >
-                              <div style={{ position: 'relative' }}>
-                                <img
-                                  src={scan.fotoUrl}
-                                  alt={`Scan ${scan.bagian}`}
-                                  style={{
-                                    width: 68,
-                                    height: 68,
-                                    borderRadius: '50%',
-                                    objectFit: 'cover',
-                                    border: `4px solid ${isDisease ? 'var(--bad)' : 'var(--leaf-600)'}`,
-                                    boxShadow: 'var(--shadow-card)',
-                                    display: 'block',
-                                  }}
-                                />
-                                {isDisease && (
-                                  <span
-                                    title={isFirstDisease ? 'Penyakit pertama muncul' : 'Terdeteksi gejala'}
-                                    style={{
-                                      position: 'absolute',
-                                      top: -2,
-                                      right: -2,
-                                      width: 22,
-                                      height: 22,
-                                      borderRadius: '50%',
-                                      background: 'var(--bad)',
-                                      color: '#FFFFFF',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      display: 'grid',
-                                      placeItems: 'center',
-                                      border: '2px solid var(--surface)',
-                                    }}
-                                  >
-                                    !
-                                  </span>
-                                )}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                        gap: 12,
+                      }}
+                    >
+                      {plantScansChrono.map((scan) => {
+                        const isDisease = scan.penyakitUtamaId !== 'sehat';
+                        const isFirstDisease = scan.id === firstDiseaseScanId;
+                        return (
+                          <button
+                            key={scan.id}
+                            type="button"
+                            onClick={() => setOpenedScan(scan)}
+                            className="card-subtle card-interactive"
+                            style={{
+                              padding: 10,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 8,
+                              borderColor: isDisease ? 'var(--bad-600)' : 'var(--line)',
+                            }}
+                          >
+                            <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', height: 108 }}>
+                              <img
+                                src={scan.fotoUrl}
+                                alt={`Scan ${scan.bagian}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              />
+                              <span
+                                className={`pill ${isDisease ? 'pill-bad' : 'pill-ok'}`}
+                                style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  left: 8,
+                                  fontSize: '0.68rem',
+                                  padding: '2px 8px',
+                                }}
+                              >
+                                {isFirstDisease ? 'Gejala awal' : scan.bagian}
+                              </span>
+                            </div>
+                            <div>
+                              <div
+                                style={{
+                                  fontWeight: 700,
+                                  fontSize: '0.84rem',
+                                  color: 'var(--ink)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {scan.tahapDominan
+                                  ? RIPENESS_REFERENCE[scan.tahapDominan].label
+                                  : scan.penyakitUtamaNama}
                               </div>
-                              <div style={{ textAlign: 'center' }}>
-                                <div className="t-micro" style={{ fontWeight: 700, color: 'var(--ink)' }}>
-                                  {scan.tahapDominan
-                                    ? RIPENESS_REFERENCE[scan.tahapDominan].label
-                                    : scan.penyakitUtamaNama.slice(0, 22)}
-                                </div>
-                                <div className="t-micro t-soft">{formatDateShort(scan.waktu)}</div>
-                                {isFirstDisease && (
-                                  <span className="pill pill-bad" style={{ marginTop: 4, fontSize: '0.6875rem', padding: '2px 8px' }}>
-                                    Muncul pertama
-                                  </span>
-                                )}
+                              <div className="t-micro t-soft" style={{ marginTop: 2 }}>
+                                {formatDateShort(scan.waktu)} · {scan.keyakinan}%
                               </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Grafik perkembangan kesehatan (F4.2) */}
-                  <div className="card-subtle">
-                    <div style={{ marginBottom: 8 }}>
-                      <strong className="t-small">Grafik skor kesehatan tanaman per scan</strong>
+                  {/* Grafik Skor Kesehatan Kurva Halus */}
+                  <div className="card-subtle" style={{ padding: '16px 18px' }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <strong className="t-small">Tren kesehatan tanaman per pemeriksaan</strong>
                       <p className="t-micro t-soft">
-                        Penurunan grafik menunjukkan waktu munculnya gejala penyakit pada timeline.
+                        Penurunan grafik menunjukkan waktu terdeteksinya gejala penyakit pada timeline.
                       </p>
                     </div>
-                    <GreenAreaChart points={chartPoints} unit="%" color="#1F9D55" height={140} />
+                    <GreenAreaChart points={chartPoints} unit="%" color="var(--leaf-600)" height={165} />
                   </div>
                 </>
               )}
             </section>
           )}
-        </>
+        </div>
       )}
 
       {/* Modal Detail Scan Lama (F4.3) */}
@@ -488,20 +714,20 @@ export const PlantsScreen: React.FC = () => {
             />
             <div style={{ display: 'grid', gap: 10 }}>
               <div className="card-subtle">
-                <div className="t-micro t-soft">Waktu & bagian</div>
+                <div className="t-micro t-soft">Waktu &amp; bagian</div>
                 <div style={{ fontWeight: 700 }}>
                   {formatDateShort(openedScan.waktu)} · Bagian {openedScan.bagian}
                 </div>
               </div>
               <div className="card-subtle">
-                <div className="t-micro t-soft">Hasil kesehatan & keyakinan</div>
+                <div className="t-micro t-soft">Hasil kesehatan &amp; keyakinan</div>
                 <div style={{ fontWeight: 700 }}>
-                  {openedScan.penyakitUtamaNama} (Seberapa yakin Cermo: {openedScan.keyakinan}%)
+                  {openedScan.penyakitUtamaNama} (Keyakinan AI: {openedScan.keyakinan}%)
                 </div>
               </div>
               {openedScan.tahapDominan && (
                 <div className="card-subtle">
-                  <div className="t-micro t-soft">Kematangan & estimasi kasar</div>
+                  <div className="t-micro t-soft">Kematangan &amp; estimasi kasar</div>
                   <div style={{ fontWeight: 700 }}>
                     {RIPENESS_REFERENCE[openedScan.tahapDominan].label} · {openedScan.jumlahBuah} buah ≈{' '}
                     {openedScan.estimasiBobotGram} g ({openedScan.anjuranPanen})
@@ -577,7 +803,7 @@ export const PlantsScreen: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-grid-2">
                 <div className="field-group">
                   <label htmlFor="add-plant-date" className="field-label">
                     Tanggal tanam

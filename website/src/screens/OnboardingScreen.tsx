@@ -41,24 +41,21 @@ export const OnboardingScreen: React.FC = () => {
   return (
     <div className="onboarding-wrap">
       <div className="onboarding-split">
-        {/* Panel Kiri: Pak Cermat Menyambut (DESIGN v2.0 §8.2) */}
+        {/* Panel Kiri: Pak Cermat Menyambut (Cerah & Segar) */}
         <aside className="onboarding-showcase">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span className="pill" style={{ background: 'var(--lime-300)', color: 'var(--on-lime)' }}>
+            <span className="pill pill-ok">
               CermatTani
             </span>
             <button
               type="button"
               onClick={() => setActiveScreen('landing')}
+              className="btn-secondary"
               style={{
-                border: '1px solid rgba(255,255,255,0.24)',
-                background: 'rgba(255,255,255,0.08)',
-                color: '#FFFFFF',
+                minHeight: 32,
                 borderRadius: 999,
-                padding: '5px 12px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
+                padding: '4px 12px',
+                fontSize: '0.76rem',
               }}
             >
               Halaman Publik
@@ -66,30 +63,32 @@ export const OnboardingScreen: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 14 }}>
-            <PakCermatMascot
-              pose={step === 1 ? 'jempol' : step === 2 ? 'bibit' : 'tomat'}
-              height={220}
-            />
-            <div>
-              <div className="font-display" style={{ fontSize: '1.35rem', color: '#D8F36A' }}>
+            <div key={step} className="pose-swap ambient-float">
+              <PakCermatMascot
+                pose={step === 1 ? 'jempol' : step === 2 ? 'bibit' : 'tomat'}
+                height={220}
+              />
+            </div>
+            <div key={`title-${step}`} className="step-transition">
+              <div className="font-display" style={{ fontSize: '1.35rem', color: 'var(--ink)' }}>
                 {step === 1
                   ? 'Selamat datang di CermatTani'
                   : step === 2
                     ? 'Siapkan kebun pertamamu'
                     : 'Catat tanaman untuk dipantau'}
               </div>
-              <p className="t-small" style={{ color: '#CFE6D8', marginTop: 6 }}>
+              <p className="t-small t-soft" style={{ marginTop: 6 }}>
                 Pak Cermat menemani pengaturan awal kurang dari 2 menit. Di dalam aplikasi nanti,
-                asisten Cermo akan siap memeriksa fotomu.
+                asisten CermatTani akan siap memeriksa fotomu.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span className="pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#FFFFFF' }}>
+            <span className="pill" style={{ background: 'var(--surface)', color: 'var(--leaf-700)', border: '1px solid var(--line)' }}>
               WCAG 2.2 AA
             </span>
-            <span className="pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#FFFFFF' }}>
+            <span className="pill" style={{ background: 'var(--surface)', color: 'var(--leaf-700)', border: '1px solid var(--line)' }}>
               Solusi Organik Dulu
             </span>
           </div>
@@ -110,10 +109,11 @@ export const OnboardingScreen: React.FC = () => {
                     gap: 8,
                     padding: '6px 12px',
                     borderRadius: 999,
-                    background: active ? 'var(--forest-900)' : done ? 'var(--ok-bg)' : 'var(--surface-2)',
-                    color: active ? '#D8F36A' : done ? 'var(--ok-fg)' : 'var(--ink-soft)',
+                    background: active ? 'var(--leaf-600)' : done ? 'var(--ok-bg)' : 'var(--surface-2)',
+                    color: active ? '#FFFFFF' : done ? 'var(--ok-fg)' : 'var(--ink-soft)',
                     fontWeight: 700,
                     fontSize: '0.8rem',
+                    transition: 'background 240ms var(--ease-out), color 240ms var(--ease-out), transform 200ms var(--ease-out)',
                   }}
                 >
                   <span>{done ? '✓' : item.id}</span>
@@ -124,7 +124,7 @@ export const OnboardingScreen: React.FC = () => {
           </div>
 
           {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div key="ob-step-1" className="step-transition" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h1 className="t-h1" style={{ marginBottom: 8 }}>
                   Kelola kebunmu lebih cermat hari ini.
@@ -176,7 +176,7 @@ export const OnboardingScreen: React.FC = () => {
           )}
 
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div key="ob-step-2" className="step-transition" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h2 className="t-h1" style={{ marginBottom: 6 }}>
                   Buat kebun pertamamu
@@ -225,7 +225,7 @@ export const OnboardingScreen: React.FC = () => {
           )}
 
           {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div key="ob-step-3" className="step-transition" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h2 className="t-h1" style={{ marginBottom: 6 }}>
                   Catat satu tanaman untuk dipantau

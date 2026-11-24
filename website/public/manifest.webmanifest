@@ -12,10 +12,10 @@
   "categories": ["agriculture", "utilities", "productivity"],
   "icons": [
     {
-      "src": "/icon-cermo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/mascot/pak-cermat/03_petani_mengamati_tomat.png",
+      "sizes": "378x506",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [

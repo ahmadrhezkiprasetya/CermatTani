@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   AppSettings,
@@ -11,10 +11,13 @@ import {
   GrowthPhase,
   HarvestEvent,
   IrrigationEvent,
+  LiveAlertToast,
   NotificationItem,
   OfflineQueueItem,
   Plant,
   PlantPart,
+  ReminderCategory,
+  ReminderSchedule,
   ScanRecord,
   ScreenId,
   SensorPoint24h,
@@ -39,6 +42,59 @@ import {
 import { runTomatoScanAnalysis } from '../utils/scanAnalyzer';
 
 const STORAGE_KEY = 'cermattani_app_state_v1';
+const FIRED_REMINDERS_KEY = 'cermattani_fired_reminders_v1';
+
+function getLocalClockHHMM(date = new Date()): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function getLocalDateYmd(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getReminderAlertMeta(kategori: ReminderCategory): {
+  tipe: NotificationItem['tipe'];
+  severity: LiveAlertToast['severity'];
+  actionLabel: string;
+  actionScreen: Exclude<ScreenId, 'landing'>;
+} {
+  switch (kategori) {
+    case 'siram':
+      return {
+        tipe: 'siram',
+        severity: 'info',
+        actionLabel: 'Buka Lahan',
+        actionScreen: 'lahan',
+      };
+    case 'cek_daun':
+      return {
+        tipe: 'penyakit',
+        severity: 'warn',
+        actionLabel: 'Scan Daun',
+        actionScreen: 'scan',
+      };
+    case 'pupuk':
+      return {
+        tipe: 'pupuk',
+        severity: 'info',
+        actionLabel: 'Cek Tanaman',
+        actionScreen: 'tanaman',
+      };
+    case 'panen':
+    default:
+      return {
+        tipe: 'panen',
+        severity: 'ok',
+        actionLabel: 'Kalender Panen',
+        actionScreen: 'kalender',
+      };
+  }
+}
 
 export const SCREEN_PATHS: Record<ScreenId, string> = {
   landing: '/',
@@ -115,12 +171,12 @@ function loadPersistedState(): PersistedState {
     // Bersihkan otomatis sisa data scan/chat dummy lama dari localStorage browser
     const cleanedScans = Array.isArray(parsed.scans)
       ? parsed.scans.filter(
-          (s) =>
-            s &&
-            !DUMMY_SCAN_IDS.has(s.id) &&
-            typeof s.fotoUrl === 'string' &&
-            !s.fotoUrl.startsWith('data:image/svg+xml')
-        )
+        (s) =>
+          s &&
+          !DUMMY_SCAN_IDS.has(s.id) &&
+          typeof s.fotoUrl === 'string' &&
+          !s.fotoUrl.startsWith('data:image/svg+xml')
+      )
       : def.scans;
 
     const cleanedChats = Array.isArray(parsed.chatMessages)
@@ -131,6 +187,23 @@ function loadPersistedState(): PersistedState {
       ? parsed.notifications.filter((n) => n && n.id !== 'notif-2')
       : def.notifications;
 
+    const mergedSettings: AppSettings = {
+      ...def.settings,
+      ...(parsed.settings || {}),
+      jadwalPengingat:
+        Array.isArray(parsed.settings?.jadwalPengingat) && parsed.settings.jadwalPengingat.length > 0
+          ? parsed.settings.jadwalPengingat
+          : def.settings.jadwalPengingat,
+      peringatanOtomatisSensor:
+        typeof parsed.settings?.peringatanOtomatisSensor === 'boolean'
+          ? parsed.settings.peringatanOtomatisSensor
+          : def.settings.peringatanOtomatisSensor,
+      notifikasiBrowser:
+        typeof parsed.settings?.notifikasiBrowser === 'boolean'
+          ? parsed.settings.notifikasiBrowser
+          : def.settings.notifikasiBrowser,
+    };
+
     return {
       ...def,
       ...parsed,
@@ -139,7 +212,7 @@ function loadPersistedState(): PersistedState {
       notifications: cleanedNotifs,
       user: { ...def.user, ...(parsed.user || {}) },
       sensor: { ...def.sensor, ...(parsed.sensor || {}) },
-      settings: { ...def.settings, ...(parsed.settings || {}) },
+      settings: mergedSettings,
     };
   } catch {
     return createDefaultState(false);
@@ -161,6 +234,23 @@ interface AppContextValue {
   activeFarm: Farm;
   activeFarmPlants: Plant[];
   unreadNotifCount: number;
+  activeAlerts: LiveAlertToast[];
+  pushAlert: (
+    input: Omit<LiveAlertToast, 'id' | 'waktu'>,
+    options?: { saveToHistory?: boolean; notifyBrowser?: boolean }
+  ) => void;
+  dismissAlert: (id: string) => void;
+  clearAllNotifications: () => void;
+  updateReminderSchedule: (id: string, patch: Partial<ReminderSchedule>) => void;
+  addReminderSchedule: (input: {
+    label: string;
+    kategori: ReminderCategory;
+    jam: string;
+    catatan: string;
+  }) => void;
+  deleteReminderSchedule: (id: string) => void;
+  triggerTestReminderAlert: (scheduleId?: string) => void;
+  requestBrowserNotifications: () => Promise<boolean>;
   isOffline: boolean;
   completeOnboarding: (payload?: {
     userName?: string;
@@ -217,6 +307,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [chatContextPlantId, setChatContextPlantId] = useState<string | null>(INITIAL_PLANTS[0]?.id ?? null);
   const [searchQuery, setSearchQuery] = useState('');
   const [browserOffline, setBrowserOffline] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<LiveAlertToast[]>([]);
+
+  const alertTimersRef = useRef<Map<string, number>>(new Map());
+  const firedRemindersRef = useRef<Set<string>>(new Set());
+  const prevSensorAlertsRef = useRef<{
+    initialized: boolean;
+    soilDry: boolean;
+    tankLow: boolean;
+    diseaseRisk: boolean;
+    batteryLow: boolean;
+  }>({
+    initialized: false,
+    soilDry: false,
+    tankLow: false,
+    diseaseRisk: false,
+    batteryLow: false,
+  });
+
+  useEffect(() => {
+    const timers = alertTimersRef.current;
+    return () => {
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+      timers.clear();
+    };
+  }, []);
+
+  const dismissAlert = useCallback((id: string) => {
+    const existingTimer = alertTimersRef.current.get(id);
+    if (existingTimer !== undefined) {
+      window.clearTimeout(existingTimer);
+      alertTimersRef.current.delete(id);
+    }
+    setActiveAlerts((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const pushAlert = useCallback<AppContextValue['pushAlert']>(
+    (input, options) => {
+      const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const waktu = `${getLocalClockHHMM()} WIB`;
+      const toast: LiveAlertToast = {
+        id,
+        waktu,
+        ...input,
+      };
+
+      setActiveAlerts((prev) => [toast, ...prev].slice(0, 3));
+
+      if (typeof window !== 'undefined') {
+        const timeoutMs = input.severity === 'bad' ? 12000 : 9000;
+        const timerId = window.setTimeout(() => {
+          alertTimersRef.current.delete(id);
+          setActiveAlerts((prev) => prev.filter((item) => item.id !== id));
+        }, timeoutMs);
+        alertTimersRef.current.set(id, timerId);
+
+        if (
+          options?.notifyBrowser !== false &&
+          state.settings.notifikasiBrowser &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          try {
+            new Notification(`CermatTani · ${input.judul}`, {
+              body: input.isi,
+              icon: '/mascot/pak-cermat/01.png',
+            });
+          } catch {
+            // Abaikan bila perangkat memblokir Notification constructor
+          }
+        }
+      }
+
+      if (options?.saveToHistory !== false) {
+        setState((prev) => ({
+          ...prev,
+          notifications: [
+            {
+              id: `notif-${id}`,
+              judul: input.judul,
+              isi: input.isi,
+              waktu,
+              tipe: input.tipe,
+              dibaca: false,
+              severity: input.severity,
+              actionLabel: input.actionLabel,
+              actionScreen: input.actionScreen,
+            },
+            ...prev.notifications,
+          ].slice(0, 35),
+        }));
+      }
+    },
+    [state.settings.notifikasiBrowser]
+  );
 
   // Sinkronkan URL saat direct load atau tombol Back/Forward browser ditekan
   useEffect(() => {
@@ -392,6 +576,158 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isOffline, hydrated]);
 
+  // Mesin penjadwal notifikasi real-time sesuai jam yang ditentukan (HH:MM)
+  useEffect(() => {
+    if (!hydrated || typeof window === 'undefined') return;
+
+    const loadFiredToday = (today: string) => {
+      try {
+        const raw = window.localStorage.getItem(FIRED_REMINDERS_KEY);
+        const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+        const valid = Array.isArray(parsed)
+          ? parsed.filter((k) => typeof k === 'string' && k.startsWith(`${today}|`))
+          : [];
+        firedRemindersRef.current = new Set(valid);
+      } catch {
+        firedRemindersRef.current = new Set();
+      }
+    };
+
+    const persistFired = () => {
+      try {
+        window.localStorage.setItem(
+          FIRED_REMINDERS_KEY,
+          JSON.stringify(Array.from(firedRemindersRef.current))
+        );
+      } catch {
+        // Abaikan quota error
+      }
+    };
+
+    const checkSchedules = () => {
+      const now = new Date();
+      const today = getLocalDateYmd(now);
+      const clock = getLocalClockHHMM(now);
+      loadFiredToday(today);
+
+      let updated = false;
+      for (const item of state.settings.jadwalPengingat) {
+        if (!item.aktif || item.jam !== clock) continue;
+        const key = `${today}|${item.id}|${item.jam}`;
+        if (firedRemindersRef.current.has(key)) continue;
+
+        firedRemindersRef.current.add(key);
+        updated = true;
+
+        const meta = getReminderAlertMeta(item.kategori);
+        pushAlert({
+          judul: `Waktunya ${item.label}`,
+          isi: item.catatan || `Jadwal pengingat pukul ${item.jam} WIB telah tiba.`,
+          tipe: meta.tipe,
+          severity: meta.severity,
+          actionLabel: meta.actionLabel,
+          actionScreen: meta.actionScreen,
+        });
+      }
+
+      if (updated) persistFired();
+    };
+
+    checkSchedules();
+    const intervalId = window.setInterval(checkSchedules, 10000);
+    return () => window.clearInterval(intervalId);
+  }, [hydrated, state.settings.jadwalPengingat, pushAlert]);
+
+  // Pengawas alert otomatis sensor (hanya memicu saat kondisi baru masuk batas kritis/waspada)
+  useEffect(() => {
+    if (!hydrated) return;
+    const soilDry = state.sensor.kelembapanTanah < state.settings.ambangTanahBawah;
+    const tankLow = state.sensor.levelTandonPersen < state.settings.ambangTandonRendah;
+    const diseaseRisk =
+      state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit;
+    const batteryLow = state.sensor.bateraiPersen <= state.settings.ambangBateraiHemat;
+
+    const prev = prevSensorAlertsRef.current;
+    if (!prev.initialized) {
+      prevSensorAlertsRef.current = {
+        initialized: true,
+        soilDry,
+        tankLow,
+        diseaseRisk,
+        batteryLow,
+      };
+      return;
+    }
+
+    if (state.settings.peringatanOtomatisSensor) {
+      if (soilDry && !prev.soilDry) {
+        pushAlert({
+          judul: `Waktunya Siram! Tanah kering (${state.sensor.kelembapanTanah}%)`,
+          isi: `Kelembapan media turun di bawah batas ${state.settings.ambangTanahBawah}%. ${
+            state.settings.irigasiOtomatis && !tankLow
+              ? 'Pompa irigasi otomatis sudah diaktifkan.'
+              : 'Segera cek irigasi di halaman Lahan.'
+          }`,
+          tipe: 'siram',
+          severity: 'warn',
+          actionLabel: 'Buka Lahan',
+          actionScreen: 'lahan',
+        });
+      }
+      if (tankLow && !prev.tankLow) {
+        pushAlert({
+          judul: `Peringatan Tandon Kritis (${state.sensor.levelTandonPersen}%)`,
+          isi: `Air tandon di bawah ${state.settings.ambangTandonRendah}%. Pompa dikunci otomatis agar tidak kering—isi ulang tandon segera.`,
+          tipe: 'tandon',
+          severity: 'bad',
+          actionLabel: 'Cek Tandon',
+          actionScreen: 'lahan',
+        });
+      }
+      if (diseaseRisk && !prev.diseaseRisk) {
+        pushAlert({
+          judul: `Waspada Risiko Jamur (${state.sensor.kelembapanUdara}% RH)`,
+          isi: `Udara kebun sangat lembap (≥${state.settings.ambangKelembapanRisikoPenyakit}% RH). Periksa bercak daun bawah dan kurangi siram sore.`,
+          tipe: 'penyakit',
+          severity: 'warn',
+          actionLabel: 'Scan Daun',
+          actionScreen: 'scan',
+        });
+      }
+      if (batteryLow && !prev.batteryLow) {
+        pushAlert({
+          judul: `Baterai Surya Rendah (${state.sensor.bateraiPersen}%)`,
+          isi: `Perangkat masuk mode hemat daya (≤${state.settings.ambangBateraiHemat}%). Pastikan panel surya tidak tertutup bayangan.`,
+          tipe: 'energi',
+          severity: 'warn',
+          actionLabel: 'Energi Surya',
+          actionScreen: 'energi',
+        });
+      }
+    }
+
+    prevSensorAlertsRef.current = {
+      initialized: true,
+      soilDry,
+      tankLow,
+      diseaseRisk,
+      batteryLow,
+    };
+  }, [
+    hydrated,
+    state.settings.peringatanOtomatisSensor,
+    state.settings.irigasiOtomatis,
+    state.settings.ambangTanahBawah,
+    state.settings.ambangTandonRendah,
+    state.settings.ambangKelembapanRisikoPenyakit,
+    state.settings.ambangBateraiHemat,
+    state.sensor.kelembapanTanah,
+    state.sensor.levelTandonPersen,
+    state.sensor.kelembapanUdara,
+    state.sensor.bateraiPersen,
+    pushAlert,
+  ]);
+
   const activeFarm = useMemo(
     () => state.farms.find((f) => f.id === state.activeFarmId) || state.farms[0],
     [state.farms, state.activeFarmId]
@@ -535,9 +871,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: `notif-scan-${Date.now()}`,
           judul: `Scan: ${scan.penyakitUtamaNama}`,
           isi: `${plant?.nama || 'Tanaman'} tersimpan di timeline. ${scan.keyakinanRendah ? 'Keyakinan rendah, konfirmasi ke penyuluh.' : 'Lihat solusi organik di hasil scan.'}`,
-          waktu: 'Baru saja',
+          waktu: `${getLocalClockHHMM()} WIB`,
           tipe: 'penyakit',
           dibaca: false,
+          severity: 'warn',
+          actionLabel: 'Lihat Tanaman',
+          actionScreen: 'tanaman',
         });
       }
 
@@ -545,9 +884,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev,
         scans: [scan, ...prev.scans],
         harvestEvents: nextHarvests,
-        notifications: nextNotifs,
+        notifications: nextNotifs.slice(0, 35),
       };
     });
+    if (scan.penyakitUtamaId !== 'sehat') {
+      const plant = state.plants.find((p) => p.id === scan.plantId);
+      pushAlert(
+        {
+          judul: `Temuan Scan: ${scan.penyakitUtamaNama}`,
+          isi: `${plant?.nama || 'Tanaman'} perlu perhatian. Cek rekomendasi organik dan pantau daun sekitar.`,
+          tipe: 'penyakit',
+          severity: 'warn',
+          actionLabel: 'Lihat Tanaman',
+          actionScreen: 'tanaman',
+        },
+        { saveToHistory: false }
+      );
+    }
     setChatContextPlantId(scan.plantId);
   };
 
@@ -652,9 +1005,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const triggerManualPump = (turnOn: boolean): { ok: boolean; message: string } => {
     if (turnOn && state.sensor.levelTandonPersen < state.settings.ambangTandonRendah) {
+      const msg = `Tandon tinggal ${state.sensor.levelTandonPersen}%. Pompa kutahan dulu supaya tidak kering.`;
+      pushAlert({
+        judul: 'Pompa Ditahan (Tandon Rendah)',
+        isi: msg,
+        tipe: 'tandon',
+        severity: 'bad',
+        actionLabel: 'Cek Lahan',
+        actionScreen: 'lahan',
+      });
       return {
         ok: false,
-        message: `Tandon tinggal ${state.sensor.levelTandonPersen}%. Pompa kutahan dulu supaya tidak kering.`,
+        message: msg,
       };
     }
 
@@ -665,18 +1027,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : prev.sensor.kelembapanTanah;
       const nextEvents = turnOn
         ? [
-            {
-              id: `irr-${Date.now()}`,
-              deviceId: prev.sensor.deviceId,
-              mulai: now,
-              selesai: now,
-              durasiMenit: Math.min(5, prev.settings.durasiMaksPompaMenit),
-              kelembapanAwal: prev.sensor.kelembapanTanah,
-              kelembapanAkhir: nextMoisture,
-              mode: 'Manual' as const,
-            },
-            ...prev.irrigationEvents,
-          ].slice(0, 12)
+          {
+            id: `irr-${Date.now()}`,
+            deviceId: prev.sensor.deviceId,
+            mulai: now,
+            selesai: now,
+            durasiMenit: Math.min(5, prev.settings.durasiMaksPompaMenit),
+            kelembapanAwal: prev.sensor.kelembapanTanah,
+            kelembapanAkhir: nextMoisture,
+            mode: 'Manual' as const,
+          },
+          ...prev.irrigationEvents,
+        ].slice(0, 12)
         : prev.irrigationEvents;
 
       return {
@@ -779,6 +1141,105 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const clearAllNotifications = () => {
+    setState((prev) => ({
+      ...prev,
+      notifications: [],
+    }));
+  };
+
+  const updateReminderSchedule = (id: string, patch: Partial<ReminderSchedule>) => {
+    setState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        jadwalPengingat: prev.settings.jadwalPengingat.map((item) =>
+          item.id === id ? { ...item, ...patch } : item
+        ),
+      },
+    }));
+  };
+
+  const addReminderSchedule: AppContextValue['addReminderSchedule'] = (input) => {
+    const cleanLabel = input.label.trim();
+    if (!cleanLabel) return;
+    const newItem: ReminderSchedule = {
+      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      label: cleanLabel,
+      kategori: input.kategori,
+      jam: input.jam || '07:00',
+      aktif: true,
+      catatan: input.catatan.trim() || `Pengingat rutin pukul ${input.jam || '07:00'} WIB.`,
+    };
+    setState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        jadwalPengingat: [...prev.settings.jadwalPengingat, newItem].sort((a, b) =>
+          a.jam.localeCompare(b.jam)
+        ),
+      },
+    }));
+  };
+
+  const deleteReminderSchedule = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        jadwalPengingat: prev.settings.jadwalPengingat.filter((item) => item.id !== id),
+      },
+    }));
+  };
+
+  const triggerTestReminderAlert = (scheduleId?: string) => {
+    const target =
+      (scheduleId
+        ? state.settings.jadwalPengingat.find((r) => r.id === scheduleId)
+        : state.settings.jadwalPengingat.find((r) => r.aktif)) ||
+      state.settings.jadwalPengingat[0];
+
+    if (target) {
+      const meta = getReminderAlertMeta(target.kategori);
+      pushAlert({
+        judul: `Pengingat: ${target.label} (${target.jam} WIB)`,
+        isi: target.catatan || 'Waktunya menjalankan perawatan kebun sesuai jadwal yang ditentukan.',
+        tipe: meta.tipe,
+        severity: meta.severity,
+        actionLabel: meta.actionLabel,
+        actionScreen: meta.actionScreen,
+      });
+      return;
+    }
+
+    pushAlert({
+      judul: 'Pengingat Siram Kebun',
+      isi: 'Waktunya memeriksa kelembapan tanah dan menyiram bedengan tomat sesuai jadwal.',
+      tipe: 'siram',
+      severity: 'info',
+      actionLabel: 'Buka Lahan',
+      actionScreen: 'lahan',
+    });
+  };
+
+  const requestBrowserNotifications = async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return false;
+    }
+    if (Notification.permission === 'granted') {
+      updateSettings({ notifikasiBrowser: true });
+      return true;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      const granted = permission === 'granted';
+      updateSettings({ notifikasiBrowser: granted });
+      return granted;
+    } catch {
+      return false;
+    }
+  };
+
   const resetDemoData = () => {
     setState(createDefaultState(true));
     setActiveScreen('beranda');
@@ -827,6 +1288,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeFarm,
         activeFarmPlants,
         unreadNotifCount,
+        activeAlerts,
+        pushAlert,
+        dismissAlert,
+        clearAllNotifications,
+        updateReminderSchedule,
+        addReminderSchedule,
+        deleteReminderSchedule,
+        triggerTestReminderAlert,
+        requestBrowserNotifications,
         isOffline,
         completeOnboarding,
         reopenOnboarding,

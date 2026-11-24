@@ -3,24 +3,30 @@
 import React, { useMemo, useState } from 'react';
 import {
   Camera,
+  ChevronDown,
+  ChevronUp,
   CloudSun,
   Download,
   Droplets,
   Power,
   ShieldAlert,
+  Sliders,
   Sprout,
+  Thermometer,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
+import { Farm3DSimulator } from '../components/Farm3DSimulator';
 import { IrrigationSoilVisual, WaterTankVisual } from '../components/Illustrations';
 import { GreenAreaChart, StripedProgressBar } from '../components/Charts';
 import { downloadCsv } from '../utils/scanAnalyzer';
 
-/* Layar 7: Lahan — Sensor IoT (F8), Irigasi Otomatis (F10), Risiko Penyakit (F11), Tandon (F12) */
+/* Layar 7: Lahan — Tata letak bersih & rapi: KPI 4 sensor, Irigasi & Tandon, Grafik 24 jam, Simulasi lipat */
 export const LandScreen: React.FC = () => {
   const { state, updateSettings, updateSensor, triggerManualPump, openScanWith } = useApp();
   const [chartMetric, setChartMetric] = useState<'tanah' | 'suhu' | 'udara' | 'cahaya'>('tanah');
   const [pumpFeedback, setPumpFeedback] = useState<string>('');
+  const [showSimPanel, setShowSimPanel] = useState(false);
 
   const { sensor, settings } = state;
   const isTankCritical = sensor.levelTandonPersen < settings.ambangTandonRendah;
@@ -45,10 +51,10 @@ export const LandScreen: React.FC = () => {
   }, [state.sensor24h, sensor, chartMetric]);
 
   const chartMeta = {
-    tanah: { unit: '%', color: '#1F9D55', label: 'Kelembapan tanah' },
-    suhu: { unit: '°C', color: '#F2562B', label: 'Suhu udara' },
-    udara: { unit: '%', color: '#2B8FD9', label: 'Kelembapan udara' },
-    cahaya: { unit: 'k lux', color: '#FFB63D', label: 'Cahaya (BH1750)' },
+    tanah: { unit: '%', color: 'var(--leaf-500)', label: 'Kelembapan tanah' },
+    suhu: { unit: '°C', color: 'var(--fruit-ripe)', label: 'Suhu udara' },
+    udara: { unit: '%', color: 'var(--water)', label: 'Kelembapan udara' },
+    cahaya: { unit: 'k lux', color: 'var(--fruit-mid)', label: 'Cahaya (BH1750)' },
   }[chartMetric];
 
   const handleManualPump = () => {
@@ -57,14 +63,7 @@ export const LandScreen: React.FC = () => {
   };
 
   const handleExportSensorCsv = () => {
-    const headers = [
-      'Jam',
-      'Kelembapan Tanah (%)',
-      'Suhu Udara (°C)',
-      'Kelembapan Udara (%)',
-      'Cahaya (lux)',
-      'Status Data',
-    ];
+    const headers = ['Jam', 'Kelembapan Tanah (%)', 'Suhu Udara (°C)', 'Kelembapan Udara (%)', 'Cahaya (lux)', 'Status'];
     const rows = state.sensor24h.map((pt) => [
       pt.jam,
       pt.kelembapanTanah,
@@ -77,235 +76,186 @@ export const LandScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Header + Lencana Simulasi (F8.3, X3) */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Header Bar Ringkas */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h2 className="t-h1">Lahan, irigasi & tandon</h2>
-            <span className="pill pill-sim">Simulasi</span>
-          </div>
-          <p className="t-small t-soft">
-            Perangkat: {state.devices[0]?.id} ({state.devices[0]?.tipe}) · Data simulasi diberi lencana
-            ungu di semua tampilan.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span className="pill pill-sim">Simulasi ESP32</span>
+          <span className="t-small t-soft">
+            Perangkat aktif: <strong style={{ color: 'var(--ink)' }}>{state.devices[0]?.id}</strong>
+          </span>
         </div>
-        <button type="button" className="btn-secondary" onClick={handleExportSensorCsv}>
-          <Download size={18} /> Ekspor sensor CSV
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowSimPanel((v) => !v)}
+          >
+            <Sliders size={16} /> Uji sensor {showSimPanel ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+          <button type="button" className="btn-secondary" onClick={handleExportSensorCsv}>
+            <Download size={16} /> Ekspor CSV
+          </button>
+        </div>
       </div>
 
-      {/* F11.3: Peringatan risiko penyakit HANYA muncul saat ambang kelembapan udara terlewati */}
-      {isDiseaseRisk && (
-        <div className="alert-card alert-card--warn" role="alert">
-          <CermoMascot pose="worried" size={60} interactive={false} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <strong className="t-h3">Peringatan dini risiko penyakit daun!</strong>
-              <span className="pill pill-sim">Simulasi</span>
+      {/* Panel Lipat Uji Simulasi Sensor ESP32 (tidak memenuhi layar saat tidak dipakai) */}
+      {showSimPanel && (
+        <section className="card step-transition" style={{ display: 'grid', gap: 14, borderColor: 'var(--sim-600)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <h3 className="t-h3">Panel uji simulasi sensor ESP32</h3>
+              <p className="t-micro t-soft">Geser slider untuk menguji otomatisasi pompa, interlock tandon, &amp; peringatan jamur.</p>
             </div>
-            <p className="t-small" style={{ marginTop: 4 }}>
-              Kelembapan udara <strong>{sensor.kelembapanUdara}%</strong> (melewati ambang{' '}
-              {settings.ambangKelembapanRisikoPenyakit}%) pada suhu {sensor.suhuUdara} °C. Kondisi ini
-              meningkatkan risiko jamur busuk daun (<em>Phytophthora infestans</em>). Sumber ambang:
-              Balitsa Kementan RI (≥ 85% RH pada 18–26 °C).
-            </p>
-            <div style={{ marginTop: 10 }}>
-              <button type="button" className="btn-tomato" onClick={() => openScanWith('daun')}>
-                <Camera size={18} /> Scan penyakit sekarang
-              </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ minHeight: 36, padding: '4px 12px', fontSize: '0.8rem' }}
+              onClick={() => updateSensor({ sensorTersedia: !sensor.sensorTersedia })}
+            >
+              Sensor ke pupuk: {sensor.sensorTersedia ? 'Aktif' : 'Nonaktif'}
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span className="t-small">Kelembapan tanah</span>
+                <strong className="tabular-nums">{sensor.kelembapanTanah}%</strong>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={90}
+                value={sensor.kelembapanTanah}
+                onChange={(e) => updateSensor({ kelembapanTanah: Number(e.target.value) })}
+                className="range-slider"
+                aria-label="Simulasi kelembapan tanah"
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span className="t-small">Kelembapan udara (DHT22)</span>
+                <strong className="tabular-nums">{sensor.kelembapanUdara}%</strong>
+              </div>
+              <input
+                type="range"
+                min={45}
+                max={98}
+                value={sensor.kelembapanUdara}
+                onChange={(e) => updateSensor({ kelembapanUdara: Number(e.target.value) })}
+                className="range-slider"
+                aria-label="Simulasi kelembapan udara"
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span className="t-small">Level air tandon</span>
+                <strong className="tabular-nums">{sensor.levelTandonPersen}%</strong>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                value={sensor.levelTandonPersen}
+                onChange={(e) => updateSensor({ levelTandonPersen: Number(e.target.value) })}
+                className="range-slider"
+                aria-label="Simulasi level air tandon"
+              />
             </div>
           </div>
+        </section>
+      )}
+
+      {/* Peringatan Risiko Penyakit (hanya tampil bila ambang terlewati) */}
+      {isDiseaseRisk && (
+        <div className="alert-card alert-card--warn" role="alert">
+          <CermoMascot pose="worried" size={50} interactive={false} />
+          <div style={{ flex: 1 }}>
+            <strong className="t-small">Risiko jamur busuk daun meningkat ({sensor.kelembapanUdara}% RH)</strong>
+            <p className="t-small t-soft" style={{ marginTop: 2 }}>
+              Kelembapan udara melewati batas {settings.ambangKelembapanRisikoPenyakit}% pada suhu {sensor.suhuUdara} °C. Cek bagian bawah daun hari ini.
+            </p>
+          </div>
+          <button type="button" className="btn-tomato" onClick={() => openScanWith('daun')}>
+            <Camera size={16} /> Scan daun
+          </button>
         </div>
       )}
 
-      {/* Bento Row Agrova: Kesehatan Tanah & NPK (--forest-900) + Cuaca Mikro (Striped Progress Bars) */}
-      <div className="dashboard-bento-row">
-        <section
-          className="card-forest stagger-card"
-          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 14,
-                  background: 'rgba(216,243,106,0.16)',
-                  color: '#D8F36A',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
-                <Sprout size={20} />
-              </div>
-              <div>
-                <h3 className="t-h3" style={{ color: '#FFFFFF' }}>
-                  Kesehatan Tanah &amp; Hara (NPK)
-                </h3>
-                <p className="t-small t-soft">
-                  {sensor.kelembapanTanah < settings.ambangTanahBawah
-                    ? 'Tanah kering — siap disiram otomatis'
-                    : 'Kelembapan tanah dalam rentang nyaman'}
-                </p>
-              </div>
-            </div>
-            <span className="pill pill-sim">Simulasi</span>
-          </div>
+      {/* Panggung Utama Simulasi 3D Laboratorium Lahan (Eksklusif di halaman Lahan, responsif HP/Tablet/Desktop) */}
+      <Farm3DSimulator mode="lab" />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-            <StripedProgressBar
-              label="Kelembapan tanah"
-              valueLabel={`${sensor.kelembapanTanah}%`}
-              percent={sensor.kelembapanTanah}
-              color="#2B8FD9"
-              darkBg
-            />
-            <StripedProgressBar
-              label="Nitrogen (N · opsional)"
-              valueLabel={`${sensor.nitrogenMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.nitrogenMgKg / 80) * 100))}
-              color="#D8F36A"
-              darkBg
-            />
-            <StripedProgressBar
-              label="Fosfor (P · opsional)"
-              valueLabel={`${sensor.fosforMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.fosforMgKg / 60) * 100))}
-              color="#FFB63D"
-              darkBg
-            />
-            <StripedProgressBar
-              label="Kalium (K · opsional)"
-              valueLabel={`${sensor.kaliumMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.kaliumMgKg / 90) * 100))}
-              color="#3DBE74"
-              darkBg
-            />
+      {/* Baris KPI 4 Sensor Utama (Seragam & Mudah Dibaca Sekilas) */}
+      <section className="kpi-grid-4" aria-label="Pembacaan sensor lahan">
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--water-bg)', color: 'var(--water-700)' }}>
+              <Droplets size={18} />
+            </span>
+            <span className="t-micro t-soft">Ideal 45–65%</span>
           </div>
-        </section>
-
-        <section
-          className="card stagger-card stagger-1"
-          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 14,
-                  background: 'var(--surface-2)',
-                  color: 'var(--leaf-600)',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
-                <CloudSun size={20} />
-              </div>
-              <div>
-                <h3 className="t-h3">Cuaca Mikro Lahan</h3>
-                <p className="t-small t-soft">Sensor DHT22 &amp; intensitas cahaya BH1750</p>
-              </div>
-            </div>
-            <span className="pill pill-sim">Simulasi</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-            <StripedProgressBar
-              label="Suhu udara (ideal 20–28 °C)"
-              valueLabel={`${sensor.suhuUdara} °C`}
-              percent={Math.min(100, Math.round((sensor.suhuUdara / 40) * 100))}
-              color="#F2562B"
-            />
-            <StripedProgressBar
-              label={
-                isDiseaseRisk
-                  ? `Kelembapan udara (di atas ambang ${settings.ambangKelembapanRisikoPenyakit}%)`
-                  : `Kelembapan udara (aman < ${settings.ambangKelembapanRisikoPenyakit}%)`
-              }
-              valueLabel={`${sensor.kelembapanUdara}%`}
-              percent={sensor.kelembapanUdara}
-              color={isDiseaseRisk ? '#E5484D' : '#1F9D55'}
-            />
-            <StripedProgressBar
-              label="Cahaya siang hari (BH1750)"
-              valueLabel={`${(sensor.cahayaLux / 1000).toFixed(1)}k lux`}
-              percent={Math.min(100, Math.round((sensor.cahayaLux / 50000) * 100))}
-              color="#FFB63D"
-            />
-          </div>
-
-          <div className="card-subtle" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 'auto' }}>
-            <CermoMascot pose={isDiseaseRisk ? 'worried' : isTankCritical ? 'water' : 'happy'} size={54} interactive={false} />
-            <div className="t-small">
-              <strong>Catatan Cermo:</strong>{' '}
-              {isDiseaseRisk
-                ? 'Udara terlalu lembap, pantau daun bawah lebih sering.'
-                : isTankCritical
-                  ? 'Air tandon hampir habis, segera isi ulang sebelum menyiram.'
-                  : 'Kondisi mikro kebun stabil untuk pertumbuhan optimal.'}
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Grafik 24 Jam (F8.2) */}
-      <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h3 className="t-h3">Grafik sensor 24 jam</h3>
-              <span className="pill pill-sim">Simulasi</span>
-            </div>
-            <p className="t-small t-soft">Sentuh atau arahkan kursor ke titik grafik untuk melihat nilai</p>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {(
-              [
-                { id: 'tanah', label: 'Tanah' },
-                { id: 'suhu', label: 'Suhu' },
-                { id: 'udara', label: 'Udara' },
-                { id: 'cahaya', label: 'Cahaya' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setChartMetric(tab.id)}
-                className={chartMetric === tab.id ? 'btn-primary' : 'btn-secondary'}
-                style={{ minHeight: 40, padding: '6px 14px', fontSize: '0.875rem', boxShadow: 'none' }}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <div className="kpi-value">{sensor.kelembapanTanah}%</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Kelembapan tanah</div>
           </div>
         </div>
 
-        <GreenAreaChart points={chartData} unit={chartMeta.unit} color={chartMeta.color} height={195} />
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'rgba(242,86,43,0.12)', color: 'var(--tomato-btn)' }}>
+              <Thermometer size={18} />
+            </span>
+            <span className="t-micro t-soft">Ideal 20–28 °C</span>
+          </div>
+          <div>
+            <div className="kpi-value">{sensor.suhuUdara}°C</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Suhu udara (DHT22)</div>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--leaf-600)' }}>
+              <CloudSun size={18} />
+            </span>
+            <span className={`pill ${isDiseaseRisk ? 'pill-bad' : 'pill-ok'}`}>
+              {isDiseaseRisk ? 'Tinggi' : 'Aman'}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value">{sensor.kelembapanUdara}%</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Kelembapan udara</div>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--forest-900)' }}>
+              <Sprout size={18} />
+            </span>
+            <span className={`pill ${isTankCritical ? 'pill-bad' : 'pill-water'}`}>
+              {isTankCritical ? 'Kritis' : `${tankLiters} L`}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value">{sensor.levelTandonPersen}%</div>
+            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Level air tandon</div>
+          </div>
+        </div>
       </section>
 
-      {/* Grid Irigasi Otomatis (F10) & Level Air Tandon (F12) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: 20 }}>
-        {/* F10: Irigasi Otomatis */}
+      {/* Bento Utama: Irigasi Otomatis + Level Tandon & Unsur Hara NPK */}
+      <div className="dashboard-bento-row">
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h3 className="t-h2">Irigasi otomatis</h3>
-                <span className="pill pill-sim">Simulasi</span>
-              </div>
-              <p className="t-small t-soft">
-                Nyala &lt; {settings.ambangTanahBawah}% · Mati ≥ {settings.ambangTanahAtas}%
+              <h3 className="t-h3">Irigasi otomatis &amp; pompa</h3>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+                Nyala &lt; {settings.ambangTanahBawah}% · Mati ≥ {settings.ambangTanahAtas}% · Maks {settings.durasiMaksPompaMenit} menit
               </p>
             </div>
-            {/* Toggle Irigasi 56×32 (DESIGN.md §7) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="t-small" style={{ fontWeight: 700 }}>
-                Auto
-              </span>
+              <span className="t-micro" style={{ fontWeight: 700 }}>Auto</span>
               <button
                 type="button"
                 role="switch"
@@ -321,52 +271,40 @@ export const LandScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Visualisasi tetes air & tanah menggelap saat pompa menyala */}
           <IrrigationSoilVisual pumpOn={settings.pompaMenyala} moisture={sensor.kelembapanTanah} />
 
-          {/* Status pompa + tombol manual + batas durasi (F10.2) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className={`pill ${settings.pompaMenyala ? 'pill-water' : 'pill-neutral'}`}>
-                <Power size={14} /> Pompa: {settings.pompaMenyala ? 'Menyala' : 'Mati'}
-              </span>
-              <span className="t-micro t-soft">Batas aman: maks {settings.durasiMaksPompaMenit} menit/siklus</span>
-            </div>
-
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <span className={`pill ${settings.pompaMenyala ? 'pill-water' : 'pill-neutral'}`}>
+              <Power size={13} /> Pompa: {settings.pompaMenyala ? 'Menyala' : 'Mati'}
+            </span>
             <button
               type="button"
               className={settings.pompaMenyala ? 'btn-danger' : 'btn-primary'}
               onClick={handleManualPump}
               disabled={isTankCritical && !settings.pompaMenyala}
             >
-              <Power size={18} /> {settings.pompaMenyala ? 'Matikan pompa' : 'Nyalakan manual'}
+              <Power size={16} /> {settings.pompaMenyala ? 'Matikan pompa' : 'Nyalakan manual'}
             </button>
           </div>
 
           {isTankCritical && (
             <div className="alert-card alert-card--bad" role="alert">
-              <ShieldAlert size={20} style={{ flexShrink: 0 }} />
+              <ShieldAlert size={18} style={{ flexShrink: 0 }} />
               <div className="t-small">
-                <strong>Interlock aktif (F10.3):</strong> Tandon tinggal {sensor.levelTandonPersen}%. Pompa
-                otomatis maupun manual ditahan agar tidak berjalan kering.
+                <strong>Interlock aktif:</strong> Tandon tinggal {sensor.levelTandonPersen}%. Pompa ditahan agar tidak kering.
               </div>
             </div>
           )}
 
           {pumpFeedback && !isTankCritical && (
-            <div className="card-subtle t-small" role="status">
-              {pumpFeedback}
-            </div>
+            <div className="card-subtle t-small" role="status">{pumpFeedback}</div>
           )}
 
-          {/* Pengaturan ambang bawah, atas, dan durasi maks (F10.1, F10.2) */}
-          <div className="card-subtle" style={{ display: 'grid', gap: 12 }}>
+          <div className="card-subtle" style={{ display: 'grid', gap: 10 }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="ambang-bawah" className="t-small" style={{ fontWeight: 600 }}>
-                  Ambang bawah (pompa nyala jika &lt;)
-                </label>
-                <strong className="tabular-nums">{settings.ambangTanahBawah}%</strong>
+                <label htmlFor="ambang-bawah" className="t-micro" style={{ fontWeight: 700 }}>Ambang nyala (&lt;)</label>
+                <strong className="t-micro tabular-nums">{settings.ambangTanahBawah}%</strong>
               </div>
               <input
                 id="ambang-bawah"
@@ -376,21 +314,15 @@ export const LandScreen: React.FC = () => {
                 value={settings.ambangTanahBawah}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  updateSettings({
-                    ambangTanahBawah: v,
-                    ambangTanahAtas: Math.max(v + 10, settings.ambangTanahAtas),
-                  });
+                  updateSettings({ ambangTanahBawah: v, ambangTanahAtas: Math.max(v + 10, settings.ambangTanahAtas) });
                 }}
                 className="range-slider"
               />
             </div>
-
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="ambang-atas" className="t-small" style={{ fontWeight: 600 }}>
-                  Ambang atas (pompa mati saat ≥)
-                </label>
-                <strong className="tabular-nums">{settings.ambangTanahAtas}%</strong>
+                <label htmlFor="ambang-atas" className="t-micro" style={{ fontWeight: 700 }}>Ambang mati (≥)</label>
+                <strong className="t-micro tabular-nums">{settings.ambangTanahAtas}%</strong>
               </div>
               <input
                 id="ambang-atas"
@@ -400,21 +332,15 @@ export const LandScreen: React.FC = () => {
                 value={settings.ambangTanahAtas}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  updateSettings({
-                    ambangTanahAtas: v,
-                    ambangTanahBawah: Math.min(v - 10, settings.ambangTanahBawah),
-                  });
+                  updateSettings({ ambangTanahAtas: v, ambangTanahBawah: Math.min(v - 10, settings.ambangTanahBawah) });
                 }}
                 className="range-slider"
               />
             </div>
-
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="durasi-maks" className="t-small" style={{ fontWeight: 600 }}>
-                  Pengaman durasi maksimum per siklus
-                </label>
-                <strong className="tabular-nums">{settings.durasiMaksPompaMenit} menit</strong>
+                <label htmlFor="durasi-maks" className="t-micro" style={{ fontWeight: 700 }}>Durasi maks/siklus</label>
+                <strong className="t-micro tabular-nums">{settings.durasiMaksPompaMenit} menit</strong>
               </div>
               <input
                 id="durasi-maks"
@@ -429,162 +355,140 @@ export const LandScreen: React.FC = () => {
           </div>
         </section>
 
-        {/* F12: Pemantauan Level Air Tandon + Kontrol Uji Simulasi */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Tandon Air */}
           <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h3 className="t-h2">Level air tandon</h3>
-                <span className="pill pill-sim">Simulasi</span>
-              </div>
+              <h3 className="t-h3">Level air tandon</h3>
               <span className={`pill ${isTankCritical ? 'pill-bad' : 'pill-water'}`}>
                 {isTankCritical ? 'Kritis (< 20%)' : 'Aman'}
               </span>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
               <WaterTankVisual levelPercent={sensor.levelTandonPersen} isLow={isTankCritical} />
-              <div style={{ flex: '1 1 160px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div className="font-display tabular-nums" style={{ fontSize: '2.4rem', lineHeight: 1.05 }}>
+              <div style={{ flex: '1 1 160px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="font-display tabular-nums" style={{ fontSize: '2.1rem', lineHeight: 1.05 }}>
                   {sensor.levelTandonPersen}%
                 </div>
-                <div style={{ fontWeight: 700 }} className="tabular-nums">
-                  ≈ {tankLiters} liter / {sensor.kapasitasTandonLiter} liter
+                <div className="t-small tabular-nums" style={{ fontWeight: 700 }}>
+                  ≈ {tankLiters} / {sensor.kapasitasTandonLiter} liter
                 </div>
-                <div className="t-small t-soft tabular-nums">
-                  Jarak sensor ultrasonik ke air: <strong>{sensor.jarakUltrasonikCm} cm</strong> (tinggi
-                  tandon {sensor.tinggiTandonCm} cm)
+                <div className="t-micro t-soft tabular-nums">
+                  Jarak ultrasonik: {sensor.jarakUltrasonikCm} cm (tinggi {sensor.tinggiTandonCm} cm)
                 </div>
-                {isTankCritical && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                    <CermoMascot pose="water" size={48} interactive={false} />
-                    <span className="t-small" style={{ color: 'var(--bad)', fontWeight: 600 }}>
-                      "Tandon tinggal {sensor.levelTandonPersen}%. Pompa kutahan dulu supaya tidak kering."
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </section>
 
-          {/* Panel Uji Simulasi Sensor ESP32 (memudahkan demo F3.3, F10, F11, F12) */}
-          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <h3 className="t-h3">Kontrol uji sensor ESP32</h3>
+          {/* Unsur Hara NPK & Cahaya */}
+          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 13, flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="t-h3">Unsur hara (NPK) &amp; cahaya</h3>
               <span className="pill pill-sim">Simulasi</span>
             </div>
-            <p className="t-micro t-soft">
-              Geser nilai di bawah untuk menguji otomatisasi pompa, interlock tandon &lt; 20%, atau
-              peringatan risiko penyakit ≥ {settings.ambangKelembapanRisikoPenyakit}% RH.
-            </p>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="t-small">Simulasi kelembapan tanah</span>
-                <strong className="tabular-nums">{sensor.kelembapanTanah}%</strong>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={90}
-                value={sensor.kelembapanTanah}
-                onChange={(e) => updateSensor({ kelembapanTanah: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi kelembapan tanah"
-              />
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="t-small">Simulasi kelembapan udara (DHT22)</span>
-                <strong className="tabular-nums">{sensor.kelembapanUdara}%</strong>
-              </div>
-              <input
-                type="range"
-                min={45}
-                max={98}
-                value={sensor.kelembapanUdara}
-                onChange={(e) => updateSensor({ kelembapanUdara: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi kelembapan udara"
-              />
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="t-small">Simulasi level air tandon (Ultrasonik)</span>
-                <strong className="tabular-nums">{sensor.levelTandonPersen}%</strong>
-              </div>
-              <input
-                type="range"
-                min={5}
-                max={100}
-                value={sensor.levelTandonPersen}
-                onChange={(e) => updateSensor({ levelTandonPersen: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi level air tandon"
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
-              <span className="t-small">Status data sensor ke rekomendasi pupuk (F3.3)</span>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ minHeight: 40, padding: '6px 12px', fontSize: '0.8125rem' }}
-                onClick={() => updateSensor({ sensorTersedia: !sensor.sensorTersedia })}
-              >
-                {sensor.sensorTersedia ? 'Aktif (Dengan data sensor)' : 'Nonaktif (Dugaan visual)'}
-              </button>
-            </div>
+            <StripedProgressBar
+              label="Nitrogen (N)"
+              valueLabel={`${sensor.nitrogenMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.nitrogenMgKg / 80) * 100))}
+              color="var(--leaf-500)"
+            />
+            <StripedProgressBar
+              label="Fosfor (P)"
+              valueLabel={`${sensor.fosforMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.fosforMgKg / 60) * 100))}
+              color="var(--fruit-mid)"
+            />
+            <StripedProgressBar
+              label="Kalium (K)"
+              valueLabel={`${sensor.kaliumMgKg} mg/kg`}
+              percent={Math.min(100, Math.round((sensor.kaliumMgKg / 90) * 100))}
+              color="var(--water)"
+            />
+            <StripedProgressBar
+              label="Cahaya siang (BH1750)"
+              valueLabel={`${(sensor.cahayaLux / 1000).toFixed(1)}k lux`}
+              percent={Math.min(100, Math.round((sensor.cahayaLux / 50000) * 100))}
+              color="var(--fruit-ripe)"
+            />
           </section>
         </div>
       </div>
 
-      {/* F10.4: Riwayat Siklus Pompa */}
-      <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 className="t-h3">Riwayat siklus pompa</h3>
-          <span className="pill pill-sim">Simulasi</span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--line)', textAlign: 'left' }}>
-                <th className="t-small t-soft" style={{ padding: '10px 8px' }}>Waktu</th>
-                <th className="t-small t-soft" style={{ padding: '10px 8px' }}>Mode</th>
-                <th className="t-small t-soft" style={{ padding: '10px 8px' }}>Durasi</th>
-                <th className="t-small t-soft" style={{ padding: '10px 8px' }}>Kelembapan tanah</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.irrigationEvents.map((ev) => (
-                <tr key={ev.id} style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td className="t-small tabular-nums" style={{ padding: '12px 8px' }}>
-                    {new Date(ev.mulai).toLocaleString('id-ID', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <span className={`pill ${ev.mode === 'Otomatis' ? 'pill-ok' : 'pill-water'}`}>
-                      {ev.mode}
-                    </span>
-                  </td>
-                  <td className="t-small tabular-nums" style={{ padding: '12px 8px' }}>
-                    {ev.durasiMenit} menit
-                  </td>
-                  <td className="t-small tabular-nums" style={{ padding: '12px 8px', fontWeight: 600 }}>
-                    {ev.kelembapanAwal}% → {ev.kelembapanAkhir}%
-                  </td>
-                </tr>
+      {/* Grafik 24 Jam + Riwayat Siklus Pompa berdampingan rapi */}
+      <div className="dashboard-two-col">
+        <section className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+            <div>
+              <h3 className="t-h3">Grafik sensor 24 jam</h3>
+              <p className="t-micro t-soft">Arahkan kursor untuk melihat angka</p>
+            </div>
+            <div className="seg-tabs">
+              {(
+                [
+                  { id: 'tanah', label: 'Tanah' },
+                  { id: 'suhu', label: 'Suhu' },
+                  { id: 'udara', label: 'Udara' },
+                  { id: 'cahaya', label: 'Cahaya' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setChartMetric(tab.id)}
+                  className={`seg-tab ${chartMetric === tab.id ? 'active' : ''}`}
+                >
+                  {tab.label}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            </div>
+          </div>
+          <div key={chartMetric} className="tab-fade">
+            <GreenAreaChart points={chartData} unit={chartMeta.unit} color={chartMeta.color} height={215} />
+          </div>
+        </section>
+
+        <section className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 className="t-h3">Riwayat siklus pompa</h3>
+            <span className="pill pill-sim">Simulasi</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--line)', textAlign: 'left' }}>
+                  <th className="t-micro t-soft" style={{ padding: '8px 6px' }}>Waktu</th>
+                  <th className="t-micro t-soft" style={{ padding: '8px 6px' }}>Mode</th>
+                  <th className="t-micro t-soft" style={{ padding: '8px 6px' }}>Durasi</th>
+                  <th className="t-micro t-soft" style={{ padding: '8px 6px' }}>Tanah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.irrigationEvents.slice(0, 6).map((ev) => (
+                  <tr key={ev.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                    <td className="t-small tabular-nums" style={{ padding: '10px 6px' }}>
+                      {new Date(ev.mulai).toLocaleString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td style={{ padding: '10px 6px' }}>
+                      <span className={`pill ${ev.mode === 'Otomatis' ? 'pill-ok' : 'pill-water'}`}>
+                        {ev.mode}
+                      </span>
+                    </td>
+                    <td className="t-small tabular-nums" style={{ padding: '10px 6px' }}>{ev.durasiMenit} mnt</td>
+                    <td className="t-small tabular-nums" style={{ padding: '10px 6px', fontWeight: 600 }}>
+                      {ev.kelembapanAwal}% → {ev.kelembapanAkhir}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

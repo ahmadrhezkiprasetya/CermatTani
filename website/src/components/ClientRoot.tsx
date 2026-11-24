@@ -52,32 +52,45 @@ const InnerShell: React.FC = () => {
           minHeight: '100dvh',
           display: 'grid',
           placeItems: 'center',
-          background: activeScreen === 'landing' ? 'var(--cream)' : 'var(--bg)',
+          background: 'var(--bg)',
           color: 'var(--ink-soft)',
           fontFamily: 'var(--font-body)',
           fontSize: '0.95rem',
           fontWeight: 600,
         }}
       >
-        Memuat CermatTani...
+        <span className="loading-pulse">Memuat CermatTani...</span>
       </div>
     );
   }
 
-  // Halaman publik tema Cream Harvest (DESIGN.md v2.0 §9.1) — tampil instan tanpa sidebar aplikasi
+  // Halaman publik terpadu — transisi halus tanpa sidebar aplikasi
   if (activeScreen === 'landing') {
-    return <LandingScreen />;
+    return (
+      <div key="landing" className="screen-transition">
+        <LandingScreen />
+      </div>
+    );
   }
 
   if (!state.onboarded) {
-    return <OnboardingScreen />;
+    return (
+      <div key="onboarding" className="screen-transition">
+        <OnboardingScreen />
+      </div>
+    );
   }
 
   const ActiveScreen = APP_SCREEN_MAP[activeScreen] || DashboardScreen;
 
   return (
     <AppShell>
-      <ActiveScreen />
+      <div
+        key={activeScreen}
+        className={`screen-transition ${activeScreen === 'cermo' ? 'chat-screen-host' : ''}`}
+      >
+        <ActiveScreen />
+      </div>
     </AppShell>
   );
 };

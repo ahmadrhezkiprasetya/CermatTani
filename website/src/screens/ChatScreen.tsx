@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ArrowDown, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
@@ -17,7 +17,7 @@ const QUICK_QUESTIONS = [
   'Apakah tandon dan irigasi aman?',
 ];
 
-/* Layar 9: Tanya Cermo — Chatbot Asisten Agronomi 100% Gemini AI + Dataset Khusus CermatTani */
+/* Layar 9: Tanya Cermo — Viewport Terkunci, Hanya Area Chat yang Di-scroll */
 export const ChatScreen: React.FC = () => {
   const {
     state,
@@ -27,11 +27,14 @@ export const ChatScreen: React.FC = () => {
     clearChatMessages,
     isOffline,
   } = useApp();
+
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [aiModel, setAiModel] = useState<string>('');
   const [chatError, setChatError] = useState<string>('');
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   const selectedPlant = useMemo(
     () => state.plants.find((p) => p.id === chatContextPlantId) || state.plants[0] || null,
@@ -46,9 +49,27 @@ export const ChatScreen: React.FC = () => {
     return plantScans[0] || null;
   }, [state.scans, selectedPlant]);
 
+  // Scroll HANYA di dalam kontainer pesan (tidak pernah menggeser halaman utama!)
+  const scrollChatToBottom = useCallback((smooth = true) => {
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto',
+    });
+    setShowScrollBottom(false);
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state.chatMessages.length, isTyping]);
+    scrollChatToBottom(state.chatMessages.length > 0);
+  }, [state.chatMessages.length, isTyping, scrollChatToBottom]);
+
+  const handleMessagesScroll = () => {
+    const el = messagesRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBottom(distanceFromBottom > 110);
+  };
 
   const sendMessage = async (text: string) => {
     const clean = text.trim();
@@ -111,7 +132,6 @@ export const ChatScreen: React.FC = () => {
         isi: replyText,
       });
 
-      // Simpan ke Supabase chat_messages secara non-blocking jika user sudah login
       if (isSupabaseConfigured) {
         void (async () => {
           try {
@@ -141,87 +161,63 @@ export const ChatScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 880 }}>
-      {/* Bar Konteks Hasil Scan Terbaru (F5.1) — Bento Dark Forest Header */}
-      <section className="card-forest stagger-card" style={{ padding: '18px 20px' }}>
+    <section className="chat-shell-card" aria-label="Ruang percakapan Tanya Cermo AI">
+      {/* Header Terkunci di Atas (tidak pernah ikut ter-scroll) */}
+      <header className="chat-card-header">
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 14,
+            gap: 12,
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                background: 'rgba(216,243,106,0.14)',
-                border: '1px solid rgba(216,243,106,0.24)',
-                borderRadius: 18,
-                padding: 4,
-              }}
-            >
-              <CermoMascot pose={isTyping ? 'thinking' : 'wave'} size={62} />
-            </div>
-            <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <CermoMascot pose={isTyping ? 'thinking' : 'wave'} size={44} />
+            <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <h2 className="t-h2" style={{ color: '#FFFFFF' }}>
+                <h2 className="t-h3" style={{ fontSize: '1.08rem' }}>
                   Tanya Cermo AI
                 </h2>
-                <span
-                  className="pill"
-                  style={{
-                    background: 'var(--lime-300)',
-                    color: '#14302A',
-                  }}
-                >
-                  {aiModel ? `Gemini AI · ${aiModel}` : 'Gemini AI · Dataset Khusus'}
+                <span className="pill pill-ok">
+                  {aiModel ? `Gemini · ${aiModel}` : 'Gemini · Dataset Khusus'}
                 </span>
               </div>
-              <p className="t-small t-soft" style={{ marginTop: 2 }}>
-                Asisten agronomi terikat Dataset Khusus CermatTani. Pertanyaan di luar budidaya &amp;
-                kebun akan ditolak sopan.
+              <p className="t-micro t-soft" style={{ marginTop: 1 }}>
+                Fokus budidaya, hasil scan, pupuk organik, &amp; irigasi kebun.
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-            <div className="field-group" style={{ minWidth: 215 }}>
-              <label
-                htmlFor="chat-plant-ctx"
-                className="t-micro"
-                style={{ fontWeight: 700, color: 'rgba(234,245,238,0.78)' }}
-              >
-                Konteks tanaman &amp; scan terbaru
-              </label>
-              <select
-                id="chat-plant-ctx"
-                className="sidebar-farm-select"
-                style={{ minHeight: 44 }}
-                value={selectedPlant?.id || ''}
-                onChange={(e) => openChatWithPlant(e.target.value)}
-              >
-                {state.plants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nama} ({p.fase})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <select
+              id="chat-plant-ctx"
+              aria-label="Konteks tanaman"
+              className="field-select"
+              style={{ minHeight: 36, padding: '5px 10px', fontSize: '0.82rem', minWidth: 175 }}
+              value={selectedPlant?.id || ''}
+              onChange={(e) => openChatWithPlant(e.target.value)}
+            >
+              {state.plants.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nama} ({p.fase})
+                </option>
+              ))}
+            </select>
 
             {state.chatMessages.length > 0 && (
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-secondary"
                 onClick={() => {
                   clearChatMessages();
                   setChatError('');
                 }}
-                style={{ color: '#EAF5EE', borderColor: 'rgba(255,255,255,0.22)' }}
-                title="Bersihkan percakapan"
+                style={{ minHeight: 36, padding: '5px 11px', fontSize: '0.82rem' }}
+                title="Mulai percakapan baru"
               >
-                <RotateCcw size={16} /> Mulai baru
+                <RotateCcw size={14} /> Baru
               </button>
             )}
           </div>
@@ -229,66 +225,64 @@ export const ChatScreen: React.FC = () => {
 
         <div
           style={{
-            marginTop: 14,
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            padding: '10px 14px',
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.09)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            gap: 7,
+            padding: '6px 11px',
+            borderRadius: 10,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line)',
+            overflow: 'hidden',
           }}
         >
-          <Sparkles size={16} color="#D8F36A" />
+          <Sparkles size={13} color="var(--leaf-600)" style={{ flexShrink: 0 }} />
           {latestScanForPlant ? (
-            <span className="t-small" style={{ color: '#EAF5EE' }}>
-              <strong>Konteks aktif:</strong> Scan {latestScanForPlant.bagian} ·{' '}
+            <span
+              className="t-micro t-soft"
+              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              <strong style={{ color: 'var(--ink)' }}>Konteks scan:</strong> {latestScanForPlant.bagian} ·{' '}
               {latestScanForPlant.tahapDominan
                 ? `${RIPENESS_REFERENCE[latestScanForPlant.tahapDominan].label} (${latestScanForPlant.anjuranPanen})`
                 : latestScanForPlant.penyakitUtamaNama}{' '}
-              · Seberapa yakin Cermo:{' '}
-              <strong style={{ color: '#D8F36A' }}>{latestScanForPlant.keyakinan}%</strong>
+              · Keyakinan <strong style={{ color: 'var(--leaf-600)' }}>{latestScanForPlant.keyakinan}%</strong>
             </span>
           ) : (
-            <span className="t-small" style={{ color: '#EAF5EE' }}>
-              <strong>Konteks aktif:</strong> {selectedPlant?.nama || 'Belum ada tanaman'} · Belum
-              ada riwayat scan tersimpan. Kamu tetap bisa bertanya seputar budidaya, pupuk organik,
-              penyakit, atau sensor kebun.
+            <span
+              className="t-micro t-soft"
+              style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              <strong style={{ color: 'var(--ink)' }}>{selectedPlant?.nama || 'Belum ada tanaman'}</strong> · Belum ada
+              hasil scan tersimpan. Tanyakan budidaya, penyakit, pupuk, atau irigasi di bawah.
             </span>
           )}
         </div>
-      </section>
+      </header>
 
-      {/* Area percakapan */}
-      <section
-        className="card"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-          minHeight: 380,
-          maxHeight: '58dvh',
-          overflowY: 'auto',
-          background: 'var(--surface-2)',
-        }}
+      {/* Area Pesan yang Di-scroll Secara Mandiri (flex: 1, minHeight: 0, overflowY: auto) */}
+      <div
+        ref={messagesRef}
+        onScroll={handleMessagesScroll}
+        className="chat-messages-scroll"
         aria-live="polite"
       >
         {state.chatMessages.length === 0 && !isTyping && (
           <div
             style={{
               margin: 'auto',
-              maxWidth: 520,
+              maxWidth: 500,
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 12,
-              padding: '24px 12px',
+              gap: 10,
+              padding: '16px 12px',
             }}
           >
             <CermoMascot pose="wave" size={82} />
-            <h3 className="t-h2">Halo! Aku Cermo, siap bantu kebunmu</h3>
+            <h3 className="t-h2" style={{ fontSize: '1.35rem' }}>
+              Halo! Aku Cermo, siap bantu kebunmu
+            </h3>
             <p className="t-small t-soft">
               Semua jawaban dihasilkan langsung oleh model <strong>Gemini AI</strong> dengan acuan{' '}
               <strong>Dataset Khusus Agronomi CermatTani</strong> (Balitsa Kementan RI, FAO IPM,
@@ -303,11 +297,11 @@ export const ChatScreen: React.FC = () => {
                 borderRadius: 999,
                 background: 'var(--surface)',
                 border: '1px solid var(--line)',
-                fontSize: '0.8rem',
+                fontSize: '0.78rem',
                 color: 'var(--ink-soft)',
               }}
             >
-              <ShieldCheck size={15} color="var(--leaf-600)" />
+              <ShieldCheck size={14} color="var(--leaf-600)" />
               Fokus pertanian &amp; CermatTani · Organik lebih dulu · Tanpa data dummy
             </div>
           </div>
@@ -318,6 +312,7 @@ export const ChatScreen: React.FC = () => {
           return (
             <div
               key={msg.id}
+              className="step-transition"
               style={{
                 display: 'flex',
                 justifyContent: isCermo ? 'flex-start' : 'flex-end',
@@ -325,37 +320,27 @@ export const ChatScreen: React.FC = () => {
                 gap: 10,
               }}
             >
-              {isCermo && <CermoMascot pose="wave" size={44} interactive={false} />}
+              {isCermo && <CermoMascot pose="wave" size={42} interactive={false} />}
               <div
                 style={{
-                  maxWidth: 'min(580px, 84%)',
-                  padding: '14px 16px',
+                  maxWidth: 'min(600px, 85%)',
+                  padding: '13px 16px',
                   borderRadius: isCermo ? '20px 20px 20px 6px' : '20px 20px 6px 20px',
                   background: isCermo ? 'var(--surface)' : 'var(--leaf-600)',
                   color: isCermo ? 'var(--ink)' : 'var(--on-leaf)',
+                  border: isCermo ? '1px solid var(--line)' : 'none',
                   boxShadow: 'var(--shadow-card)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 8,
                 }}
               >
-                <p className="t-body" style={{ margin: 0, whiteSpace: 'pre-line' }}>
+                <p className="t-body" style={{ margin: 0, whiteSpace: 'pre-line', fontSize: '0.95rem' }}>
                   {msg.isi}
                 </p>
                 {isCermo && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span
-                      className="pill pill-warn"
-                      style={{ fontSize: '0.72rem', padding: '3px 10px' }}
-                    >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span className="pill pill-warn" style={{ fontSize: '0.7rem', padding: '2px 9px' }}>
                       Saran, bukan keputusan akhir
                     </span>
                   </div>
@@ -366,17 +351,18 @@ export const ChatScreen: React.FC = () => {
         })}
 
         {isTyping && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <CermoMascot pose="thinking" size={46} interactive={false} />
+          <div className="step-transition" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CermoMascot pose="thinking" size={44} interactive={false} />
             <div
               style={{
                 background: 'var(--surface)',
-                padding: '12px 16px',
+                border: '1px solid var(--line)',
+                padding: '11px 15px',
                 borderRadius: '20px 20px 20px 6px',
                 boxShadow: 'var(--shadow-card)',
               }}
             >
-              <span className="t-small t-soft">
+              <span className="t-small t-soft loading-pulse">
                 Cermo AI sedang memeriksa dataset agronomi &amp; menyusun jawaban...
               </span>
             </div>
@@ -389,13 +375,23 @@ export const ChatScreen: React.FC = () => {
             <div className="t-small">{chatError}</div>
           </div>
         )}
+      </div>
 
-        <div ref={bottomRef} />
-      </section>
+      {/* Tombol Mengambang Lompat ke Pesan Terbaru saat User Scroll ke Atas */}
+      {showScrollBottom && (
+        <button
+          type="button"
+          className="chat-scroll-bottom-btn"
+          onClick={() => scrollChatToBottom(true)}
+          aria-label="Gulir ke pesan terbaru"
+        >
+          <ArrowDown size={14} /> Pesan terbaru
+        </button>
+      )}
 
-      {/* Saran pertanyaan cepat (F5.4) + Input */}
-      <section className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* Bilah Input Terkunci di Bawah (selalu terlihat & tidak pernah tertutup) */}
+      <footer className="chat-composer">
+        <div className="chat-quick-row" aria-label="Saran pertanyaan cepat">
           {QUICK_QUESTIONS.map((q) => (
             <button
               key={q}
@@ -403,26 +399,39 @@ export const ChatScreen: React.FC = () => {
               onClick={() => void sendMessage(q)}
               className="btn-secondary"
               disabled={isTyping}
-              style={{ minHeight: 42, padding: '6px 14px', fontSize: '0.875rem', borderRadius: 999 }}
+              style={{
+                minHeight: 34,
+                padding: '4px 12px',
+                fontSize: '0.8rem',
+                borderRadius: 999,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
             >
               {q}
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 10 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
           <input
             className="field-input"
+            style={{ minHeight: 44 }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Tulis pertanyaan tentang tanaman, hasil scan, pupuk, atau irigasimu..."
             aria-label="Pesan untuk Cermo"
           />
-          <button type="submit" className="btn-primary" disabled={!input.trim() || isTyping}>
-            <Send size={18} /> Kirim
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ minHeight: 44, padding: '8px 18px', flexShrink: 0 }}
+            disabled={!input.trim() || isTyping}
+          >
+            <Send size={17} /> Kirim
           </button>
         </form>
-      </section>
-    </div>
+      </footer>
+    </section>
   );
 };

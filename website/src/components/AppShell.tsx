@@ -3,17 +3,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowUpRight,
   Bell,
   BellRing,
   CalendarDays,
   Camera,
   CheckCircle2,
+  ChevronDown,
   Clock,
   CloudOff,
   Droplets,
   Globe,
   Home,
+  LayoutGrid,
+  LogIn,
+  LogOut,
   MapPin,
   MessageCircle,
   Moon,
@@ -38,7 +43,7 @@ import {
 import { CermoMascot } from './CermoMascot';
 
 type NavEntry = {
-  id: Exclude<ScreenId, 'landing'>;
+  id: Exclude<ScreenId, 'landing' | 'login'>;
   label: string;
   pageTitle: string;
   icon: React.FC<{ size?: number; strokeWidth?: number }>;
@@ -126,10 +131,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     state,
     activeScreen,
     setActiveScreen,
+    authUser,
+    dbSyncStatus,
+    refreshSupabaseSync,
+    openLogin,
+    signOutAccount,
     openScanWith,
     searchQuery,
     setSearchQuery,
     activeFarm,
+    activeFarmPlants,
     setActiveFarmId,
     unreadNotifCount,
     activeAlerts,
@@ -147,6 +158,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   } = useApp();
 
   const [showNotifModal, setShowNotifModal] = useState(false);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [showFarmSheet, setShowFarmSheet] = useState(false);
   const [notifTab, setNotifTab] = useState<'peringatan' | 'jadwal'>('peringatan');
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [newSchedLabel, setNewSchedLabel] = useState('');
@@ -170,7 +183,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       tipe: NotificationItem['tipe'];
       severity: 'warn' | 'bad';
       actionLabel: string;
-      actionScreen: Exclude<ScreenId, 'landing'>;
+      actionScreen: Exclude<ScreenId, 'landing' | 'login'>;
     }> = [];
 
     if (isTankLow) {
@@ -238,13 +251,26 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const nextReminderLabel = getNextReminderText(state.settings.jadwalPengingat);
 
   useEffect(() => {
-    if (!showNotifModal) return;
+    if (!showNotifModal && !showMoreSheet && !showFarmSheet) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowNotifModal(false);
+      if (e.key === 'Escape') {
+        setShowNotifModal(false);
+        setShowMoreSheet(false);
+        setShowFarmSheet(false);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showNotifModal]);
+  }, [showNotifModal, showMoreSheet, showFarmSheet]);
+
+  const toggleNotifModal = (tab?: 'peringatan' | 'jadwal') => {
+    if (tab) setNotifTab(tab);
+    const nextOpen = tab ? true : !showNotifModal;
+    setShowNotifModal(nextOpen);
+    if (nextOpen) {
+      markAllNotificationsRead();
+    }
+  };
 
   const handleToggleBrowserNotif = async () => {
     setBrowserNotifNote('');
@@ -413,6 +439,28 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <Globe size={19} strokeWidth={1.75} />
             <span>Halaman Publik</span>
           </button>
+          {authUser ? (
+            <button
+              type="button"
+              onClick={() => void signOutAccount()}
+              className="nav-item"
+              style={{ color: 'var(--bad)' }}
+              title={`Keluar dari ${authUser.email}`}
+            >
+              <LogOut size={19} strokeWidth={1.75} />
+              <span>Keluar Akun</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openLogin('beranda')}
+              className="nav-item"
+              style={{ color: 'var(--leaf-700)', fontWeight: 700 }}
+            >
+              <LogIn size={19} strokeWidth={1.75} />
+              <span>Login / Daftar</span>
+            </button>
+          )}
         </nav>
 
         {/* Asisten Cermo interaktif di sidebar */}
@@ -441,7 +489,112 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Area Konten Utama */}
       <div className={`main-viewport ${activeScreen === 'cermo' ? 'main-viewport--chat' : ''}`}>
-        {/* Kepala Halaman 1 Baris Bersih — tanpa wrapping */}
+        {/* Mobile AppBar — Sama persis dengan tampilan Flutter Mobile App (<= 768px) */}
+        <header className="mobile-appbar" aria-label="Navigasi atas mobile">
+          {activeScreen === 'beranda' ? (
+            <>
+              <button
+                type="button"
+                className="mobile-farm-trigger"
+                onClick={() => setShowFarmSheet(true)}
+                aria-label="Pilih kebun aktif"
+              >
+                <span className="mobile-farm-icon">
+                  <Sprout size={21} strokeWidth={2} />
+                </span>
+                <span className="mobile-farm-meta">
+                  <span className="mobile-farm-name-row">
+                    <span className="mobile-farm-name">{activeFarm?.nama || 'Kebun Utama'}</span>
+                    <ChevronDown size={17} strokeWidth={2.2} color="var(--ink-soft)" style={{ flexShrink: 0 }} />
+                  </span>
+                  <span className="mobile-farm-sub">
+                    {activeFarm?.lokasi || 'Lahan aktif'} · {activeFarmPlants.length} petak
+                  </span>
+                </span>
+              </button>
+
+              <div className="mobile-appbar-actions">
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => toggleNotifModal()}
+                  aria-label={`Notifikasi & jadwal (${totalAlertBadge} aktif)`}
+                >
+                  {liveSensorAlerts.length > 0 ? (
+                    <BellRing size={21} strokeWidth={2} />
+                  ) : (
+                    <Bell size={21} strokeWidth={1.9} />
+                  )}
+                  {totalAlertBadge > 0 && (
+                    <span className="mobile-badge-count">
+                      {totalAlertBadge > 9 ? '9+' : totalAlertBadge}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => setActiveScreen('pengaturan')}
+                  aria-label="Pengaturan"
+                >
+                  <Settings size={20} strokeWidth={1.9} />
+                </button>
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => setShowMoreSheet(true)}
+                  aria-label="Menu lainnya"
+                >
+                  <LayoutGrid size={20} strokeWidth={1.9} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mobile-subpage-left">
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => setActiveScreen('beranda')}
+                  aria-label="Kembali ke Beranda"
+                >
+                  <ArrowLeft size={21} strokeWidth={2} />
+                </button>
+                <h1 className="mobile-appbar-title font-display">{activeNav.pageTitle}</h1>
+              </div>
+
+              <div className="mobile-appbar-actions">
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => toggleNotifModal()}
+                  aria-label={`Notifikasi & jadwal (${totalAlertBadge} aktif)`}
+                >
+                  {liveSensorAlerts.length > 0 ? (
+                    <BellRing size={21} strokeWidth={2} />
+                  ) : (
+                    <Bell size={21} strokeWidth={1.9} />
+                  )}
+                  {totalAlertBadge > 0 && (
+                    <span className="mobile-badge-count">
+                      {totalAlertBadge > 9 ? '9+' : totalAlertBadge}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="mobile-icon-btn"
+                  onClick={() => setShowMoreSheet(true)}
+                  aria-label="Menu lainnya"
+                >
+                  <LayoutGrid size={20} strokeWidth={1.9} />
+                </button>
+              </div>
+            </>
+          )}
+        </header>
+
+        {/* Kepala Halaman 1 Baris Bersih — Desktop */}
         <header className="topbar">
           <div className="topbar-left">
             <h1 className="t-h1" style={{ fontSize: 'clamp(1.2rem, 1.65vw, 1.5rem)', lineHeight: 1.18 }}>
@@ -596,49 +749,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </header>
 
         <div className={`main-content-pad ${activeScreen === 'cermo' ? 'main-content-pad--chat' : ''}`}>
-          {/* Bar pintasan mobile ringkas */}
-          <div className="mobile-more-bar" aria-label="Menu tambahan mobile">
-            <select
-              aria-label="Pilih kebun"
-              className="mobile-chip-nav"
-              value={activeFarm?.id || ''}
-              onChange={(e) => setActiveFarmId(e.target.value)}
-            >
-              {state.farms.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nama}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="mobile-chip-nav"
-              onClick={() => setActiveScreen('landing')}
-            >
-              <Globe size={15} strokeWidth={1.75} /> Tentang
-            </button>
-            <button
-              type="button"
-              className={`mobile-chip-nav ${activeScreen === 'kalender' ? 'active' : ''}`}
-              onClick={() => setActiveScreen('kalender')}
-            >
-              <CalendarDays size={15} strokeWidth={1.75} /> Kalender
-            </button>
-            <button
-              type="button"
-              className={`mobile-chip-nav ${activeScreen === 'energi' ? 'active' : ''}`}
-              onClick={() => setActiveScreen('energi')}
-            >
-              <Sun size={15} strokeWidth={1.75} /> Energi surya
-            </button>
-            <button
-              type="button"
-              className={`mobile-chip-nav ${activeScreen === 'pengaturan' ? 'active' : ''}`}
-              onClick={() => setActiveScreen('pengaturan')}
-            >
-              <Settings size={15} strokeWidth={1.75} /> Pengaturan
-            </button>
-          </div>
+          {/* Banner status error sinkronisasi database Supabase (jika SQL 08 belum dijalankan) */}
+          {authUser && dbSyncStatus.state === 'error' && (
+            <div className="alert-card alert-card--bad" role="alert">
+              <AlertTriangle size={22} strokeWidth={1.9} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>Sinkronisasi Database Supabase Tertunda</div>
+                <p className="t-small t-soft">{dbSyncStatus.message}</p>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => void refreshSupabaseSync()}
+              >
+                <RefreshCw size={15} /> Sinkron ulang
+              </button>
+            </div>
+          )}
 
           {/* Banner offline & antrean unggah PWA */}
           {(isOffline || state.offlineQueue.length > 0) && (
@@ -676,65 +803,259 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       </div>
 
-      {/* Bottom-Nav Mobile 5 Item + FAB Scan 64px Terangkat 22px (§5.1 & §6.2) */}
+      {/* Bottom-Nav Mobile 5 Item + Pil Aktif Hijau Susu + FAB Scan 62px (identik dengan Flutter Mobile App) */}
       <nav className="mobile-bottom-nav" aria-label="Navigasi bawah mobile">
-        <button
-          type="button"
-          className={`bottom-nav-btn ${activeScreen === 'beranda' ? 'active' : ''}`}
-          onClick={() => setActiveScreen('beranda')}
-        >
-          <Home size={22} strokeWidth={1.75} />
-          <span>Beranda</span>
-        </button>
-
-        <button
-          type="button"
-          className={`bottom-nav-btn ${activeScreen === 'tanaman' ? 'active' : ''}`}
-          onClick={() => setActiveScreen('tanaman')}
-        >
-          <Sprout size={22} strokeWidth={1.75} />
-          <span>Tanaman</span>
-        </button>
-
-        <div className="bottom-nav-scan-wrap">
+        <div className="mobile-bottom-nav-inner">
           <button
             type="button"
-            className="scan-fab"
-            onClick={() => openScanWith()}
-            aria-label="Scan tanaman"
+            className={`bottom-nav-btn ${activeScreen === 'beranda' ? 'active' : ''}`}
+            onClick={() => setActiveScreen('beranda')}
+            aria-current={activeScreen === 'beranda' ? 'page' : undefined}
           >
-            <Camera size={28} strokeWidth={2} />
+            <span className="bottom-nav-pill">
+              <Home size={22} strokeWidth={activeScreen === 'beranda' ? 2.1 : 1.85} />
+            </span>
+            <span>Beranda</span>
           </button>
-          <span
-            className="t-micro"
-            style={{
-              fontWeight: 700,
-              color: activeScreen === 'scan' ? 'var(--tomato-btn)' : 'var(--ink-soft)',
-              marginTop: 2,
-            }}
+
+          <button
+            type="button"
+            className={`bottom-nav-btn ${activeScreen === 'tanaman' ? 'active' : ''}`}
+            onClick={() => setActiveScreen('tanaman')}
+            aria-current={activeScreen === 'tanaman' ? 'page' : undefined}
           >
-            Scan
-          </span>
+            <span className="bottom-nav-pill">
+              <Sprout size={22} strokeWidth={activeScreen === 'tanaman' ? 2.1 : 1.85} />
+            </span>
+            <span>Tanaman</span>
+          </button>
+
+          <div className="bottom-nav-scan-wrap">
+            <button
+              type="button"
+              className={`scan-fab ${activeScreen === 'scan' ? 'active' : ''}`}
+              onClick={() => openScanWith()}
+              aria-label="Scan tanaman"
+            >
+              <Camera size={27} strokeWidth={2.1} />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`bottom-nav-btn ${activeScreen === 'lahan' ? 'active' : ''}`}
+            onClick={() => setActiveScreen('lahan')}
+            aria-current={activeScreen === 'lahan' ? 'page' : undefined}
+          >
+            <span className="bottom-nav-pill" style={{ position: 'relative' }}>
+              <Droplets size={22} strokeWidth={activeScreen === 'lahan' ? 2.1 : 1.85} />
+              {(isTankLow || isDiseaseRisk) && <span className="bottom-nav-alert-dot" />}
+            </span>
+            <span>Lahan</span>
+          </button>
+
+          <button
+            type="button"
+            className={`bottom-nav-btn ${activeScreen === 'cermo' ? 'active' : ''}`}
+            onClick={() => setActiveScreen('cermo')}
+            aria-current={activeScreen === 'cermo' ? 'page' : undefined}
+          >
+            <span className="bottom-nav-pill">
+              <MessageCircle size={22} strokeWidth={activeScreen === 'cermo' ? 2.1 : 1.85} />
+            </span>
+            <span>Cermo</span>
+          </button>
         </div>
-
-        <button
-          type="button"
-          className={`bottom-nav-btn ${activeScreen === 'lahan' ? 'active' : ''}`}
-          onClick={() => setActiveScreen('lahan')}
-        >
-          <Droplets size={22} strokeWidth={1.75} />
-          <span>Lahan</span>
-        </button>
-
-        <button
-          type="button"
-          className={`bottom-nav-btn ${activeScreen === 'cermo' ? 'active' : ''}`}
-          onClick={() => setActiveScreen('cermo')}
-        >
-          <MessageCircle size={22} strokeWidth={1.75} />
-          <span>Cermo</span>
-        </button>
       </nav>
+
+      {/* Mobile Bottom Sheet: Menu CermatTani (identik dengan _openMoreSheet Flutter App) */}
+      {showMoreSheet && (
+        <div
+          className="mobile-sheet-backdrop"
+          onClick={() => setShowMoreSheet(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu CermatTani"
+        >
+          <div className="mobile-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-sheet-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 className="font-display" style={{ fontSize: '1.25rem', lineHeight: 1.2 }}>
+                Menu CermatTani
+              </h2>
+              <button
+                type="button"
+                className="mobile-icon-btn"
+                onClick={() => setShowMoreSheet(false)}
+                aria-label="Tutup menu"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mobile-more-grid">
+              <button
+                type="button"
+                className={`mobile-more-tile ${activeScreen === 'kalender' ? 'active' : ''}`}
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  setActiveScreen('kalender');
+                }}
+              >
+                <CalendarDays size={21} color="var(--leaf-600)" strokeWidth={1.9} />
+                <span>Kalender panen</span>
+              </button>
+
+              <button
+                type="button"
+                className={`mobile-more-tile ${activeScreen === 'energi' ? 'active' : ''}`}
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  setActiveScreen('energi');
+                }}
+              >
+                <Sun size={21} color="var(--leaf-600)" strokeWidth={1.9} />
+                <span>Energi surya</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-more-tile"
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  toggleNotifModal('peringatan');
+                }}
+              >
+                <BellRing size={21} color="var(--leaf-600)" strokeWidth={1.9} />
+                <span>Notif &amp; jadwal</span>
+              </button>
+
+              <button
+                type="button"
+                className={`mobile-more-tile ${activeScreen === 'pengaturan' ? 'active' : ''}`}
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  setActiveScreen('pengaturan');
+                }}
+              >
+                <Settings size={21} color="var(--leaf-600)" strokeWidth={1.9} />
+                <span>Pengaturan</span>
+              </button>
+            </div>
+
+            <div className="mobile-sheet-utils">
+              <button
+                type="button"
+                className="mobile-util-chip"
+                onClick={() => {
+                  toggleTheme();
+                }}
+              >
+                {state.settings.tema === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                <span>{state.settings.tema === 'dark' ? 'Terang' : 'Gelap'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-util-chip"
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  setActiveScreen('landing');
+                }}
+              >
+                <Globe size={16} />
+                <span>Publik</span>
+              </button>
+
+              {authUser ? (
+                <button
+                  type="button"
+                  className="mobile-util-chip mobile-util-chip--danger"
+                  onClick={() => {
+                    setShowMoreSheet(false);
+                    void signOutAccount();
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>Keluar</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mobile-util-chip mobile-util-chip--primary"
+                  onClick={() => {
+                    setShowMoreSheet(false);
+                    openLogin('beranda');
+                  }}
+                >
+                  <LogIn size={16} />
+                  <span>Login</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Sheet: Pilih Kebun Aktif (identik dengan _openFarmPicker Flutter App) */}
+      {showFarmSheet && (
+        <div
+          className="mobile-sheet-backdrop"
+          onClick={() => setShowFarmSheet(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pilih kebun aktif"
+        >
+          <div className="mobile-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-sheet-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 className="font-display" style={{ fontSize: '1.25rem', lineHeight: 1.2 }}>
+                Pilih kebun aktif
+              </h2>
+              <button
+                type="button"
+                className="mobile-icon-btn"
+                onClick={() => setShowFarmSheet(false)}
+                aria-label="Tutup pilihan kebun"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {state.farms.map((f) => {
+                const selected = f.id === activeFarm?.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={`mobile-farm-option ${selected ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveFarmId(f.id);
+                      setShowFarmSheet(false);
+                    }}
+                  >
+                    <span className="mobile-farm-option-icon">
+                      {selected ? (
+                        <CheckCircle2 size={20} color="var(--leaf-600)" />
+                      ) : (
+                        <Sprout size={20} color="var(--leaf-600)" />
+                      )}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: '0.94rem', color: 'var(--ink)' }}>
+                        {f.nama}
+                      </span>
+                      <span className="t-micro t-soft">
+                        {f.lokasi} · {f.luasLabel}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Live Alert Toasts — Kanan Atas */}
       {activeAlerts.length > 0 && (

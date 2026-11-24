@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowUpRight,
   Box,
   CalendarDays,
   Camera,
@@ -10,11 +9,14 @@ import {
   Circle,
   Droplets,
   Leaf,
+  MessageCircle,
   Plus,
   Sparkles,
   Sprout,
   Sun,
+  Waves,
   X,
+  Zap,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
@@ -26,6 +28,7 @@ import {
   StripedProgressBar,
 } from '../components/Charts';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
+import { PlantSearchInput } from '../components/PlantSearchInput';
 import { GrowthPhase } from '../types/cermattani';
 
 const PHASES: GrowthPhase[] = ['Bibit', 'Vegetatif', 'Berbunga', 'Berbuah', 'Panen'];
@@ -54,7 +57,7 @@ export const DashboardScreen: React.FC = () => {
 
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [plantNama, setPlantNama] = useState('');
-  const [plantVarietas, setPlantVarietas] = useState('Servo F1');
+  const [plantVarietas, setPlantVarietas] = useState('Cabai Rawit');
   const [plantFase, setPlantFase] = useState<GrowthPhase>('Vegetatif');
 
   const farmPlantIds = useMemo(() => new Set(activeFarmPlants.map((p) => p.id)), [activeFarmPlants]);
@@ -115,6 +118,15 @@ export const DashboardScreen: React.FC = () => {
   const isDiseaseRisk =
     state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit;
   const isTankLow = state.sensor.levelTandonPersen < state.settings.ambangTandonRendah;
+  const isSoilDry = state.sensor.kelembapanTanah < state.settings.ambangTanahBawah;
+  const isPowerSave = state.sensor.bateraiPersen <= state.settings.ambangBateraiHemat;
+  const liveAlertCount =
+    (isDiseaseRisk ? 1 : 0) +
+    (isTankLow ? 1 : 0) +
+    (isSoilDry ? 1 : 0) +
+    (isPowerSave ? 1 : 0);
+  const activeReminderCount = state.settings.jadwalPengingat.filter((r) => r.aktif).length;
+  const latestAnyScan = farmScans[0] || state.scans[0] || null;
 
   const upcomingHarvests = useMemo(() => {
     return state.harvestEvents
@@ -159,7 +171,7 @@ export const DashboardScreen: React.FC = () => {
     addPlant({
       farmId: activeFarm.id,
       nama: plantNama,
-      varietas: plantVarietas,
+      varietas: plantVarietas.trim() || 'Tanaman Kebun',
       tanggalTanam: new Date().toISOString().slice(0, 10),
       fase: plantFase,
     });
@@ -168,11 +180,58 @@ export const DashboardScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* 1. Hero Aksi Ringkas bersama Maskot Pak Cermat */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 1A. Hero Mobile — Sama Persis dengan Flutter Mobile App (<= 768px) */}
+      <section className="card-forest dash-hero-mobile" aria-label="Ringkasan sambutan mobile">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <span className="pill pill-ok">{activeFarmPlants.length} tanaman aktif</span>
+              <span className="pill pill-water">{activeReminderCount} pengingat aktif</span>
+            </div>
+            <h2
+              className="font-display"
+              style={{ fontSize: '1.5rem', lineHeight: 1.15, marginTop: 8, color: 'var(--ink)' }}
+            >
+              Halo, {state.user.nama}!
+            </h2>
+            <p className="t-small t-soft" style={{ marginTop: 4, fontSize: '0.845rem', lineHeight: 1.42 }}>
+              {liveAlertCount > 0
+                ? `Ada ${liveAlertCount} kondisi lahan yang perlu dicek sekarang.`
+                : !latestAnyScan
+                  ? 'Siap pindai foto buah atau daun dengan Gemini AI hari ini?'
+                  : `Terakhir scan: ${latestAnyScan.penyakitUtamaNama} (${latestAnyScan.keyakinan}%).`}
+            </p>
+          </div>
+          <div style={{ flexShrink: 0 }}>
+            <CermoMascot pose={liveAlertCount > 0 ? 'worried' : 'happy'} size={86} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button
+            type="button"
+            className="btn-tomato"
+            style={{ minHeight: 46, padding: '10px 12px', fontSize: '0.9rem', borderRadius: 13 }}
+            onClick={() => openScanWith('buah')}
+          >
+            <Camera size={18} /> Scan Foto AI
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 46, padding: '10px 12px', fontSize: '0.875rem', borderRadius: 13 }}
+            onClick={() => setActiveScreen('cermo')}
+          >
+            <MessageCircle size={17} color="var(--leaf-600)" /> Tanya Cermo
+          </button>
+        </div>
+      </section>
+
+      {/* 1B. Hero Desktop — Tetap dipertahankan untuk layar besar (>= 769px) */}
       {activeFarmPlants.length === 0 ? (
         <section
-          className="card"
+          className="card dash-hero-desktop"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -196,7 +255,7 @@ export const DashboardScreen: React.FC = () => {
         </section>
       ) : (
         <section
-          className="card"
+          className="card dash-hero-desktop"
           style={{
             background:
               'radial-gradient(circle at 96% 12%, color-mix(in srgb, var(--cream-warm) 88%, transparent), transparent 48%), radial-gradient(circle at 4% 92%, color-mix(in srgb, var(--surface-milk) 72%, transparent), transparent 44%), var(--surface)',
@@ -311,8 +370,103 @@ export const DashboardScreen: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Baris KPI 4 Kartu Seragam (4 Kolom Desktop -> 2x2 Tablet & HP) */}
-      <section className="kpi-grid-4" aria-label="Ringkasan utama kebun">
+      {/* 2A. Baris KPI 2×2 Mobile — Identik dengan MetricCard3 di Flutter Mobile App (<= 768px) */}
+      <section className="dash-kpi-mobile" aria-label="Metrik kebun mobile">
+        <button
+          type="button"
+          className="app-metric-card app-metric-card--milk"
+          onClick={() => setActiveScreen('lahan')}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface)', color: 'var(--leaf-600)' }}>
+              <Droplets size={18} />
+            </span>
+            <span className="t-micro t-soft" style={{ fontWeight: 700, fontSize: '0.7rem' }}>
+              {isSoilDry ? 'Kering' : 'Ideal'}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value" style={{ fontSize: '1.5rem' }}>
+              <AnimatedCounter value={state.sensor.kelembapanTanah} suffix="%" />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2, fontWeight: 600 }}>
+              Kelembapan tanah
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="app-metric-card app-metric-card--white"
+          onClick={() => setActiveScreen('lahan')}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--leaf-600)' }}>
+              <Waves size={18} />
+            </span>
+            <span className="t-micro t-soft" style={{ fontWeight: 700, fontSize: '0.7rem' }}>
+              {isTankLow ? 'Kritis' : 'Aman'}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value" style={{ fontSize: '1.5rem' }}>
+              <AnimatedCounter value={state.sensor.levelTandonPersen} suffix="%" />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2, fontWeight: 600 }}>
+              Level air tandon
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="app-metric-card app-metric-card--cream"
+          onClick={() => setActiveScreen('energi')}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface)', color: 'var(--tomato-btn)' }}>
+              <Sun size={18} />
+            </span>
+            <span className="t-micro t-soft" style={{ fontWeight: 700, fontSize: '0.7rem' }}>
+              {isPowerSave ? 'Hemat' : `${state.sensor.teganganVolt}V`}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value" style={{ fontSize: '1.5rem' }}>
+              <AnimatedCounter value={state.sensor.bateraiPersen} suffix="%" />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2, fontWeight: 600 }}>
+              Baterai surya
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="app-metric-card app-metric-card--white"
+          onClick={() => setActiveScreen('kalender')}
+        >
+          <div className="kpi-card-top">
+            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--leaf-600)' }}>
+              <CalendarDays size={18} />
+            </span>
+            <span className="t-micro t-soft" style={{ fontWeight: 700, fontSize: '0.7rem' }}>
+              {state.settings.pompaMenyala ? 'Pompa ON' : 'Siaga'}
+            </span>
+          </div>
+          <div>
+            <div className="kpi-value" style={{ fontSize: '1.5rem' }}>
+              <AnimatedCounter value={upcomingHarvests.length} />
+            </div>
+            <div className="t-micro t-soft" style={{ marginTop: 2, fontWeight: 600 }}>
+              Jadwal panen
+            </div>
+          </div>
+        </button>
+      </section>
+
+      {/* 2B. Baris KPI 4 Kartu Seragam Desktop (>= 769px) */}
+      <section className="kpi-grid-4 dash-kpi-desktop" aria-label="Ringkasan utama kebun">
         <button
           type="button"
           className="kpi-card stagger-card stagger-1"
@@ -454,19 +608,29 @@ export const DashboardScreen: React.FC = () => {
                 <Sun size={12} /> {state.sensor.bateraiPersen}%
               </span>
             </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 38, padding: '6px 12px', fontSize: '0.8rem' }}
-              onClick={() => setActiveScreen('lahan')}
-            >
-              <Box size={15} color="var(--leaf-600)" /> Buka Simulasi 3D <ArrowUpRight size={14} />
-            </button>
+            <div className="dash-land-cta-row">
+              <button
+                type="button"
+                className="btn-primary dash-sim3d-btn"
+                style={{ minHeight: 42, padding: '8px 14px', fontSize: '0.84rem', borderRadius: 13 }}
+                onClick={() => setActiveScreen('lahan')}
+              >
+                <Box size={16} /> Buka Simulasi 3D Lahan
+              </button>
+              <button
+                type="button"
+                className="btn-secondary mobile-only-inline"
+                style={{ minHeight: 42, padding: '8px 14px', fontSize: '0.84rem', borderRadius: 13 }}
+                onClick={() => setActiveScreen('energi')}
+              >
+                <Zap size={16} color="var(--leaf-600)" /> Surya
+              </button>
+            </div>
           </div>
         </section>
 
-        {/* Jadwal Panen Dekat — Kartu Aksen Mint Cerah */}
-        <section className="card-forest" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Jadwal Panen Dekat — Kartu Aksen Mint Cerah (Krim Hangat di Mobile seperti App) */}
+        <section className="card-forest dash-harvest-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             <div>
               <h3 className="t-h3" style={{ color: 'var(--ink)' }}>Jadwal panen dekat</h3>
@@ -901,48 +1065,39 @@ export const DashboardScreen: React.FC = () => {
                 <input
                   id="dash-plant-name"
                   className="field-input"
-                  placeholder="Contoh: Tomat Servo #06 atau Cabai Rawit #02"
+                  placeholder="Contoh: Cabai Rawit #02, Terong Ungu #01, atau Selada #01"
                   value={plantNama}
                   onChange={(e) => setPlantNama(e.target.value)}
                   required
                 />
               </div>
-              <div className="form-grid-2">
-                <div className="field-group">
-                  <label htmlFor="dash-plant-var" className="field-label">
-                    Jenis / varietas
-                  </label>
-                  <select
-                    id="dash-plant-var"
-                    className="field-select"
-                    value={plantVarietas}
-                    onChange={(e) => setPlantVarietas(e.target.value)}
-                  >
-                    <option value="Servo F1">Servo F1</option>
-                    <option value="Gustavi">Gustavi</option>
-                    <option value="Tomat Ceri">Tomat Ceri</option>
-                    <option value="Cabai Rawit">Cabai Rawit</option>
-                    <option value="Selada Keriting">Selada Keriting</option>
-                    <option value="Bayam Hijau">Bayam Hijau</option>
-                  </select>
-                </div>
-                <div className="field-group">
-                  <label htmlFor="dash-plant-phase" className="field-label">
-                    Fase tumbuh
-                  </label>
-                  <select
-                    id="dash-plant-phase"
-                    className="field-select"
-                    value={plantFase}
-                    onChange={(e) => setPlantFase(e.target.value as GrowthPhase)}
-                  >
-                    {PHASES.map((ph) => (
-                      <option key={ph} value={ph}>
-                        {ph}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="field-group">
+                <label htmlFor="dash-plant-var" className="field-label">
+                  Jenis / varietas (bisa semua tanaman)
+                </label>
+                <PlantSearchInput
+                  id="dash-plant-var"
+                  value={plantVarietas}
+                  onChange={setPlantVarietas}
+                  required
+                />
+              </div>
+              <div className="field-group">
+                <label htmlFor="dash-plant-phase" className="field-label">
+                  Fase tumbuh
+                </label>
+                <select
+                  id="dash-plant-phase"
+                  className="field-select"
+                  value={plantFase}
+                  onChange={(e) => setPlantFase(e.target.value as GrowthPhase)}
+                >
+                  {PHASES.map((ph) => (
+                    <option key={ph} value={ph}>
+                      {ph}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button type="submit" className="btn-primary">
                 Simpan tanaman

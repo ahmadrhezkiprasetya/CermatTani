@@ -27,3 +27,12 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   }
   return browserClient;
 }
+
+export async function getSupabaseAccessToken(): Promise<string | null> {
+  const client = getSupabaseBrowserClient();
+  if (!client) return null;
+
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  return data.session?.access_token || null;
+}

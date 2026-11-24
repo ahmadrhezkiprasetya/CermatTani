@@ -266,7 +266,6 @@ export const cermatSupabaseRepo = {
           id: user.id,
           nama: fallbackName,
           peran: 'Petani',
-          telegram_link_code: String(Math.floor(100000 + Math.random() * 900000)),
         });
         captureErr(upsertErr);
       } else if (input?.nama?.trim()) {
@@ -718,7 +717,7 @@ export const cermatSupabaseRepo = {
       email: user.email || undefined,
       peran: pRow?.peran || 'Petani',
       telegramChatId: pRow?.telegram_chat_id ?? null,
-      telegramLinkCode: pRow?.telegram_link_code || String(Math.floor(100000 + Math.random() * 900000)),
+      telegramLinkCode: pRow?.telegram_link_code || '',
       telegramReminderTime: pRow?.telegram_reminder_time || '07:00',
       bahasa: 'id',
     };

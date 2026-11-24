@@ -35,7 +35,7 @@ export const INITIAL_USER: UserProfile = {
   nama: 'Pak Joko',
   peran: 'Petani hortikultura 0,3 ha',
   telegramChatId: null,
-  telegramLinkCode: '482916',
+  telegramLinkCode: '',
   telegramReminderTime: '07:00',
   bahasa: 'id',
 };

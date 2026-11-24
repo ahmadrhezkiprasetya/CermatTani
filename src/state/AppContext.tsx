@@ -42,7 +42,11 @@ import {
 import { runTomatoScanAnalysis } from '../utils/scanAnalyzer';
 import { KNOWLEDGE_DISEASES, KNOWLEDGE_NUTRIENTS, RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { estimateWeightForVariety, inferCommodityFromVariety } from '../data/plantVarieties';
-import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import {
+  getSupabaseAccessToken,
+  getSupabaseBrowserClient,
+  isSupabaseConfigured,
+} from '@/lib/supabase/client';
 import { cermatSupabaseRepo, isUuid } from '@/lib/supabase/repository';
 
 const STORAGE_KEY = 'cermattani_app_state_v1';
@@ -139,6 +143,23 @@ interface PersistedState {
   notifications: NotificationItem[];
   settings: AppSettings;
   offlineQueue: OfflineQueueItem[];
+}
+
+interface TelegramActionResult {
+  ok: boolean;
+  message: string;
+  code?: string;
+  botUrl?: string;
+  expiresAt?: string;
+  connected?: boolean;
+  chatId?: string | null;
+  username?: string | null;
+}
+
+async function getTelegramAuthorizationHeader(): Promise<string> {
+  const accessToken = await getSupabaseAccessToken();
+  if (!accessToken) throw new Error('Silakan masuk ke akun CermatTani terlebih dahulu.');
+  return `Bearer ${accessToken}`;
 }
 
 function createDefaultState(onboarded = false): PersistedState {
@@ -308,9 +329,9 @@ interface AppContextValue {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSensor: (patch: Partial<SensorSnapshot>) => void;
   triggerManualPump: (turnOn: boolean) => { ok: boolean; message: string };
-  linkTelegram: (chatIdInput?: string) => Promise<{ ok: boolean; message: string; chatId?: string }>;
-  unlinkTelegram: () => void;
-  regenerateTelegramCode: () => void;
+  linkTelegram: () => Promise<TelegramActionResult>;
+  refreshTelegramConnection: () => Promise<TelegramActionResult>;
+  unlinkTelegram: () => Promise<TelegramActionResult>;
   sendTestTelegramReminder: () => Promise<{ ok: boolean; message: string }>;
   shareScanToTelegram: (scan: ScanRecord) => Promise<{ ok: boolean; message: string }>;
   updateUserProfile: (patch: Partial<UserProfile>) => void;
@@ -830,11 +851,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       lines?: string[];
     }) => {
       if (!payload.chatId || isOffline || typeof window === 'undefined') return;
-      void fetch('/api/telegram/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).catch(() => { });
+      void (async () => {
+        const authorization = await getTelegramAuthorizationHeader();
+        const response = await fetch('/api/telegram/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: authorization },
+          body: JSON.stringify({
+            kind: payload.kind,
+            title: payload.title,
+            message: payload.message,
+            lines: payload.lines,
+          }),
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => null);
+          console.error('Gagal mengirim notifikasi Telegram:', result?.error || response.statusText);
+        }
+      })().catch((error: unknown) => {
+        console.error('Tidak dapat mengautentikasi pengiriman Telegram:', error);
+      });
     },
     [isOffline]
   );
@@ -1595,90 +1630,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  const linkTelegram = async (
-    chatIdInput?: string
-  ): Promise<{ ok: boolean; message: string; chatId?: string }> => {
+  const linkTelegram = useCallback(async (): Promise<TelegramActionResult> => {
     try {
-      const code = state.user.telegramLinkCode;
-      const cleanId = chatIdInput?.trim() || '';
+      const authorization = await getTelegramAuthorizationHeader();
       const response = await fetch('/api/telegram/link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code,
-          userName: state.user.nama,
-          mode: cleanId ? 'manual' : 'auto',
-          chatId: cleanId || undefined,
-        }),
+        headers: { Authorization: authorization },
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.chatId) {
-        const errText = result?.error || 'Gagal menghubungkan bot Telegram.';
-        setState((prev) => ({
-          ...prev,
-          notifications: [
-            {
-              id: `notif-tg-error-${Date.now()}`,
-              judul: 'Telegram belum tertaut',
-              isi: errText,
-              waktu: `${getLocalClockHHMM()} WIB`,
-              tipe: 'telegram',
-              dibaca: false,
-            },
-            ...prev.notifications,
-          ],
-        }));
-        return { ok: false, message: errText };
+      if (!response.ok || !result?.code || !result?.botUrl) {
+        return { ok: false, message: result?.error || 'Gagal membuat kode tautan Telegram.' };
       }
 
-      const linkedChatId = String(result.chatId);
       setState((prev) => ({
         ...prev,
-        user: { ...prev.user, telegramChatId: linkedChatId },
-        notifications: [
-          {
-            id: `notif-tg-${Date.now()}`,
-            judul: 'Bot Telegram tersambung',
-            isi: `Pesan konfirmasi terkirim ke ${result.displayName || linkedChatId}. Pengingat harian aktif pukul ${prev.user.telegramReminderTime} WIB.`,
-            waktu: `${getLocalClockHHMM()} WIB`,
-            tipe: 'telegram',
-            dibaca: false,
-          },
-          ...prev.notifications,
-        ],
+        user: { ...prev.user, telegramLinkCode: result.code },
       }));
-
-      if (authUser && isSupabaseConfigured) {
-        void cermatSupabaseRepo.updateProfile({ telegramChatId: linkedChatId }).catch(() => { });
-      }
 
       return {
         ok: true,
-        chatId: linkedChatId,
-        message: `Tersambung ke ${result.displayName || linkedChatId}! Pesan konfirmasi sudah masuk di Telegram kamu.`,
+        message: 'Kode tautan dibuat dan berlaku selama 10 menit.',
+        code: result.code,
+        botUrl: result.botUrl,
+        expiresAt: result.expiresAt,
       };
-    } catch {
+    } catch (error) {
       return {
         ok: false,
-        message: 'Gagal menghubungi server Telegram. Periksa koneksi internet kamu.',
+        message: error instanceof Error ? error.message : 'Gagal membuat kode tautan Telegram.',
       };
     }
-  };
+  }, []);
 
-  const unlinkTelegram = () => {
-    setState((prev) => ({ ...prev, user: { ...prev.user, telegramChatId: null } }));
-    if (authUser && isSupabaseConfigured) {
-      void cermatSupabaseRepo.updateProfile({ telegramChatId: null }).catch(() => { });
-    }
-  };
+  const refreshTelegramConnection = useCallback(async (): Promise<TelegramActionResult> => {
+    try {
+      const authorization = await getTelegramAuthorizationHeader();
+      const response = await fetch('/api/telegram/link', {
+        headers: { Authorization: authorization },
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        return { ok: false, message: result?.error || 'Gagal memeriksa koneksi Telegram.' };
+      }
 
-  const regenerateTelegramCode = () => {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setState((prev) => ({ ...prev, user: { ...prev.user, telegramLinkCode: code } }));
-    if (authUser && isSupabaseConfigured) {
-      void cermatSupabaseRepo.updateProfile({ telegramLinkCode: code }).catch(() => { });
+      const chatId = result.connected && result.chatId ? String(result.chatId) : null;
+      const code = result.code || '';
+      setState((prev) => {
+        if (prev.user.telegramChatId === chatId && prev.user.telegramLinkCode === code) return prev;
+        return {
+          ...prev,
+          user: { ...prev.user, telegramChatId: chatId, telegramLinkCode: code },
+        };
+      });
+
+      return {
+        ok: true,
+        message: result.connected ? 'Telegram sudah terhubung.' : 'Status koneksi Telegram diperbarui.',
+        connected: Boolean(result.connected),
+        chatId: result.chatId ? String(result.chatId) : null,
+        username: result.username || null,
+        code: result.code || undefined,
+        botUrl: result.botUrl || undefined,
+        expiresAt: result.expiresAt || undefined,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Gagal memeriksa koneksi Telegram.',
+      };
     }
-  };
+  }, []);
+
+  const unlinkTelegram = useCallback(async (): Promise<TelegramActionResult> => {
+    try {
+      const authorization = await getTelegramAuthorizationHeader();
+      const response = await fetch('/api/telegram/link', {
+        method: 'DELETE',
+        headers: { Authorization: authorization },
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        return { ok: false, message: result?.error || 'Gagal memutus koneksi Telegram.' };
+      }
+
+      setState((prev) => ({
+        ...prev,
+        user: { ...prev.user, telegramChatId: null, telegramLinkCode: '' },
+      }));
+      return { ok: true, message: 'Koneksi Telegram berhasil diputus.' };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Gagal memutus koneksi Telegram.',
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !authUser) return;
+    void refreshTelegramConnection().then((result) => {
+      if (!result.ok) console.error('Gagal menyinkronkan koneksi Telegram:', result.message);
+    });
+  }, [authUser?.id, hydrated, refreshTelegramConnection]);
+
+  useEffect(() => {
+    if (!hydrated || !authReady || authUser) return;
+    setState((prev) => {
+      if (!prev.user.telegramChatId && !prev.user.telegramLinkCode) return prev;
+      return {
+        ...prev,
+        user: { ...prev.user, telegramChatId: null, telegramLinkCode: '' },
+      };
+    });
+  }, [authReady, authUser, hydrated]);
 
   const sendTestTelegramReminder = async (): Promise<{ ok: boolean; message: string }> => {
     const chatId = state.user.telegramChatId;
@@ -1698,10 +1763,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ];
 
     try {
+      const authorization = await getTelegramAuthorizationHeader();
       const res = await fetch('/api/telegram/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, kind: 'test', title, message: msg, lines }),
+        headers: { 'Content-Type': 'application/json', Authorization: authorization },
+        body: JSON.stringify({ kind: 'test', title, message: msg, lines }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -1777,10 +1843,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      const authorization = await getTelegramAuthorizationHeader();
       const res = await fetch('/api/telegram/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, kind: 'scan', title, message, lines }),
+        headers: { 'Content-Type': 'application/json', Authorization: authorization },
+        body: JSON.stringify({ kind: 'scan', title, message, lines }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -1799,8 +1866,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .updateProfile({
           nama: patch.nama,
           peran: patch.peran,
-          telegramChatId: patch.telegramChatId,
-          telegramLinkCode: patch.telegramLinkCode,
           telegramReminderTime: patch.telegramReminderTime,
         })
         .catch(() => { });
@@ -2038,8 +2103,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateSensor,
         triggerManualPump,
         linkTelegram,
+        refreshTelegramConnection,
         unlinkTelegram,
-        regenerateTelegramCode,
         sendTestTelegramReminder,
         shareScanToTelegram,
         updateUserProfile,

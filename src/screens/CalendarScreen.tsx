@@ -8,10 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Copy,
   ExternalLink,
   Plus,
-  RefreshCw,
   Send,
   Sparkles,
   Unlink,
@@ -62,8 +60,8 @@ export const CalendarScreen: React.FC = () => {
     updateReminderSchedule,
     triggerTestReminderAlert,
     linkTelegram,
+    refreshTelegramConnection,
     unlinkTelegram,
-    regenerateTelegramCode,
     sendTestTelegramReminder,
     updateUserProfile,
   } = useApp();
@@ -80,15 +78,60 @@ export const CalendarScreen: React.FC = () => {
   const [plantId, setPlantId] = useState(state.plants[0]?.id || '');
   const [catatan, setCatatan] = useState('');
   const [addedNotice, setAddedNotice] = useState(false);
-  const [tgHandle, setTgHandle] = useState('');
-  const [copied, setCopied] = useState(false);
   const [tgBusy, setTgBusy] = useState(false);
   const [tgFeedback, setTgFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tgLink, setTgLink] = useState<{ code: string; expiresAt: string; botUrl: string } | null>(null);
   const [tgBotInfo, setTgBotInfo] = useState<{
     configured: boolean;
     username: string;
     botUrl: string;
-  }>({ configured: true, username: '', botUrl: '' });
+    error: string;
+  }>({ configured: false, username: '', botUrl: '', error: '' });
+
+  useEffect(() => {
+    if (reminderTab !== 'telegram') return;
+    let active = true;
+    const refresh = async () => {
+      const result = await refreshTelegramConnection();
+      if (!active) return;
+      if (!result.ok) {
+        setTgFeedback((current) =>
+          current?.ok === false && current.text === result.message
+            ? current
+            : { ok: false, text: result.message }
+        );
+        return;
+      }
+      if (result.connected) {
+        setTgLink(null);
+        setTgFeedback((current) =>
+          current?.ok && current.text === 'Akun Telegram berhasil terhubung.'
+            ? current
+            : { ok: true, text: 'Akun Telegram berhasil terhubung.' }
+        );
+        return;
+      }
+      setTgFeedback((current) => current?.ok === false ? null : current);
+      const nextLink =
+        result.code && result.expiresAt && result.botUrl
+          ? { code: result.code, expiresAt: result.expiresAt, botUrl: result.botUrl }
+          : null;
+      setTgLink((current) =>
+        current?.code === nextLink?.code &&
+        current?.expiresAt === nextLink?.expiresAt &&
+        current?.botUrl === nextLink?.botUrl
+          ? current
+          : nextLink
+      );
+    };
+
+    void refresh();
+    const intervalId = window.setInterval(refresh, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [reminderTab, refreshTelegramConnection]);
 
   useEffect(() => {
     if (reminderTab !== 'telegram') return;
@@ -97,9 +140,10 @@ export const CalendarScreen: React.FC = () => {
       .then((d) => {
         if (d) {
           setTgBotInfo({
-            configured: Boolean(d.configured),
+            configured: Boolean(d.configured && d.ok),
             username: d.username || '',
             botUrl: d.botUrl || '',
+            error: d.error || '',
           });
         }
       })
@@ -185,12 +229,6 @@ export const CalendarScreen: React.FC = () => {
     setCatatan('');
     setAddedNotice(true);
     window.setTimeout(() => setAddedNotice(false), 2000);
-  };
-
-  const handleCopyCode = () => {
-    navigator.clipboard?.writeText(`/link ${state.user.telegramLinkCode}`).catch(() => {});
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -641,108 +679,69 @@ export const CalendarScreen: React.FC = () => {
                 {!state.user.telegramChatId ? (
                   <>
                     <div className="card-forest" style={{ textAlign: 'center', padding: 18 }}>
-                      <div className="t-micro t-soft">Kode tautan 6 digit kamu</div>
-                      <div
-                        className="font-display tabular-nums"
-                        style={{
-                          fontSize: '2rem',
-                          letterSpacing: '0.18em',
-                          color: 'var(--leaf-700)',
-                          margin: '6px 0',
-                        }}
-                      >
-                        {state.user.telegramLinkCode}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        {tgBotInfo.botUrl && (
+                      {tgLink ? (
+                        <>
+                          <div className="t-micro t-soft">Kode tautan berlaku sampai {new Date(tgLink.expiresAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
+                          <div
+                            className="font-display tabular-nums"
+                            style={{
+                              fontSize: '2rem',
+                              letterSpacing: '0.18em',
+                              color: 'var(--leaf-700)',
+                              margin: '6px 0',
+                            }}
+                          >
+                            {tgLink.code}
+                          </div>
                           <a
-                            href={`${tgBotInfo.botUrl}?start=${state.user.telegramLinkCode}`}
+                            href={`${tgLink.botUrl}?start=${tgLink.code}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn-primary"
-                            style={{ minHeight: 36, padding: '5px 14px', fontSize: '0.82rem', textDecoration: 'none' }}
+                            style={{ minHeight: 40, padding: '7px 14px', fontSize: '0.82rem', textDecoration: 'none' }}
                           >
-                            1. Buka Bot {tgBotInfo.username ? `@${tgBotInfo.username}` : 'Telegram'}{' '}
+                            Buka Bot @{tgBotInfo.username || 'Telegram'}{' '}
                             <ExternalLink size={14} />
                           </a>
-                        )}
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.8rem' }}
-                          onClick={handleCopyCode}
-                        >
-                          <Copy size={14} /> {copied ? 'Tersalin!' : `Salin /link ${state.user.telegramLinkCode}`}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.8rem' }}
-                          onClick={regenerateTelegramCode}
-                        >
-                          <RefreshCw size={14} /> Kode baru
-                        </button>
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          {!tgBotInfo.configured && (
+                            <p className="t-small t-soft">
+                              {tgBotInfo.error || 'Bot Telegram belum dikonfigurasi oleh admin aplikasi.'}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            disabled={tgBusy || !tgBotInfo.configured}
+                            onClick={async () => {
+                              setTgBusy(true);
+                              setTgFeedback(null);
+                              const result = await linkTelegram();
+                              setTgBusy(false);
+                              setTgFeedback({ ok: result.ok, text: result.message });
+                              if (result.ok && result.code && result.expiresAt && result.botUrl) {
+                                setTgLink({
+                                  code: result.code,
+                                  expiresAt: result.expiresAt,
+                                  botUrl: result.botUrl,
+                                });
+                              }
+                            }}
+                          >
+                            <Sparkles size={16} />{' '}
+                            {tgBusy ? 'Membuat tautan...' : 'Buat kode tautan 6 digit'}
+                          </button>
+                        </>
+                      )}
                     </div>
 
-                    <ol className="t-small t-soft" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
-                      <li>
-                        Buka bot{' '}
-                        <strong style={{ color: 'var(--ink)' }}>
-                          {tgBotInfo.username ? `@${tgBotInfo.username}` : 'Telegram CermatTani'}
-                        </strong>{' '}
-                        lalu tekan <strong>Start</strong> (atau kirim{' '}
-                        <code>/link {state.user.telegramLinkCode}</code>).
-                      </li>
-                      <li>
-                        Klik tombol <strong>Deteksi &amp; Sambungkan Otomatis</strong> di bawah — Chat ID kamu langsung tertangkap otomatis.
-                      </li>
-                    </ol>
-
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      disabled={tgBusy}
-                      onClick={async () => {
-                        setTgBusy(true);
-                        setTgFeedback(null);
-                        const res = await linkTelegram();
-                        setTgBusy(false);
-                        setTgFeedback({ ok: res.ok, text: res.message });
-                      }}
-                    >
-                      <Sparkles size={16} />{' '}
-                      {tgBusy ? 'Mendeteksi pesan dari Telegram...' : '2. Deteksi & Sambungkan Otomatis'}
-                    </button>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span className="t-micro t-soft">Atau masukkan Chat ID numerik secara manual:</span>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <input
-                          id="tg-handle"
-                          className="field-input"
-                          style={{ flex: '1 1 160px', minHeight: 42 }}
-                          value={tgHandle}
-                          onChange={(e) => setTgHandle(e.target.value)}
-                          placeholder="Chat ID numerik (mis. 123456789)"
-                          aria-label="Chat ID Telegram"
-                        />
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={tgBusy || !tgHandle.trim()}
-                          onClick={async () => {
-                            setTgBusy(true);
-                            setTgFeedback(null);
-                            const res = await linkTelegram(tgHandle);
-                            setTgBusy(false);
-                            setTgFeedback({ ok: res.ok, text: res.message });
-                          }}
-                        >
-                          <Send size={15} /> Tautkan Manual
-                        </button>
-                      </div>
-                    </div>
+                    {tgLink && (
+                      <p className="t-small t-soft">
+                        Tekan <strong>Start</strong> di Telegram. Koneksi akan terdeteksi otomatis di sini, dan kode hanya berlaku 10 menit.
+                      </p>
+                    )}
 
                     {tgFeedback && (
                       <div className={`alert-card ${tgFeedback.ok ? 'alert-card--ok' : 'alert-card--warn'}`} role="status">
@@ -793,9 +792,12 @@ export const CalendarScreen: React.FC = () => {
                       <button
                         type="button"
                         className="btn-ghost"
-                        onClick={() => {
-                          unlinkTelegram();
-                          setTgFeedback(null);
+                        disabled={tgBusy}
+                        onClick={async () => {
+                          setTgBusy(true);
+                          const result = await unlinkTelegram();
+                          setTgBusy(false);
+                          setTgFeedback({ ok: result.ok, text: result.message });
                         }}
                       >
                         <Unlink size={15} /> Putuskan

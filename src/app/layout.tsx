@@ -4,9 +4,9 @@ import '@/styles/global.css';
 import { ClientRoot } from '@/components/ClientRoot';
 
 export const metadata: Metadata = {
-  title: 'CermatTani — Asisten Cermat Budidaya Tomat',
+  title: 'CermatTani — Asisten Cermat Budidaya Tanaman',
   description:
-    'Aplikasi web (PWA) yang membantu petani dan pelaku urban farming menilai kematangan buah, mengenali penyakit, dan menduga kebutuhan pupuk tomat dari foto serta sensor IoT surya.',
+    'Aplikasi web (PWA) yang membantu petani dan pelaku urban farming menilai kematangan panen, mengenali penyakit daun & buah, serta menduga kebutuhan pupuk beragam tanaman dari foto dan sensor IoT surya.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/mascot/pak-cermat/03_petani_mengamati_tomat.png',

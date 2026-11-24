@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ArrowRight, Camera, Check, Leaf, Sprout } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { PakCermatMascot } from '../components/PakCermatMascot';
+import { PlantSearchInput } from '../components/PlantSearchInput';
 
 /* Layar Onboarding — Karakter Pendamping Pak Cermat sesuai DESIGN.md v2.0 §8.2 & §8.3 */
 export const OnboardingScreen: React.FC = () => {
@@ -12,8 +13,8 @@ export const OnboardingScreen: React.FC = () => {
   const [userName, setUserName] = useState(state.user.nama || 'Pak Joko');
   const [farmName, setFarmName] = useState('');
   const [farmLocation, setFarmLocation] = useState('');
-  const [plantName, setPlantName] = useState('Tomat Servo #01');
-  const [varietas, setVarietas] = useState('Servo F1');
+  const [plantName, setPlantName] = useState('Cabai Rawit #01');
+  const [varietas, setVarietas] = useState('Cabai Rawit');
   const [tanggalTanam, setTanggalTanam] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 45);
@@ -26,7 +27,7 @@ export const OnboardingScreen: React.FC = () => {
       farmName: farmName.trim() || undefined,
       farmLocation: farmLocation.trim() || undefined,
       plantName: farmName.trim() ? plantName : undefined,
-      varietas,
+      varietas: varietas.trim() || 'Tanaman Kebun',
       tanggalTanam,
       goToScan,
     });
@@ -130,8 +131,9 @@ export const OnboardingScreen: React.FC = () => {
                   Kelola kebunmu lebih cermat hari ini.
                 </h1>
                 <p className="t-body t-soft">
-                  Pantau kematangan tomat, cabai, dan sayuran, kenali gejala penyakit daun dengan
-                  langkah organik lebih dulu, serta pantau kelembapan tanah dan surya.
+                  Pantau kematangan dan pertumbuhan beragam tanaman (cabai, tomat, sayuran daun, pangan,
+                  hingga buah kebun), kenali gejala penyakit dengan langkah organik lebih dulu, serta pantau
+                  kelembapan tanah dan surya.
                 </p>
               </div>
 
@@ -196,7 +198,7 @@ export const OnboardingScreen: React.FC = () => {
                   className="field-input"
                   value={farmName}
                   onChange={(e) => setFarmName(e.target.value)}
-                  placeholder="Contoh: Kebun Tomat Blok B atau Polybag Teras"
+                  placeholder="Contoh: Kebun Sayur Blok B atau Polybag Teras"
                 />
               </div>
 
@@ -246,30 +248,25 @@ export const OnboardingScreen: React.FC = () => {
                     className="field-input"
                     value={plantName}
                     onChange={(e) => setPlantName(e.target.value)}
-                    placeholder="Contoh: Tomat Servo #01"
+                    placeholder="Contoh: Cabai Rawit #01 atau Selada #01"
                   />
                 </div>
 
                 <div className="field-group">
                   <label htmlFor="ob-var" className="field-label">
-                    Jenis / varietas tanaman
+                    Jenis / varietas tanaman (bisa semua tanaman)
                   </label>
-                  <select
+                  <PlantSearchInput
                     id="ob-var"
-                    className="field-select"
                     value={varietas}
-                    onChange={(e) => setVarietas(e.target.value)}
-                  >
-                    <option value="Servo F1">Servo F1 (dataran rendah–menengah)</option>
-                    <option value="Gustavi">Gustavi (buah besar)</option>
-                    <option value="Tomat Ceri">Tomat Ceri (polybag/urban)</option>
-                    <option value="Rampai">Tomat Rampai</option>
-                    <option value="Lokal">Varietas Lokal</option>
-                    <option value="Cabai Rawit">Cabai Rawit</option>
-                    <option value="Cabai Besar">Cabai Besar</option>
-                    <option value="Selada Keriting">Selada Keriting</option>
-                    <option value="Bayam Hijau">Bayam Hijau</option>
-                  </select>
+                    onChange={(next) => {
+                      setVarietas(next);
+                      if (next.trim() && (!plantName.trim() || plantName.endsWith('#01'))) {
+                        setPlantName(`${next.trim()} #01`);
+                      }
+                    }}
+                    placeholder="Cari atau ketik bebas (Cabai, Bawang, Padi, Durian, Anggrek...)"
+                  />
                 </div>
               </div>
 

@@ -20,6 +20,7 @@ import { CermoMascot } from '../components/CermoMascot';
 import { PakCermatMascot } from '../components/PakCermatMascot';
 import { GreenAreaChart } from '../components/Charts';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
+import { PlantSearchInput } from '../components/PlantSearchInput';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { GrowthPhase, ScanRecord } from '../types/cermattani';
 
@@ -78,7 +79,7 @@ export const PlantsScreen: React.FC = () => {
 
   // Form tambah tanaman
   const [nama, setNama] = useState('');
-  const [varietas, setVarietas] = useState('Servo F1');
+  const [varietas, setVarietas] = useState('Cabai Rawit');
   const [tanggalTanam, setTanggalTanam] = useState(new Date().toISOString().slice(0, 10));
   const [fase, setFase] = useState<GrowthPhase>('Vegetatif');
 
@@ -200,7 +201,7 @@ export const PlantsScreen: React.FC = () => {
     const created = addPlant({
       farmId: activeFarm.id,
       nama,
-      varietas,
+      varietas: varietas.trim() || 'Tanaman Kebun',
       tanggalTanam,
       fase,
     });
@@ -714,18 +715,20 @@ export const PlantsScreen: React.FC = () => {
             />
             <div style={{ display: 'grid', gap: 10 }}>
               <div className="card-subtle">
-                <div className="t-micro t-soft">Waktu &amp; bagian</div>
+                <div className="t-micro t-soft">Waktu pemeriksaan</div>
                 <div style={{ fontWeight: 700 }}>
-                  {formatDateShort(openedScan.waktu)} · Bagian {openedScan.bagian}
+                  {formatDateShort(openedScan.waktu)}
                 </div>
               </div>
-              <div className="card-subtle">
-                <div className="t-micro t-soft">Hasil kesehatan &amp; keyakinan</div>
-                <div style={{ fontWeight: 700 }}>
-                  {openedScan.penyakitUtamaNama} (Keyakinan AI: {openedScan.keyakinan}%)
+              {openedScan.fokusOutput !== 'kematangan' && openedScan.fokusOutput !== 'hara' && (
+                <div className="card-subtle">
+                  <div className="t-micro t-soft">Hasil pemeriksaan &amp; keyakinan</div>
+                  <div style={{ fontWeight: 700 }}>
+                    {openedScan.penyakitUtamaNama} (Keyakinan: {openedScan.keyakinan}%)
+                  </div>
                 </div>
-              </div>
-              {openedScan.tahapDominan && (
+              )}
+              {openedScan.tahapDominan && openedScan.fokusOutput !== 'penyakit' && (
                 <div className="card-subtle">
                   <div className="t-micro t-soft">Kematangan &amp; estimasi kasar</div>
                   <div style={{ fontWeight: 700 }}>
@@ -734,12 +737,14 @@ export const PlantsScreen: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div className="card-subtle">
-                <div className="t-micro t-soft">Dugaan hara</div>
-                <div style={{ fontWeight: 700 }}>
-                  {openedScan.dugaanHaraNama} ({openedScan.pakaiDataSensor ? 'Dengan data sensor' : 'Dugaan visual'})
+              {(openedScan.adaGejalaHara || openedScan.fokusOutput === 'hara') && (
+                <div className="card-subtle">
+                  <div className="t-micro t-soft">Dugaan hara</div>
+                  <div style={{ fontWeight: 700 }}>
+                    {openedScan.dugaanHaraNama} ({openedScan.pakaiDataSensor ? 'Dengan data sensor' : 'Dugaan visual'})
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -783,24 +788,14 @@ export const PlantsScreen: React.FC = () => {
 
               <div className="field-group">
                 <label htmlFor="add-plant-var" className="field-label">
-                  Jenis / varietas
+                  Jenis / varietas (bisa semua tanaman)
                 </label>
-                <select
+                <PlantSearchInput
                   id="add-plant-var"
-                  className="field-select"
                   value={varietas}
-                  onChange={(e) => setVarietas(e.target.value)}
-                >
-                  <option value="Servo F1">Servo F1</option>
-                  <option value="Gustavi">Gustavi</option>
-                  <option value="Tomat Ceri">Tomat Ceri</option>
-                  <option value="Rampai">Tomat Rampai</option>
-                  <option value="Lokal">Lokal</option>
-                  <option value="Cabai Rawit">Cabai Rawit</option>
-                  <option value="Cabai Besar">Cabai Besar</option>
-                  <option value="Selada Keriting">Selada Keriting</option>
-                  <option value="Bayam Hijau">Bayam Hijau</option>
-                </select>
+                  onChange={setVarietas}
+                  required
+                />
               </div>
 
               <div className="form-grid-2">

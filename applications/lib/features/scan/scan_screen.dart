@@ -9,9 +9,10 @@ import '../../core/widgets/app_scaffold.dart';
 import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
+import '../../data/services/gemini_service.dart';
 import 'scan_results.dart';
 
-/// Layar 3 & 4: Scan (pilih bagian -> Buka kamera / Unggah foto -> proses -> hasil 3 tab)
+/// Layar 3 & 4: Scan Nyata 100% Gemini Vision AI + Dataset Agronomi v2.0 (Tanpa Data Dummy)
 class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
 
@@ -24,257 +25,106 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   String? _selectedPlantId;
   bool _scanning = false;
   Uint8List? _capturedPhotoBytes;
+  String _capturedMime = 'image/jpeg';
   ScanModel? _result;
+  String? _errorMsg;
   bool _saved = false;
 
-  Future<void> _pickPhoto(ImageSource source) async {
+  String _guessMime(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  Future<void> _pickAndAnalyze(ImageSource source) async {
     final picker = ImagePicker();
     try {
       final file = await picker.pickImage(
         source: source,
-        maxWidth: 960,
-        imageQuality: 80,
+        maxWidth: 1080,
+        imageQuality: 82,
         preferredCameraDevice: CameraDevice.rear,
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
-      setState(() => _capturedPhotoBytes = bytes);
-      await _runScenario(
-        _part == PlantPart.buah
-            ? 'buah_campur'
-            : _part == PlantPart.daun
-                ? 'daun_bercak'
-                : 'batang_layu',
-        keepPhotoBytes: true,
-      );
+      final mime = _guessMime(file.name);
+      setState(() {
+        _capturedPhotoBytes = bytes;
+        _capturedMime = mime;
+        _errorMsg = null;
+      });
+      await _analyzeCurrentPhoto();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            source == ImageSource.camera
-                ? 'Kamera tidak dapat dibuka. Pastikan izin kamera aktif atau gunakan tombol "Unggah foto".'
-                : 'Gagal membaca file gambar dari galeri. Coba pilih foto JPG/PNG lain.',
-          ),
-        ),
-      );
+      setState(() {
+        _errorMsg = source == ImageSource.camera
+            ? 'Kamera tidak dapat dibuka. Pastikan izin kamera aktif atau gunakan tombol "Unggah foto".'
+            : 'Gagal membaca file gambar dari galeri. Pilih foto JPG/PNG/WebP yang jelas.';
+      });
     }
   }
 
-  Future<void> _runScenario(String scenarioId, {bool keepPhotoBytes = false}) async {
+  Future<void> _analyzeCurrentPhoto() async {
+    final bytes = _capturedPhotoBytes;
+    if (bytes == null) return;
     final state = ref.read(cermatProvider);
     final plant = state.plants.where((p) => p.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
-    if (plant == null) return;
+    if (plant == null) {
+      setState(() => _errorMsg = 'Belum ada tanaman terdaftar. Tambahkan tanaman dulu di menu Tanaman.');
+      return;
+    }
 
     setState(() {
       _scanning = true;
       _result = null;
       _saved = false;
-      if (!keepPhotoBytes) _capturedPhotoBytes = null;
+      _errorMsg = null;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
-
-    final prevFruitScans = state.scans.where((s) => s.plantId == plant.id && s.bagian == PlantPart.buah).length;
-    final now = DateTime.now();
-    late final ScanModel built;
-
-    if (scenarioId == 'buah_siap') {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.buah,
-        boxes: const [
-          DetectionBoxModel(leftFrac: 0.12, topFrac: 0.25, widthFrac: 0.22, heightFrac: 0.30, stage: RipenessStage.matang, confidence: 95),
-          DetectionBoxModel(leftFrac: 0.40, topFrac: 0.38, widthFrac: 0.22, heightFrac: 0.30, stage: RipenessStage.matang, confidence: 93),
-          DetectionBoxModel(leftFrac: 0.67, topFrac: 0.24, widthFrac: 0.21, heightFrac: 0.29, stage: RipenessStage.matang, confidence: 91),
-        ],
-        tahapDominan: RipenessStage.matang,
-        jumlahBuah: 3,
-        anjuranPanen: 'Panen sekarang',
-        estimasiHariMin: 0,
-        estimasiHariMax: 1,
-        estimasiDisesuaikanRiwayat: prevFruitScans >= 2,
-        estimasiBobotGram: 3 * plant.bobotRataBuahGram,
-        penyakitTop3: const [
-          DiseasePred('sehat', 'Sehat', 94),
-          DiseasePred('bercak_kering', 'Bercak daun kering (Early blight)', 4),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 2),
-        ],
-        penyakitUtamaId: 'sehat',
-        penyakitUtamaNama: 'Sehat',
-        keyakinan: 93,
-        keyakinanRendah: 93 < state.ambangKeyakinanRendah,
-        dugaanHaraId: 'cukup',
-        dugaanHaraNama: 'Hara terlihat seimbang',
-        pakaiDataSensor: state.sensorTersedia,
+    try {
+      final prevFruitScans =
+          state.scans.where((s) => s.plantId == plant.id && s.bagian == PlantPart.buah).length;
+      final out = await GeminiService.analyzePlantPhoto(
+        imageBytes: bytes,
+        mimeType: _capturedMime,
+        plant: plant,
+        part: _part,
+        sensorAvailable: state.sensorTersedia,
+        lowConfidenceThreshold: state.ambangKeyakinanRendah,
+        prevFruitScans: prevFruitScans,
       );
-    } else if (scenarioId == 'daun_bercak') {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.daun,
-        boxes: const [],
-        tahapDominan: null,
-        jumlahBuah: 0,
-        anjuranPanen: 'Fokus daun/batang',
-        estimasiHariMin: null,
-        estimasiHariMax: null,
-        estimasiDisesuaikanRiwayat: false,
-        estimasiBobotGram: 0,
-        penyakitTop3: const [
-          DiseasePred('bercak_kering', 'Bercak daun kering (Early blight)', 86),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 9),
-          DiseasePred('sehat', 'Sehat', 5),
-        ],
-        penyakitUtamaId: 'bercak_kering',
-        penyakitUtamaNama: 'Bercak daun kering (Early blight)',
-        keyakinan: 86,
-        keyakinanRendah: 86 < state.ambangKeyakinanRendah,
-        dugaanHaraId: 'kurang_kalium',
-        dugaanHaraNama: 'Dugaan kekurangan Kalium (K)',
-        pakaiDataSensor: state.sensorTersedia,
-      );
-    } else if (scenarioId == 'daun_ragu') {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.daun,
-        boxes: const [],
-        tahapDominan: null,
-        jumlahBuah: 0,
-        anjuranPanen: 'Fokus daun/batang',
-        estimasiHariMin: null,
-        estimasiHariMax: null,
-        estimasiDisesuaikanRiwayat: false,
-        estimasiBobotGram: 0,
-        penyakitTop3: const [
-          DiseasePred('bercak_kering', 'Bercak daun kering (Early blight)', 54),
-          DiseasePred('sehat', 'Sehat', 31),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 15),
-        ],
-        penyakitUtamaId: 'bercak_kering',
-        penyakitUtamaNama: 'Bercak daun kering (Early blight)',
-        keyakinan: 54,
-        keyakinanRendah: 54 < state.ambangKeyakinanRendah,
-        dugaanHaraId: 'kurang_nitrogen',
-        dugaanHaraNama: 'Dugaan kekurangan Nitrogen (N)',
-        pakaiDataSensor: state.sensorTersedia,
-      );
-    } else if (scenarioId == 'foto_kosong') {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.buah,
-        boxes: const [],
-        tahapDominan: null,
-        jumlahBuah: 0,
-        anjuranPanen: 'Perlu foto ulang',
-        estimasiHariMin: null,
-        estimasiHariMax: null,
-        estimasiDisesuaikanRiwayat: false,
-        estimasiBobotGram: 0,
-        penyakitTop3: const [
-          DiseasePred('sehat', 'Sehat', 42),
-          DiseasePred('bercak_kering', 'Bercak daun kering (Early blight)', 33),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 25),
-        ],
-        penyakitUtamaId: 'sehat',
-        penyakitUtamaNama: 'Sehat',
-        keyakinan: 42,
-        keyakinanRendah: true,
-        dugaanHaraId: 'cukup',
-        dugaanHaraNama: 'Hara terlihat seimbang',
-        pakaiDataSensor: state.sensorTersedia,
-        tanpaBuahTerdeteksi: true,
-      );
-    } else if (scenarioId == 'batang_layu') {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.batang,
-        boxes: const [],
-        tahapDominan: null,
-        jumlahBuah: 0,
-        anjuranPanen: 'Fokus daun/batang',
-        estimasiHariMin: null,
-        estimasiHariMax: null,
-        estimasiDisesuaikanRiwayat: false,
-        estimasiBobotGram: 0,
-        penyakitTop3: const [
-          DiseasePred('layu_batang', 'Layu fusarium / bakteri batang', 79),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 13),
-          DiseasePred('sehat', 'Sehat', 8),
-        ],
-        penyakitUtamaId: 'layu_batang',
-        penyakitUtamaNama: 'Layu fusarium / bakteri batang',
-        keyakinan: 79,
-        keyakinanRendah: 79 < state.ambangKeyakinanRendah,
-        dugaanHaraId: 'cukup',
-        dugaanHaraNama: 'Hara terlihat seimbang',
-        pakaiDataSensor: state.sensorTersedia,
-      );
-    } else {
-      built = ScanModel(
-        id: 'scan-${now.millisecondsSinceEpoch}',
-        plantId: plant.id,
-        waktu: now,
-        bagian: PlantPart.buah,
-        boxes: const [
-          DetectionBoxModel(leftFrac: 0.12, topFrac: 0.30, widthFrac: 0.23, heightFrac: 0.32, stage: RipenessStage.matang, confidence: 92),
-          DetectionBoxModel(leftFrac: 0.39, topFrac: 0.28, widthFrac: 0.22, heightFrac: 0.30, stage: RipenessStage.setengahMatang, confidence: 88),
-          DetectionBoxModel(leftFrac: 0.66, topFrac: 0.34, widthFrac: 0.22, heightFrac: 0.29, stage: RipenessStage.mentah, confidence: 90),
-        ],
-        tahapDominan: RipenessStage.setengahMatang,
-        jumlahBuah: 3,
-        anjuranPanen: 'Tunggu',
-        estimasiHariMin: prevFruitScans >= 2 ? 1 : 2,
-        estimasiHariMax: prevFruitScans >= 2 ? 3 : 4,
-        estimasiDisesuaikanRiwayat: prevFruitScans >= 2,
-        estimasiBobotGram: 3 * plant.bobotRataBuahGram,
-        penyakitTop3: const [
-          DiseasePred('sehat', 'Sehat', 91),
-          DiseasePred('bercak_kering', 'Bercak daun kering (Early blight)', 6),
-          DiseasePred('busuk_daun', 'Busuk daun (Late blight)', 3),
-        ],
-        penyakitUtamaId: 'sehat',
-        penyakitUtamaNama: 'Sehat',
-        keyakinan: 90,
-        keyakinanRendah: 90 < state.ambangKeyakinanRendah,
-        dugaanHaraId: 'cukup',
-        dugaanHaraNama: 'Hara terlihat seimbang',
-        pakaiDataSensor: state.sensorTersedia,
-      );
+      if (!mounted) return;
+      setState(() {
+        _scanning = false;
+        _result = out.scan;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _scanning = false;
+        _errorMsg = e.toString();
+      });
     }
-
-    setState(() {
-      _scanning = false;
-      _result = built;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.ct;
     final state = ref.watch(cermatProvider);
-    final plant = state.plants.where((pl) => pl.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
+    final plant =
+        state.plants.where((pl) => pl.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
 
     return AppScaffold(
       location: '/scan',
-      title: 'Scan tanaman',
+      title: 'Scan tanaman AI',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
           if (_scanning)
             CermatCard(
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 20),
               child: Column(
                 children: [
                   if (_capturedPhotoBytes != null) ...[
@@ -282,21 +132,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                       borderRadius: BorderRadius.circular(18),
                       child: Image.memory(
                         _capturedPhotoBytes!,
-                        height: 190,
+                        height: 200,
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(height: 16),
                   ],
-                  const CermoMascot(pose: CermoPose.scan, size: 100, interactive: false),
-                  const SizedBox(height: 14),
-                  Text('Cermo sedang memindai...', style: context.displayStyle(size: 22)),
-                  const SizedBox(height: 8),
+                  const CermoMascot(pose: CermoPose.scan, size: 102, interactive: false),
+                  const SizedBox(height: 12),
+                  Text('Gemini AI sedang memindai...', style: context.displayStyle(size: 21)),
+                  const SizedBox(height: 6),
                   Text(
-                    'Memeriksa warna buah, bercak daun, serta gejala kekurangan hara.',
+                    'Menganalisis kematangan buah, bercak penyakit, dan dugaan hara berdasarkan Dataset Agronomi CermatTani v2.0.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: p.inkSoft),
+                    style: TextStyle(fontSize: 13.5, color: p.inkSoft),
                   ),
                   const SizedBox(height: 16),
                   LinearProgressIndicator(
@@ -327,21 +177,46 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               onScanAgain: () => setState(() {
                 _result = null;
                 _capturedPhotoBytes = null;
+                _errorMsg = null;
               }),
             )
           else ...[
+            if (_errorMsg != null) ...[
+              StatusAlertCard(
+                accent: AppColors.bad,
+                icon: Icons.error_outline_rounded,
+                title: 'Analisis AI belum berhasil',
+                body: _errorMsg!,
+                action: _capturedPhotoBytes != null
+                    ? SecondaryOutlineButton(
+                        label: 'Coba analisis ulang',
+                        icon: Icons.refresh_rounded,
+                        onPressed: _analyzeCurrentPhoto,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+            ],
+
             CermatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const CermoMascot(pose: CermoPose.wave, size: 70),
+                      const CermoMascot(pose: CermoPose.scan, size: 78),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          'Pilih tanaman & bagian yang mau dipindai, lalu buka kamera atau unggah foto.',
-                          style: TextStyle(fontSize: 14.5, color: p.inkSoft, height: 1.45),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CermatPill.ok('Gemini Vision AI · Nyata'),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Pilih tanaman & bagian yang dipindai, lalu ambil foto asli dari kamera atau galeri.',
+                              style: TextStyle(fontSize: 13.8, color: p.inkSoft, height: 1.45),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -370,7 +245,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         child: _PartTile(
                           label: 'Buah',
                           icon: Icons.auto_awesome_rounded,
-                          color: AppColors.tomato500,
+                          color: AppColors.tomatoBtn,
                           selected: _part == PlantPart.buah,
                           onTap: () => setState(() => _part = PlantPart.buah),
                         ),
@@ -380,7 +255,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         child: _PartTile(
                           label: 'Daun',
                           icon: Icons.eco_rounded,
-                          color: AppColors.leaf500,
+                          color: p.leaf600,
                           selected: _part == PlantPart.daun,
                           onTap: () => setState(() => _part = PlantPart.daun),
                         ),
@@ -390,7 +265,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         child: _PartTile(
                           label: 'Batang',
                           icon: Icons.park_outlined,
-                          color: AppColors.forest900,
+                          color: p.leaf700,
                           selected: _part == PlantPart.batang,
                           onTap: () => setState(() => _part = PlantPart.batang),
                         ),
@@ -398,7 +273,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const Text('2. Buka kamera atau unggah foto (≤ 10 MB)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text('2. Ambil foto langsung atau pilih dari galeri', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -407,15 +282,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                           label: 'Buka kamera',
                           icon: Icons.camera_alt_rounded,
                           tomato: true,
-                          onPressed: () => _pickPhoto(ImageSource.camera),
+                          onPressed: () => _pickAndAnalyze(ImageSource.camera),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Primary3DButton(
                           label: 'Unggah foto',
-                          icon: Icons.upload_rounded,
-                          onPressed: () => _pickPhoto(ImageSource.gallery),
+                          icon: Icons.photo_library_outlined,
+                          onPressed: () => _pickAndAnalyze(ImageSource.gallery),
                         ),
                       ),
                     ],
@@ -423,25 +298,47 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            CermatCard(
+            // Panduan foto nyata agar hasil AI maksimal
+            CermatAccentCard(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Coba cepat foto contoh', style: context.displayStyle(size: 18)),
-                  const SizedBox(height: 6),
-                  Text('Uji semua ketentuan PRD langsung tanpa perlu memotret:', style: TextStyle(fontSize: 13.5, color: p.inkSoft)),
-                  const SizedBox(height: 12),
-                  _PresetRow('Buah campur (3 tahap)', 'Uji F1 kotak deteksi & F6 estimasi kasar', () => _runScenario('buah_campur')),
-                  _PresetRow('Buah matang siap panen', 'Memicu anjuran "Panen sekarang"', () => _runScenario('buah_siap')),
-                  _PresetRow('Daun bercak kering (Early blight)', 'Uji F2 organik dulu + "Baca label produk"', () => _runScenario('daun_bercak')),
-                  _PresetRow('Daun kuning (keyakinan 54%)', 'Uji F2.4 peringatan kuning < 60% & F3 pupuk', () => _runScenario('daun_ragu')),
-                  _PresetRow('Foto gelap / tanpa buah', 'Uji F1.5 saran cara memotret ulang', () => _runScenario('foto_kosong')),
+                  Text('Panduan foto agar hasil AI makin akurat', style: context.cardTitleStyle(size: 15.5)),
+                  const SizedBox(height: 8),
+                  const _TipLine(icon: Icons.wb_sunny_outlined, text: 'Ambil foto di cahaya alami terang (hindari siluet gelap).'),
+                  const _TipLine(icon: Icons.center_focus_strong_outlined, text: 'Arahkan kamera 20–40 cm dari buah, daun, atau pangkal batang.'),
+                  const _TipLine(icon: Icons.verified_outlined, text: 'Semua hasil diproses langsung oleh Gemini AI tanpa foto contoh palsu.'),
                 ],
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TipLine extends StatelessWidget {
+  const _TipLine({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.ct;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 17, color: p.leaf700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 13.2, color: p.inkSoft, height: 1.4)),
+          ),
         ],
       ),
     );
@@ -467,58 +364,22 @@ class _PartTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.ct;
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? color.withAlpha(32) : p.surface2,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: selected ? color : p.line, width: selected ? 2.5 : 1),
+          color: selected ? color.withAlpha(30) : p.surface2,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? color : p.line, width: selected ? 2.2 : 1),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 30, color: color),
+            Icon(icon, size: 28, color: color),
             const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.ink)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PresetRow extends StatelessWidget {
-  const _PresetRow(this.title, this.sub, this.onTap);
-  final String title;
-  final String sub;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.ct;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: p.surface2, borderRadius: BorderRadius.circular(14)),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                    Text(sub, style: TextStyle(fontSize: 12.5, color: p.inkSoft)),
-                  ],
-                ),
-              ),
-              Icon(Icons.play_circle_outline_rounded, color: p.leaf600),
-            ],
-          ),
         ),
       ),
     );

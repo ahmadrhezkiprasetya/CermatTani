@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
@@ -8,532 +9,381 @@ import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 2: Beranda Mobile sesuai DESIGN (3).md §6 & PRD §10
+/// Layar 2: Beranda CermatTani — Ringan, Cerah Hijau Susu × Krim Hangat, Responsif HP & Tablet
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
-
-  String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 11) return 'Selamat pagi';
-    if (h < 15) return 'Selamat siang';
-    if (h < 18) return 'Selamat sore';
-    return 'Selamat malam';
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.ct;
     final state = ref.watch(cermatProvider);
-    final plants = state.activePlants;
-    final farmTasks = state.tasks.where((t) => t.farmId == state.activeFarm.id).toList();
-    final unread = state.notifications.where((n) => !n.dibaca).length;
-
-    final readyFruits = state.scans
-        .where((s) => plants.any((pl) => pl.id == s.plantId) && s.anjuranPanen == 'Panen sekarang')
-        .fold<int>(0, (sum, s) => sum + s.jumlahBuah);
-    final attentionCount = state.scans
-        .where((s) => plants.any((pl) => pl.id == s.plantId) && (s.penyakitUtamaId != 'sehat' || s.keyakinanRendah))
-        .map((s) => s.plantId)
-        .toSet()
-        .length;
-    final healthyPct = plants.isEmpty ? 100 : (((plants.length - attentionCount) / plants.length) * 100).round().clamp(40, 100);
-
-    final phases = const ['Bibit', 'Vegetatif', 'Berbunga', 'Berbuah', 'Panen'];
-    final phaseColors = const [AppColors.mentah, AppColors.leaf500, AppColors.sun400, AppColors.tomato500, AppColors.tomatoBtn];
+    final notifier = ref.read(cermatProvider.notifier);
+    final farm = state.activeFarm;
+    final activePlants = state.activePlants;
+    final farmTasks = state.tasks.where((t) => t.farmId == farm.id).toList();
+    final upcomingHarvests = state.harvestEvents
+        .where((h) => h.sumber == 'estimasi')
+        .toList()
+      ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    final liveAlerts = state.liveSensorAlerts;
+    final activeRemCount = state.jadwalPengingat.where((r) => r.aktif).length;
 
     return AppScaffold(
       location: '/',
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        children: [
-          // Header sapaan + pemilih kebun + notifikasi + tema
-          Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 600;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
             children: [
-              Expanded(
+              // Header ringkas: Kebun aktif + Bell badge + Pengaturan
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _openFarmPicker(context, ref),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: p.surfaceMilk,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.eco_rounded, color: p.leaf700, size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          farm.nama,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: context.cardTitleStyle(size: 15.5),
+                                        ),
+                                      ),
+                                      Icon(Icons.keyboard_arrow_down_rounded, size: 19, color: p.inkSoft),
+                                    ],
+                                  ),
+                                  Text(
+                                    '${farm.lokasi} · ${activePlants.length} petak',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: p.inkSoft),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Notifikasi & jadwal pengingat',
+                    onPressed: () => context.go('/notifications'),
+                    icon: Badge(
+                      isLabelVisible: state.totalUnreadBadge > 0,
+                      label: Text(state.totalUnreadBadge > 9 ? '9+' : '${state.totalUnreadBadge}'),
+                      backgroundColor: AppColors.tomatoBtn,
+                      child: Icon(Icons.notifications_none_rounded, color: p.ink),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Pengaturan',
+                    onPressed: () => context.go('/settings'),
+                    icon: Icon(Icons.settings_outlined, color: p.ink),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Hero Kartu Aksen Hijau Susu × Krim Hangat dengan Pak Cermat Transparan (Tanpa Frame!)
+              CermatAccentCard(
+                padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${_greeting()}, ${state.userName}', style: context.displayStyle(size: 23)),
-                    const SizedBox(height: 2),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(99),
-                      onTap: () => _showFarmSheet(context, ref),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.location_on_outlined, size: 15, color: p.leaf600),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              state.activeFarm.nama,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: p.inkSoft),
-                            ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  CermatPill.ok('${activePlants.length} tanaman aktif'),
+                                  CermatPill.water('$activeRemCount pengingat aktif'),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Halo, ${state.userName}!', style: context.displayStyle(size: 24)),
+                              const SizedBox(height: 4),
+                              Text(
+                                liveAlerts.isNotEmpty
+                                    ? 'Ada ${liveAlerts.length} kondisi lahan yang perlu dicek sekarang.'
+                                    : state.scans.isEmpty
+                                        ? 'Siap pindai foto buah atau daun dengan Gemini AI hari ini?'
+                                        : 'Terakhir scan: ${state.scans.first.penyakitUtamaNama} (${state.scans.first.keyakinan}%).',
+                                style: TextStyle(fontSize: 13.5, color: p.inkSoft, height: 1.42),
+                              ),
+                            ],
                           ),
-                          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.inkSoft),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        CermoMascot(
+                          pose: liveAlerts.isNotEmpty ? CermoPose.worried : CermoPose.happy,
+                          size: isWide ? 104 : 88,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Ganti tema',
-                onPressed: () {
-                  final next = p.isDark ? ThemeMode.light : ThemeMode.dark;
-                  ref.read(cermatProvider.notifier).setThemeMode(next);
-                },
-                icon: Icon(p.isDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined),
-              ),
-              IconButton(
-                tooltip: 'Notifikasi',
-                onPressed: () => context.go('/notifications'),
-                icon: Badge(
-                  isLabelVisible: unread > 0,
-                  backgroundColor: AppColors.tomatoBtn,
-                  child: const Icon(Icons.notifications_none_rounded),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Pengaturan',
-                onPressed: () => context.go('/settings'),
-                icon: const Icon(Icons.settings_outlined),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Baris Status Cepat Agrova + Pintasan fitur sekunder (DESIGN.md v1.1 §4.2)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                CermatPill(
-                  label: 'Scan Selesai: ${state.scans.length}',
-                  background: p.leaf600,
-                  foreground: p.onLeaf,
-                  icon: Icons.check_circle_outline_rounded,
-                ),
-                const SizedBox(width: 8),
-                _QuickChip(
-                  icon: Icons.warning_amber_rounded,
-                  label: 'Perlu Perhatian: $attentionCount',
-                  onTap: () => context.go('/plants'),
-                ),
-                const SizedBox(width: 8),
-                _QuickChip(icon: Icons.calendar_month_rounded, label: 'Kalender panen', onTap: () => context.go('/calendar')),
-                const SizedBox(width: 8),
-                _QuickChip(icon: Icons.wb_sunny_outlined, label: 'Energi surya', onTap: () => context.go('/solar')),
-                const SizedBox(width: 8),
-                _QuickChip(icon: Icons.settings_outlined, label: 'Pengaturan', onTap: () => context.go('/settings')),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Hero Scan (Maskot Cermo + tombol Scan selalu terlihat — DESIGN.md §2)
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CermoMascot(
-                      pose: state.isDiseaseRisk
-                          ? CermoPose.worried
-                          : readyFruits > 0
-                              ? CermoPose.happy
-                              : CermoPose.wave,
-                      size: 86,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CermatPill.ok('Foto dulu, keputusan 5 dtk'),
-                          const SizedBox(height: 6),
-                          Text(
-                            readyFruits > 0
-                                ? 'Wah, ada $readyFruits tomat siap panen!'
-                                : 'Halo! Yuk, cek tomatmu hari ini.',
-                            style: context.displayStyle(size: 19),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Primary3DButton(
+                            label: 'Scan Foto AI',
+                            icon: Icons.camera_alt_rounded,
+                            tomato: true,
+                            onPressed: () => context.go('/scan'),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: Primary3DButton(
-                    label: 'Scan tanaman',
-                    icon: Icons.camera_alt_rounded,
-                    onPressed: () => context.go('/scan'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Peringatan risiko penyakit F11 (HANYA tampil bila ambang terlewati!)
-          if (state.isDiseaseRisk) ...[
-            const SizedBox(height: 14),
-            StatusAlertCard(
-              accent: AppColors.warn,
-              title: 'Risiko jamur daun meningkat! (Simulasi)',
-              body:
-                  'Kelembapan udara ${state.kelembapanUdara}% (≥ ${state.ambangKelembapanPenyakit}%). Rawan busuk daun Phytophthora infestans (Balitsa Kementan RI).',
-              leading: const CermoMascot(pose: CermoPose.worried, size: 46, interactive: false),
-              action: Primary3DButton(
-                label: 'Scan penyakit sekarang',
-                icon: Icons.camera_alt_rounded,
-                tomato: true,
-                onPressed: () => context.go('/scan'),
-              ),
-            ),
-          ],
-
-          // Peringatan tandon kritis F12.2
-          if (state.isTankCritical) ...[
-            const SizedBox(height: 14),
-            StatusAlertCard(
-              accent: AppColors.bad,
-              title: 'Tandon tinggal ${state.levelTandon}% (Simulasi)',
-              body: 'Pompa otomatis kutahan dulu supaya tidak kering. Isi tandon sebelum menyiram.',
-              leading: const CermoMascot(pose: CermoPose.water, size: 46, interactive: false),
-              action: SecondaryOutlineButton(
-                label: 'Buka monitor tandon',
-                icon: Icons.water_drop_outlined,
-                onPressed: () => context.go('/sensor'),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 16),
-
-          // 3 Kartu Metrik: Lime, Putih, Hijau tua (DESIGN.md §7)
-          Row(
-            children: [
-              Expanded(
-                child: MetricCard3(
-                  label: 'Siap panen',
-                  value: '$readyFruits',
-                  icon: Icons.auto_awesome_rounded,
-                  variant: MetricCardVariant.lime,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MetricCard3(
-                  label: 'Tanaman',
-                  value: '${plants.length}',
-                  icon: Icons.eco_outlined,
-                  variant: MetricCardVariant.white,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MetricCard3(
-                  label: 'Perlu cek',
-                  value: '$attentionCount',
-                  icon: Icons.warning_amber_rounded,
-                  variant: MetricCardVariant.forest,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Alur Fase Tumbuh dengan avatar bulat (Plant Monitor)
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Fase tumbuh tanaman', style: context.cardTitleStyle()),
-                    TextButton(onPressed: () => context.go('/plants'), child: const Text('Lihat semua')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(phases.length, (i) {
-                    final count = plants.where((pl) => pl.fase == phases[i]).length;
-                    return GestureDetector(
-                      onTap: () => context.go('/plants'),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: count > 0 ? phaseColors[i] : p.surface2,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$count',
-                              style: context.displayStyle(size: 18, color: count > 0 ? Colors.white : p.inkSoft),
-                            ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SecondaryOutlineButton(
+                            label: 'Tanya Cermo',
+                            icon: Icons.chat_bubble_outline_rounded,
+                            onPressed: () => context.go('/chatbot'),
                           ),
-                          const SizedBox(height: 6),
-                          Text(phases[i], style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Gauge statistik & cincin persentase (Forest-900 penekanan)
-          CermatCard(
-            color: p.forest900,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Kesehatan & kematangan', style: context.cardTitleStyle(color: Colors.white)),
-                    CermatPill(
-                      label: 'Ringkasan',
-                      background: AppColors.lime300.withAlpha(42),
-                      foreground: AppColors.lime300,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                HealthSemiGaugeWidget(percent: healthyPct),
-                const SizedBox(height: 14),
-                Divider(color: Colors.white.withAlpha(38)),
+              ),
+
+              // Alert kondisi sensor aktif (bila ada)
+              if (liveAlerts.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    PercentageRingWidget(percent: 78, label: 'Kematangan', color: AppColors.tomato500),
-                    PercentageRingWidget(percent: state.kelembapanTanah, label: 'Tanah', color: AppColors.water),
-                    PercentageRingWidget(percent: state.bateraiPersen, label: 'Surya', color: AppColors.lime300),
-                  ],
+                StatusAlertCard(
+                  accent: liveAlerts.first.severity == AlertSeverity.danger ? AppColors.bad : AppColors.warn,
+                  icon: Icons.warning_amber_rounded,
+                  title: liveAlerts.first.judul,
+                  body: liveAlerts.first.isi,
+                  action: liveAlerts.first.actionRoute != null
+                      ? SecondaryOutlineButton(
+                          label: liveAlerts.first.actionLabel ?? 'Lihat detail',
+                          onPressed: () => context.go(liveAlerts.first.actionRoute!),
+                        )
+                      : null,
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-          // Batang produksi pastel persik + aktif tomato-500 (Estimasi kasar F6.2)
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Text('Perkiraan hasil panen', style: context.cardTitleStyle())),
-                    CermatPill.warn('Estimasi kasar'),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Dari jumlah buah foto scan × bobot rata-rata', style: TextStyle(fontSize: 13, color: p.inkSoft)),
-                const SizedBox(height: 16),
-                const _ProductionBars(),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Kesehatan Tanah & Cuaca Mikro — Dark Forest Soil Health Card + Striped Bars (DESIGN v1.1 §4.2)
-          CermatCard(
-            color: p.forest900,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Kesehatan Tanah & Mikro', style: context.cardTitleStyle(color: Colors.white)),
-                    CermatPill.simulasi(),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                StripedBarWidget(
-                  label: 'Kelembapan tanah',
-                  valueLabel: '${state.kelembapanTanah}%',
-                  percent: state.kelembapanTanah.toDouble(),
-                  color: AppColors.water,
-                  darkBg: true,
-                ),
-                const SizedBox(height: 11),
-                StripedBarWidget(
-                  label: 'Suhu udara (DHT22)',
-                  valueLabel: '${state.suhuUdara} °C',
-                  percent: (state.suhuUdara / 40.0) * 100,
-                  color: AppColors.tomato500,
-                  darkBg: true,
-                ),
-                const SizedBox(height: 11),
-                StripedBarWidget(
-                  label: 'Kelembapan udara',
-                  valueLabel: '${state.kelembapanUdara}%',
-                  percent: state.kelembapanUdara.toDouble(),
-                  color: state.isDiseaseRisk ? AppColors.bad : AppColors.lime300,
-                  darkBg: true,
-                ),
-                const SizedBox(height: 11),
-                StripedBarWidget(
-                  label: 'Cahaya (BH1750)',
-                  valueLabel: '${(state.cahayaLux / 1000).toStringAsFixed(1)}k lux',
-                  percent: (state.cahayaLux / 50000.0) * 100,
-                  color: AppColors.sun400,
-                  darkBg: true,
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.go('/sensor'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(48, 46),
-                      foregroundColor: AppColors.lime300,
-                      side: BorderSide(color: AppColors.lime300.withAlpha(110)),
-                      backgroundColor: AppColors.lime300.withAlpha(26),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    icon: const Icon(Icons.water_drop_outlined, size: 18),
-                    label: const Text('Buka sensor, irigasi & tandon', style: TextStyle(fontWeight: FontWeight.w700)),
+              // 4 KPI Seragam (2×2 di HP, 4 kolom di Tablet)
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: isWide ? 4 : 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: isWide ? 1.12 : 1.32,
+                children: [
+                  MetricCard3(
+                    label: 'Kelembapan tanah',
+                    value: '${state.kelembapanTanah}%',
+                    icon: Icons.water_drop_rounded,
+                    variant: MetricCardVariant.lime,
+                    badge: state.isSoilDry ? 'Kering' : 'Ideal',
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Daftar tugas harian (FarmVista)
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Daftar tugas kebun', style: context.cardTitleStyle()),
-                const SizedBox(height: 10),
-                for (final t in farmTasks)
-                  CheckboxListTile(
-                    value: t.selesai,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: p.leaf600,
-                    title: Text(
-                      t.judul,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        decoration: t.selesai ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    subtitle: Text(t.waktuLabel, style: TextStyle(fontSize: 12.5, color: p.inkSoft)),
-                    onChanged: (_) => ref.read(cermatProvider.notifier).toggleTask(t.id),
+                  MetricCard3(
+                    label: 'Level air tandon',
+                    value: '${state.levelTandon}%',
+                    icon: Icons.waves_rounded,
+                    variant: MetricCardVariant.white,
+                    badge: state.isTankCritical ? 'Kritis' : 'Aman',
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+                  MetricCard3(
+                    label: 'Baterai surya',
+                    value: '${state.bateraiPersen}%',
+                    icon: Icons.wb_sunny_rounded,
+                    variant: MetricCardVariant.forest,
+                    badge: state.isPowerSave ? 'Hemat' : '${state.teganganVolt}V',
+                  ),
+                  MetricCard3(
+                    label: 'Jadwal panen',
+                    value: '${upcomingHarvests.length}',
+                    icon: Icons.calendar_month_rounded,
+                    variant: MetricCardVariant.white,
+                    badge: state.pompaMenyala ? 'Pompa ON' : 'Siaga',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
 
-          // Kartu Ilustrasi Kebun dengan Floating Pins + Jadwal Panen Gelap (DESIGN v1.1 §4.2)
-          CermatCard(
-            color: p.forest900,
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
+              // Ringkasan Sensor & Pintu ke Simulasi 3D Lahan (ringan di Beranda!)
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const GardenLandscapeBanner(height: 148),
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: CermatPill(
-                        label: attentionCount > 0 ? '$attentionCount perlu perhatian' : 'Semua sehat',
-                        background: Colors.white.withAlpha(235),
-                        foreground: AppColors.inkLight,
-                        dotColor: attentionCount > 0 ? AppColors.warn : AppColors.ok,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('Kondisi lahan saat ini', style: context.cardTitleStyle(size: 16.5)),
+                        ),
+                        CermatPill.simulasi(),
+                      ],
                     ),
-                    Positioned(
-                      bottom: 10,
-                      right: 10,
-                      child: CermatPill(
-                        label: 'Tanah ${state.kelembapanTanah}%',
-                        background: Colors.white.withAlpha(235),
-                        foreground: AppColors.inkLight,
-                        dotColor: AppColors.water,
-                      ),
+                    const SizedBox(height: 12),
+                    StripedBarWidget(
+                      label: 'Kelembapan tanah (ideal 45–65%)',
+                      valueLabel: '${state.kelembapanTanah}%',
+                      percent: state.kelembapanTanah.toDouble(),
+                      color: state.isSoilDry ? AppColors.warn : p.leaf600,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Jadwal panen dekat', style: context.cardTitleStyle(color: Colors.white)),
-                    TextButton(
-                      onPressed: () => context.go('/calendar'),
-                      child: const Text('Kalender', style: TextStyle(color: AppColors.lime300)),
+                    const SizedBox(height: 10),
+                    StripedBarWidget(
+                      label: 'Kelembapan udara (risiko jamur ≥ ${state.ambangKelembapanPenyakit}%)',
+                      valueLabel: '${state.kelembapanUdara}% RH · ${state.suhuUdara}°C',
+                      percent: state.kelembapanUdara.toDouble(),
+                      color: state.isDiseaseRisk ? AppColors.bad : AppColors.water,
                     ),
-                  ],
-                ),
-                for (final ev in state.harvestEvents.where((e) => e.sumber == 'estimasi').take(3))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(22),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(color: AppColors.tomato500, shape: BoxShape.circle),
+                    const SizedBox(height: 10),
+                    StripedBarWidget(
+                      label: 'Cadangan air tandon',
+                      valueLabel: '${state.levelTandon}%',
+                      percent: state.levelTandon.toDouble(),
+                      color: state.isTankCritical ? AppColors.bad : AppColors.water,
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Primary3DButton(
+                            label: 'Buka Simulasi 3D Lahan',
+                            icon: Icons.view_in_ar_rounded,
+                            onPressed: () => context.go('/sensor'),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  state.plants.where((pl) => pl.id == ev.plantId).firstOrNull?.nama ?? 'Tomat',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                                ),
-                                Text(ev.catatan, style: TextStyle(color: Colors.white.withAlpha(195), fontSize: 12.5)),
-                              ],
+                        ),
+                        const SizedBox(width: 10),
+                        SecondaryOutlineButton(
+                          label: 'Surya',
+                          icon: Icons.bolt_rounded,
+                          onPressed: () => context.go('/solar'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Jadwal Panen Terdekat
+              CermatCard(
+                color: p.creamWarm,
+                borderColor: p.creamBorder,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text('Jadwal panen terdekat', style: context.cardTitleStyle(size: 16.5))),
+                        TextButton(
+                          onPressed: () => context.go('/calendar'),
+                          child: Text('Kalender →', style: TextStyle(fontWeight: FontWeight.w700, color: p.leaf700)),
+                        ),
+                      ],
+                    ),
+                    if (upcomingHarvests.isEmpty)
+                      Text(
+                        'Belum ada jadwal estimasi panen. Lakukan scan buah untuk menjadwalkan otomatis.',
+                        style: TextStyle(fontSize: 13.5, color: p.inkSoft),
+                      )
+                    else
+                      for (final h in upcomingHarvests.take(2)) ...[
+                        const SizedBox(height: 8),
+                        _HarvestQuickRow(
+                          event: h,
+                          plantName: state.plants.where((pl) => pl.id == h.plantId).firstOrNull?.nama ?? 'Tanaman',
+                          onHarvestNow: () => notifier.markHarvestActual(h.id),
+                        ),
+                      ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Checklist Tugas Harian Kebun
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text('Tugas kebun hari ini', style: context.cardTitleStyle(size: 16.5))),
+                        TextButton.icon(
+                          onPressed: () => _openAddTaskDialog(context, ref),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Tambah'),
+                        ),
+                      ],
+                    ),
+                    if (farmTasks.isEmpty)
+                      Text('Semua tugas selesai. Selamat beristirahat!', style: TextStyle(color: p.inkSoft))
+                    else
+                      for (final t in farmTasks)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          activeColor: p.leaf600,
+                          checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          value: t.selesai,
+                          onChanged: (_) => notifier.toggleTask(t.id),
+                          title: Text(
+                            t.judul,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              decoration: t.selesai ? TextDecoration.lineThrough : null,
+                              color: t.selesai ? p.inkSoft : p.ink,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+                          subtitle: Text(t.waktuLabel, style: TextStyle(fontSize: 12, color: p.inkSoft)),
+                        ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  void _showFarmSheet(BuildContext context, WidgetRef ref) {
+  void _openFarmPicker(BuildContext context, WidgetRef ref) {
     final p = context.ct;
     final state = ref.read(cermatProvider);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: p.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (_) => SafeArea(
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,14 +394,14 @@ class DashboardScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
-                    f.id == state.activeFarm.id ? Icons.check_circle_rounded : Icons.eco_outlined,
+                    f.id == state.activeFarmId ? Icons.check_circle_rounded : Icons.eco_outlined,
                     color: p.leaf600,
                   ),
                   title: Text(f.nama, style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text('${f.lokasi} · ${f.luasLabel}'),
                   onTap: () {
                     ref.read(cermatProvider.notifier).selectFarm(f.id);
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                   },
                 ),
             ],
@@ -560,81 +410,98 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-}
 
-class _QuickChip extends StatelessWidget {
-  const _QuickChip({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.ct;
-    return InkWell(
-      borderRadius: BorderRadius.circular(99),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(99),
-          boxShadow: [BoxShadow(color: const Color(0xFF14302A).withAlpha(16), blurRadius: 10, offset: const Offset(0, 4))],
+  void _openAddTaskDialog(BuildContext context, WidgetRef ref) {
+    final ctrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tambah tugas kebun'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Contoh: Semprot POC sore hari'),
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 17, color: p.leaf600),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-          ],
-        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () {
+              if (ctrl.text.trim().isNotEmpty) {
+                ref.read(cermatProvider.notifier).addTask(ctrl.text, 'Hari ini');
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ProductionBars extends StatelessWidget {
-  const _ProductionBars();
+class _HarvestQuickRow extends StatelessWidget {
+  const _HarvestQuickRow({
+    required this.event,
+    required this.plantName,
+    required this.onHarvestNow,
+  });
+
+  final HarvestEventModel event;
+  final String plantName;
+  final VoidCallback onHarvestNow;
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
-    const vals = [1.4, 2.1, 1.9, 3.2, 2.7, 2.4];
-    const maxV = 3.2;
+    final p = context.ct;
+    final today = DateTime.now();
+    final diff = DateTime(event.tanggal.year, event.tanggal.month, event.tanggal.day)
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+    final badge = diff <= 0 ? 'Hari ini' : '$diff hari lagi';
 
-    return SizedBox(
-      height: 135,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.line),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(labels.length, (i) {
-          final active = i == 3;
-          return Expanded(
+        children: [
+          Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(plantName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    diff <= 0 ? CermatPill.bad(badge) : CermatPill.ok(badge),
+                  ],
+                ),
+                const SizedBox(height: 3),
                 Text(
-                  '${vals[i]}kg',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                    color: active ? AppColors.tomatoBtn : context.ct.inkSoft,
-                  ),
+                  '${DateFormat('d MMM', 'id_ID').format(event.tanggal)} · ${event.catatan}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: p.inkSoft),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  width: 26,
-                  height: (vals[i] / maxV) * 86,
-                  decoration: BoxDecoration(
-                    color: active ? AppColors.tomato500 : AppColors.peachBar,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(10), bottom: Radius.circular(5)),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(labels[i], style: TextStyle(fontSize: 11.5, color: context.ct.inkSoft)),
               ],
             ),
-          );
-        }),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: p.leaf600,
+              foregroundColor: p.onLeaf,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: onHarvestNow,
+            child: const Text('Panen', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+          ),
+        ],
       ),
     );
   }

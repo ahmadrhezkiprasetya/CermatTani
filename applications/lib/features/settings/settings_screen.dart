@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
+import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 10: Pengaturan (akun, Telegram, ambang, tema, privasi & hapus data)
+/// Layar 10: Pengaturan — Sinkron Jadwal Pengingat Kanan Atas, Tema Hijau Susu, Ambang & Privasi
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -35,6 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final p = context.ct;
     final state = ref.watch(cermatProvider);
     final notifier = ref.read(cermatProvider.notifier);
+    final activeRem = state.jadwalPengingat.where((r) => r.aktif).toList();
 
     return AppScaffold(
       location: '/settings',
@@ -43,23 +45,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          // Profil
-          CermatCard(
+          // Profil pengguna + Pak Cermat tanpa frame
+          CermatAccentCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Profil pengguna', style: context.displayStyle(size: 19)),
+                Row(
+                  children: [
+                    const CermoMascot(pose: CermoPose.happy, size: 74),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Profil petani', style: context.displayStyle(size: 19)),
+                          Text(
+                            '${state.activeFarm.nama} · ${state.plants.length} tanaman',
+                            style: TextStyle(fontSize: 13, color: p.inkSoft),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _nameCtrl,
                   decoration: InputDecoration(
                     labelText: 'Nama panggilan',
                     filled: true,
-                    fillColor: p.surface2,
+                    fillColor: p.surface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Primary3DButton(
                   label: 'Simpan nama',
                   onPressed: () {
@@ -70,9 +89,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Tema & Bahasa (X2)
+          // Kartu Sinkron Jadwal Pengingat & Alert Kanan Atas
+          CermatCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text('Pengingat & alert kanan atas', style: context.displayStyle(size: 19))),
+                    CermatPill.ok('${activeRem.length} aktif'),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: p.leaf600,
+                  title: const Text('Alert sensor otomatis kanan atas', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text('Tanah kering, tandon kritis, jamur tinggi, baterai ≤ 20%', style: TextStyle(fontSize: 12.2, color: p.inkSoft)),
+                  value: state.peringatanOtomatisSensor,
+                  onChanged: (v) => notifier.setSensorAutoAlerts(v),
+                ),
+                if (activeRem.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final r in activeRem) CermatPill.water('${r.jam} · ${r.judul}'),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Primary3DButton(
+                        label: 'Atur jadwal',
+                        icon: Icons.schedule_rounded,
+                        onPressed: () => context.go('/notifications'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SecondaryOutlineButton(
+                      label: 'Uji alert',
+                      icon: Icons.notifications_active_outlined,
+                      onPressed: () => notifier.triggerTestAlert(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Tema & Bahasa
           CermatCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,42 +164,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Bahasa Indonesia (Inggris fase 2)', style: TextStyle(fontSize: 13.5)),
+                    const Text('Bahasa Indonesia (standar petani)', style: TextStyle(fontSize: 13.5)),
                     CermatPill.ok('Aktif'),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Ambang peringatan (F2.4, F11.3, F12.2, F3.3)
+          // Ambang peringatan
           CermatCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Ambang peringatan', style: context.displayStyle(size: 19)),
                 const SizedBox(height: 12),
-                Text('Ambang keyakinan rendah AI (F2.4): ${state.ambangKeyakinanRendah}%'),
+                Text('Ambang keyakinan rendah AI: ${state.ambangKeyakinanRendah}%'),
                 Slider(
                   value: state.ambangKeyakinanRendah.toDouble(),
                   min: 40,
                   max: 85,
-                  activeColor: p.leaf600,
                   onChanged: (v) => notifier.updateThresholds(keyakinanRendah: v.round()),
                 ),
-                Text('Ambang kelembapan risiko penyakit (F11.3): ${state.ambangKelembapanPenyakit}%'),
+                Text('Ambang kelembapan risiko jamur: ${state.ambangKelembapanPenyakit}%'),
                 Slider(
                   value: state.ambangKelembapanPenyakit.toDouble(),
                   min: 70,
                   max: 95,
-                  activeColor: p.leaf600,
                   onChanged: (v) => notifier.updateThresholds(kelembapanPenyakit: v.round()),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   activeColor: p.leaf600,
-                  title: const Text('Gunakan data sensor untuk pupuk (F3.3)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+                  title: const Text('Gunakan data sensor untuk pupuk', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   subtitle: Text(state.sensorTersedia ? 'Label: Dengan data sensor' : 'Label: Dugaan visual'),
                   value: state.sensorTersedia,
                   onChanged: (v) => notifier.updateSensor(sensorTersedia: v),
@@ -135,9 +205,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Privasi, Onboarding & Hapus Data (PRD §8 & §12)
+          // Privasi, Onboarding & Hapus Data
           CermatCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,8 +215,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('Data, privasi & sumber', style: context.displayStyle(size: 19)),
                 const SizedBox(height: 6),
                 Text(
-                  'Referensi dataset & panduan: PlantVillage, LaboroTomato, Balitsa Kementan RI, dan FAO Tomato IPM. Foto sepenuhnya milik pengguna.',
-                  style: TextStyle(fontSize: 13.5, color: p.inkSoft),
+                  'Referensi dataset agronomi: Balitsa Kementan RI, FAO Tomato IPM, PlantVillage, dan LaboroTomato. Analisis foto & chat berjalan langsung lewat Gemini AI tanpa data dummy.',
+                  style: TextStyle(fontSize: 13.2, color: p.inkSoft),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -164,7 +234,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: SecondaryOutlineButton(
-                    label: 'Muat ulang data contoh',
+                    label: 'Reset data kebun awal',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
                       notifier.resetDemo();
@@ -183,7 +253,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Hapus akun & semua data lokal'),
+                    label: const Text('Hapus semua data lokal'),
                     onPressed: () => _confirmDelete(context),
                   ),
                 ),

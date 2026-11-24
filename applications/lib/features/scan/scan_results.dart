@@ -6,7 +6,7 @@ import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 4: Hasil Scan 3 Tab (Kematangan / Penyakit / Pupuk)
+/// Layar 4: Hasil Scan Nyata 3 Tab (Kematangan / Penyakit / Pupuk) + Temuan Visual AI
 class ScanResultView extends StatefulWidget {
   const ScanResultView({
     super.key,
@@ -60,19 +60,22 @@ class _ScanResultViewState extends State<ScanResultView> {
     final scan = widget.scan;
     final disease = knowledgeDiseases[scan.penyakitUtamaId] ?? knowledgeDiseases['sehat']!;
     final nutrient = knowledgeNutrients[scan.dugaanHaraId] ?? knowledgeNutrients['cukup']!;
+    final imgBytes = widget.photoBytes ?? scan.photoBytes;
 
-    final headlineDecision = scan.tanpaBuahTerdeteksi
-        ? 'Buah belum terlihat'
-        : scan.bagian == PlantPart.buah
-            ? (scan.anjuranPanen == 'Panen sekarang'
-                ? 'Panen sekarang'
-                : 'Tunggu ${scan.estimasiHariMin}–${scan.estimasiHariMax} hari')
-            : scan.penyakitUtamaNama;
+    final headlineDecision = scan.diluarKonteksTanaman
+        ? 'Bukan foto tanaman'
+        : scan.tanpaBuahTerdeteksi
+            ? 'Objek belum jelas'
+            : scan.bagian == PlantPart.buah
+                ? (scan.anjuranPanen == 'Panen sekarang'
+                    ? 'Panen sekarang'
+                    : 'Tunggu ${scan.estimasiHariMin}–${scan.estimasiHariMax} hari')
+                : scan.penyakitUtamaNama;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Foto beranotasi kotak deteksi 3px + keputusan utama (lebih besar dari angka keyakinan F1.4)
+        // Foto beranotasi kotak deteksi + keputusan utama
         CermatCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,31 +83,21 @@ class _ScanResultViewState extends State<ScanResultView> {
               LayoutBuilder(
                 builder: (_, constraints) {
                   final w = constraints.maxWidth;
-                  const h = 200.0;
+                  const h = 216.0;
                   return ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: w,
                       height: h,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [p.forest900, const Color(0xFF1E563B)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
+                      color: p.surfaceMilk,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          if (widget.photoBytes != null)
-                            Image.memory(widget.photoBytes!, fit: BoxFit.cover)
+                          if (imgBytes != null)
+                            Image.memory(imgBytes, fit: BoxFit.cover)
                           else
                             Center(
-                              child: Icon(
-                                scan.bagian == PlantPart.buah ? Icons.local_florist_rounded : Icons.eco_rounded,
-                                size: 86,
-                                color: Colors.white.withAlpha(42),
-                              ),
+                              child: Icon(Icons.eco_rounded, size: 78, color: p.leaf600.withAlpha(80)),
                             ),
                           for (final b in scan.boxes)
                             Positioned(
@@ -114,8 +107,8 @@ class _ScanResultViewState extends State<ScanResultView> {
                               height: b.heightFrac * h,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: _stageColor(b.stage), width: 3),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: _stageColor(b.stage), width: 2.8),
                                 ),
                                 child: Align(
                                   alignment: Alignment.topLeft,
@@ -127,11 +120,17 @@ class _ScanResultViewState extends State<ScanResultView> {
                                     ),
                                     child: Text(
                                       '${_stageLabel(b.stage)} ${b.confidence}%',
-                                      style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
                                     ),
                                   ),
                                 ),
                               ),
+                            ),
+                          if (scan.aiModel != null)
+                            Positioned(
+                              right: 8,
+                              bottom: 8,
+                              child: CermatPill.ok('Gemini · ${scan.aiModel}'),
                             ),
                         ],
                       ),
@@ -146,15 +145,15 @@ class _ScanResultViewState extends State<ScanResultView> {
                     pose: (scan.tanpaBuahTerdeteksi || scan.keyakinanRendah || scan.penyakitUtamaId != 'sehat')
                         ? CermoPose.worried
                         : CermoPose.happy,
-                    size: 66,
+                    size: 72,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Anjuran utama Cermo', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.inkSoft)),
-                        Text(headlineDecision, style: context.displayStyle(size: 26)),
+                        Text('Anjuran utama Pak Cermat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.inkSoft)),
+                        Text(headlineDecision, style: context.displayStyle(size: 24)),
                         Text(
                           'Seberapa yakin Cermo: ${scan.keyakinan}%',
                           style: TextStyle(fontSize: 13.5, color: p.inkSoft, fontWeight: FontWeight.w600),
@@ -165,20 +164,51 @@ class _ScanResultViewState extends State<ScanResultView> {
                 ],
               ),
 
-              if (scan.tanpaBuahTerdeteksi) ...[
+              if (scan.ringkasanAi.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const StatusAlertCard(
-                  accent: AppColors.warn,
-                  title: 'Foto terlalu gelap atau buah tidak tampak',
-                  body: 'Coba dekat jendela atau nyalakan cahaya, arahkan kamera 20–40 cm dari buah tomat.',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: p.surface2,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: p.line),
+                  ),
+                  child: Text(
+                    scan.ringkasanAi,
+                    style: TextStyle(fontSize: 13.5, color: p.ink, height: 1.45),
+                  ),
                 ),
               ],
-              if (scan.keyakinanRendah && !scan.tanpaBuahTerdeteksi) ...[
+
+              if (scan.temuanVisual.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text('Temuan visual pada foto:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.inkSoft)),
+                const SizedBox(height: 4),
+                for (final t in scan.temuanVisual)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('• $t', style: TextStyle(fontSize: 13, color: p.inkSoft, height: 1.4)),
+                  ),
+              ],
+
+              if (scan.tanpaBuahTerdeteksi) ...[
+                const SizedBox(height: 12),
+                StatusAlertCard(
+                  accent: AppColors.warn,
+                  title: scan.diluarKonteksTanaman
+                      ? 'Foto tampak di luar konteks tanaman'
+                      : 'Objek kurang jelas atau pencahayaan redup',
+                  body: scan.ringkasanAi.isNotEmpty
+                      ? scan.ringkasanAi
+                      : 'Arahkan kamera 20–40 cm pada bagian tanaman di tempat terang lalu pindai ulang.',
+                ),
+              ] else if (scan.keyakinanRendah) ...[
                 const SizedBox(height: 12),
                 StatusAlertCard(
                   accent: AppColors.warn,
                   title: 'Cermo belum cukup yakin (${scan.keyakinan}% < ${widget.lowThreshold}%)',
-                  body: 'Foto ulang di tempat terang dan konfirmasi ke penyuluh pertanian setempat sebelum bertindak.',
+                  body: 'Foto ulang di cahaya terang dan konfirmasi ke penyuluh pertanian setempat sebelum bertindak.',
                 ),
               ],
             ],
@@ -205,24 +235,25 @@ class _ScanResultViewState extends State<ScanResultView> {
               if (_tabIndex == 0) ...[
                 if (scan.bagian != PlantPart.buah || scan.tanpaBuahTerdeteksi)
                   Text(
-                    'Scan bagian buah tomat di tempat terang untuk melihat tahap kematangan dan estimasi hasil.',
+                    'Scan bagian buah di tempat terang untuk melihat tahap kematangan dan estimasi bobot panen.',
                     style: TextStyle(color: p.inkSoft),
                   )
                 else ...[
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '${scan.jumlahBuah} buah ≈ ${scan.estimasiBobotGram} gram',
-                          style: context.displayStyle(size: 20),
-                        ),
+                      Text(
+                        '${scan.jumlahBuah} buah ≈ ${scan.estimasiBobotGram} gram',
+                        style: context.displayStyle(size: 20),
                       ),
                       CermatPill.warn('Estimasi kasar'),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Dihitung dari ${scan.jumlahBuah} kotak deteksi × ${widget.plant.bobotRataBuahGram} g (${widget.plant.varietas}). Estimasi kasar karena foto hanya menangkap sebagian tanaman.',
+                    'Dihitung dari ${scan.jumlahBuah} kotak deteksi × ${widget.plant.bobotRataBuahGram} g (${widget.plant.varietas}).',
                     style: TextStyle(fontSize: 13.5, color: p.inkSoft),
                   ),
                   if (scan.estimasiDisesuaikanRiwayat) ...[
@@ -230,18 +261,18 @@ class _ScanResultViewState extends State<ScanResultView> {
                     const StatusAlertCard(
                       accent: AppColors.ok,
                       title: 'Estimasi disesuaikan riwayat ≥ 2 scan',
-                      body: 'Perkiraan hari panen menghitung laju perubahan warna buah dari scan sebelumnya.',
+                      body: 'Perkiraan hari panen memperhitungkan laju pematangan dari scan sebelumnya.',
                     ),
                   ],
                 ],
               ] else if (_tabIndex == 1) ...[
-                const Text('3 kemungkinan teratas (termasuk Sehat)', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text('3 kemungkinan teratas (Dataset Agronomi v2.0)', style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 for (final pred in scan.penyakitTop3) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: Text(pred.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                      Expanded(child: Text(pred.nama, style: const TextStyle(fontSize: 13.8, fontWeight: FontWeight.w600))),
                       Text('${pred.confidence}%', style: const TextStyle(fontWeight: FontWeight.w700)),
                     ],
                   ),
@@ -292,6 +323,7 @@ class _ScanResultViewState extends State<ScanResultView> {
                 ),
                 const SizedBox(height: 10),
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(color: p.surface2, borderRadius: BorderRadius.circular(14)),
                   child: Column(
@@ -309,7 +341,7 @@ class _ScanResultViewState extends State<ScanResultView> {
                 const StatusAlertCard(
                   accent: AppColors.warn,
                   title: 'Bukan pengganti uji tanah',
-                  body: 'Takaran pupuk bersifat acuan umum. Sesuaikan dengan kondisi lahan dan arahan penyuluh pertanian.',
+                  body: 'Takaran pupuk bersifat acuan umum. Sesuaikan dengan kondisi lahan dan arahan penyuluh.',
                 ),
               ],
             ],
@@ -331,7 +363,7 @@ class _ScanResultViewState extends State<ScanResultView> {
           children: [
             Expanded(
               child: SecondaryOutlineButton(
-                label: 'Tanya Cermo',
+                label: 'Tanya Cermo AI',
                 icon: Icons.chat_bubble_outline_rounded,
                 onPressed: widget.onAskCermo,
               ),
@@ -364,8 +396,9 @@ class _TabPill extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Container(
-          height: 44,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: active ? p.leaf600 : p.surface2,
@@ -375,7 +408,7 @@ class _TabPill extends StatelessWidget {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w700,
-              fontSize: 13.5,
+              fontSize: 13,
               color: active ? p.onLeaf : p.inkSoft,
             ),
           ),

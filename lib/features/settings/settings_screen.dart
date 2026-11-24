@@ -45,6 +45,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
+          // Akun Supabase & Sinkronisasi Multi-Tabel
+          CermatCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.cloud_done_outlined, size: 19, color: p.leaf700),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('Akun & Database Supabase', style: context.displayStyle(size: 18))),
+                    state.authEmail != null ? CermatPill.ok('Aktif') : CermatPill.warn('Belum login'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (state.authEmail != null) ...[
+                  Text(
+                    'Masuk sebagai ${state.authEmail}',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.ink),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Profil, kebun, tanaman, riwayat scan, panen & chat Cermo otomatis tersinkron per akun.',
+                    style: TextStyle(fontSize: 12.5, color: p.inkSoft),
+                  ),
+                  const SizedBox(height: 10),
+                  SecondaryOutlineButton(
+                    label: 'Keluar akun (Logout)',
+                    icon: Icons.logout_rounded,
+                    onPressed: () async {
+                      await notifier.signOutFromSupabase();
+                      if (context.mounted) context.go('/login');
+                    },
+                  ),
+                ] else ...[
+                  Text(
+                    'Login atau daftar akun untuk menyimpan kebun, hasil scan, dan obrolan Cermo ke akunmu.',
+                    style: TextStyle(fontSize: 12.5, color: p.inkSoft),
+                  ),
+                  const SizedBox(height: 10),
+                  Primary3DButton(
+                    label: 'Login / Daftar Akun',
+                    icon: Icons.login_rounded,
+                    onPressed: () => context.go('/login'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
           // Profil pengguna + Pak Cermat tanpa frame
           CermatAccentCard(
             child: Column(

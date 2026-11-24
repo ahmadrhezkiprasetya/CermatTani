@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/cermat_state.dart';
+import 'data/services/supabase_sync_service.dart';
+import 'data/supabase_config.dart';
+import 'features/auth/login_screen.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/chatbot/chatbot_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -39,9 +42,12 @@ CustomTransitionPage<void> _smoothPage(GoRouterState state, Widget child) {
 
 final _routerProvider = Provider<GoRouter>((ref) {
   final onboarded = ref.read(cermatProvider).onboarded;
+  final needsLogin = SupabaseConfig.isConfigured && SupabaseSyncService.currentUser == null;
+  final initial = needsLogin ? '/login' : (onboarded ? '/' : '/onboarding');
   return GoRouter(
-    initialLocation: onboarded ? '/' : '/onboarding',
+    initialLocation: initial,
     routes: [
+      GoRoute(path: '/login', pageBuilder: (_, s) => _smoothPage(s, const LoginScreen())),
       GoRoute(path: '/onboarding', pageBuilder: (_, s) => _smoothPage(s, const OnboardingScreen())),
       GoRoute(path: '/', pageBuilder: (_, s) => _smoothPage(s, const DashboardScreen())),
       GoRoute(path: '/scan', pageBuilder: (_, s) => _smoothPage(s, const ScanScreen())),

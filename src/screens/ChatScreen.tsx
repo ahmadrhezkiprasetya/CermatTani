@@ -4,24 +4,26 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ArrowDown, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
-import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
-import { cermatSupabaseRepo } from '@/lib/supabase/repository';
+import { FormattedText } from '../components/FormattedText';
+import { KNOWLEDGE_DISEASES, KNOWLEDGE_NUTRIENTS, RIPENESS_REFERENCE } from '../data/knowledgeBase';
+import { ScanRecord } from '../types/cermattani';
 
-/* Saran pertanyaan cepat wajib PRD F5.4 */
-const QUICK_QUESTIONS = [
-  'Apa arti hasil ini?',
-  'Kapan panen?',
-  'Pupuk apa yang cocok secara organik?',
-  'Cara atasi penyakit daun secara organik?',
+const DEFAULT_QUICK_QUESTIONS = [
+  'Apa arti hasil scan terakhirku?',
+  'Kapan panen terbaik?',
+  'Pupuk organik apa yang cocok?',
+  'Cara atasi penyakit secara organik?',
   'Apakah tandon dan irigasi aman?',
 ];
 
-/* Layar 9: Tanya Cermo — Viewport Terkunci, Hanya Area Chat yang Di-scroll */
+/* Layar 9: Tanya Cermo — Viewport Terkunci, Auto-Receive Pertanyaan & Konteks dari Hasil Scan */
 export const ChatScreen: React.FC = () => {
   const {
     state,
     chatContextPlantId,
+    chatContextScan,
+    pendingChatQuestion,
+    clearPendingChatQuestion,
     openChatWithPlant,
     addChatMessage,
     clearChatMessages,
@@ -35,21 +37,81 @@ export const ChatScreen: React.FC = () => {
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const dispatchedPendingRef = useRef<string | null>(null);
 
   const selectedPlant = useMemo(
     () => state.plants.find((p) => p.id === chatContextPlantId) || state.plants[0] || null,
     [state.plants, chatContextPlantId]
   );
 
+  // Gunakan data hasil scan yang baru dikirim dari layar Scan (atau scan terbaru tanaman terpilih)
   const latestScanForPlant = useMemo(() => {
+    if (chatContextScan && (!selectedPlant || chatContextScan.plantId === selectedPlant.id)) {
+      return chatContextScan;
+    }
     if (!selectedPlant) return null;
     const plantScans = state.scans
       .filter((s) => s.plantId === selectedPlant.id)
       .sort((a, b) => b.waktu.localeCompare(a.waktu));
     return plantScans[0] || null;
-  }, [state.scans, selectedPlant]);
+  }, [chatContextScan, state.scans, selectedPlant]);
 
-  // Scroll HANYA di dalam kontainer pesan (tidak pernah menggeser halaman utama!)
+  const contextualQuickQuestions = useMemo(() => {
+    if (!latestScanForPlant) return DEFAULT_QUICK_QUESTIONS;
+    const fokus =
+      latestScanForPlant.fokusOutput ||
+      (latestScanForPlant.tahapDominan ? 'kematangan' : 'penyakit');
+    if (fokus === 'penyakit') {
+      return [
+        'Bagaimana cara mencegah ini menular ke buah/tanaman lain?',
+        'Langkah penanganan organik apa yang paling aman?',
+        'Apakah bagian yang rusak boleh dikomposkan?',
+        'Apakah irigasi dan kelembapan kebun memicu ini?',
+      ];
+    }
+    if (fokus === 'kematangan') {
+      return [
+        'Jam berapa terbaik untuk memetik buah ini?',
+        'Cara menyimpan hasil panen supaya tahan lama?',
+        'Pupuk organik apa yang cocok saat fase ini?',
+        'Apakah tandon dan irigasi aman?',
+      ];
+    }
+    if (fokus === 'hara') {
+      return [
+        'Berapa takaran pupuk organik yang aman?',
+        'Berapa hari sekali pemberian pupuk susulan?',
+        'Apa gejala jika tanaman sudah pulih?',
+        'Apakah penyiraman perlu disesuaikan?',
+      ];
+    }
+    return DEFAULT_QUICK_QUESTIONS;
+  }, [latestScanForPlant]);
+
+  const scanContextLabel = useMemo(() => {
+    if (!latestScanForPlant) return null;
+    const fokus =
+      latestScanForPlant.fokusOutput ||
+      (latestScanForPlant.tahapDominan ? 'kematangan' : 'penyakit');
+    if (fokus === 'penyakit') {
+      const dis = KNOWLEDGE_DISEASES[latestScanForPlant.penyakitUtamaId];
+      return `${dis?.penyakit || latestScanForPlant.penyakitUtamaNama} · Keyakinan ${latestScanForPlant.keyakinan}%`;
+    }
+    if (fokus === 'kematangan' && latestScanForPlant.tahapDominan) {
+      const rip = RIPENESS_REFERENCE[latestScanForPlant.tahapDominan];
+      const minor =
+        latestScanForPlant.penyakitRinganId && KNOWLEDGE_DISEASES[latestScanForPlant.penyakitRinganId]
+          ? ` (+ catatan: ${KNOWLEDGE_DISEASES[latestScanForPlant.penyakitRinganId].penyakit})`
+          : '';
+      return `${rip.label} (${latestScanForPlant.anjuranPanen})${minor} · Keyakinan ${latestScanForPlant.keyakinan}%`;
+    }
+    if (fokus === 'hara') {
+      const nut = KNOWLEDGE_NUTRIENTS[latestScanForPlant.dugaanHaraId];
+      return `${nut?.dugaan || latestScanForPlant.dugaanHaraNama} · Keyakinan ${latestScanForPlant.keyakinan}%`;
+    }
+    return `Hasil scan terbaru · Keyakinan ${latestScanForPlant.keyakinan}%`;
+  }, [latestScanForPlant]);
+
   const scrollChatToBottom = useCallback((smooth = true) => {
     const el = messagesRef.current;
     if (!el) return;
@@ -71,89 +133,105 @@ export const ChatScreen: React.FC = () => {
     setShowScrollBottom(distanceFromBottom > 110);
   };
 
-  const sendMessage = async (text: string) => {
-    const clean = text.trim();
-    if (!clean || isTyping) return;
-    setChatError('');
+  const sendMessage = useCallback(
+    async (text: string, overrideScan?: ScanRecord | null) => {
+      const clean = text.trim();
+      if (!clean || isTyping) return;
+      setChatError('');
 
-    if (isOffline) {
-      setChatError(
-        'Koneksi sedang offline. Cermo AI membutuhkan jaringan internet untuk menjawab menggunakan model Gemini.'
-      );
-      return;
-    }
-
-    setInput('');
-
-    const historySnapshot = state.chatMessages.slice(-10).map((m) => ({
-      peran: m.peran,
-      isi: m.isi,
-    }));
-
-    addChatMessage({
-      plantId: selectedPlant?.id || null,
-      peran: 'pengguna',
-      isi: clean,
-    });
-    setIsTyping(true);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: clean,
-          history: historySnapshot,
-          plant: selectedPlant,
-          latestScan: latestScanForPlant,
-          sensor: state.sensor,
-          lowConfidenceThreshold: state.settings.ambangKeyakinanRendah,
-          tankLowThreshold: state.settings.ambangTandonRendah,
-        }),
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data?.reply) {
-        throw new Error(
-          data?.error ||
-            `Cermo AI gagal merespons (kode ${res.status}). Pastikan GEMINI_API_KEY di .env aktif dan koneksi stabil.`
+      if (isOffline) {
+        setChatError(
+          'Koneksi sedang offline. Cermo AI membutuhkan jaringan internet untuk menjawab menggunakan model Gemini.'
         );
+        return;
       }
 
-      const replyText = String(data.reply);
-      if (data.aiModel) {
-        setAiModel(String(data.aiModel));
-      }
+      setInput('');
+
+      const historySnapshot = state.chatMessages.slice(-10).map((m) => ({
+        peran: m.peran,
+        isi: m.isi,
+      }));
 
       addChatMessage({
         plantId: selectedPlant?.id || null,
-        peran: 'cermo',
-        isi: replyText,
+        peran: 'pengguna',
+        isi: clean,
       });
+      setIsTyping(true);
 
-      if (isSupabaseConfigured) {
-        void (async () => {
-          try {
-            const session = await cermatSupabaseRepo.getCurrentSession();
-            if (!session) return;
-            await cermatSupabaseRepo.insertChatMessage(null, 'pengguna', clean);
-            await cermatSupabaseRepo.insertChatMessage(null, 'cermo', replyText);
-          } catch {
-            // Tetap aman di penyimpanan lokal
-          }
-        })();
+      const scanToSend = overrideScan !== undefined ? overrideScan : latestScanForPlant;
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: clean,
+            history: historySnapshot,
+            plant: selectedPlant,
+            latestScan: scanToSend,
+            sensor: state.sensor,
+            lowConfidenceThreshold: state.settings.ambangKeyakinanRendah,
+            tankLowThreshold: state.settings.ambangTandonRendah,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data?.reply) {
+          throw new Error(
+            data?.error ||
+              `Cermo AI gagal merespons (kode ${res.status}). Pastikan GEMINI_API_KEY di .env aktif dan koneksi stabil.`
+          );
+        }
+
+        const replyText = String(data.reply);
+        if (data.aiModel) {
+          setAiModel(String(data.aiModel));
+        }
+
+        addChatMessage({
+          plantId: selectedPlant?.id || null,
+          peran: 'cermo',
+          isi: replyText,
+        });
+      } catch (err) {
+        setChatError(
+          err instanceof Error
+            ? err.message
+            : 'Gagal terhubung ke model AI Cermo. Silakan coba kirim ulang.'
+        );
+      } finally {
+        setIsTyping(false);
       }
-    } catch (err) {
-      setChatError(
-        err instanceof Error
-          ? err.message
-          : 'Gagal terhubung ke model AI Cermo. Silakan coba kirim ulang.'
-      );
-    } finally {
-      setIsTyping(false);
+    },
+    [
+      isTyping,
+      isOffline,
+      state.chatMessages,
+      state.sensor,
+      state.settings.ambangKeyakinanRendah,
+      state.settings.ambangTandonRendah,
+      selectedPlant,
+      latestScanForPlant,
+      addChatMessage,
+    ]
+  );
+
+  // Otomatis kirim pertanyaan yang diketik user dari bawah hasil Scan!
+  useEffect(() => {
+    if (!pendingChatQuestion) {
+      dispatchedPendingRef.current = null;
+      return;
     }
-  };
+    const signature = `${pendingChatQuestion}|${chatContextScan?.id || ''}`;
+    if (dispatchedPendingRef.current === signature) return;
+    dispatchedPendingRef.current = signature;
+    const q = pendingChatQuestion;
+    clearPendingChatQuestion();
+    void sendMessage(q, chatContextScan ?? latestScanForPlant);
+  }, [pendingChatQuestion, chatContextScan, latestScanForPlant, clearPendingChatQuestion, sendMessage]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +240,7 @@ export const ChatScreen: React.FC = () => {
 
   return (
     <section className="chat-shell-card" aria-label="Ruang percakapan Tanya Cermo AI">
-      {/* Header Terkunci di Atas (tidak pernah ikut ter-scroll) */}
+      {/* Header Terkunci di Atas */}
       <header className="chat-card-header">
         <div
           style={{
@@ -184,13 +262,13 @@ export const ChatScreen: React.FC = () => {
                   {aiModel ? `Gemini · ${aiModel}` : 'Gemini · Dataset Khusus'}
                 </span>
               </div>
-              <p className="t-micro t-soft" style={{ marginTop: 1 }}>
+              <p className="t-micro t-soft chat-header-desc" style={{ marginTop: 1 }}>
                 Fokus budidaya, hasil scan, pupuk organik, &amp; irigasi kebun.
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="chat-header-controls" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <select
               id="chat-plant-ctx"
               aria-label="Konteks tanaman"
@@ -223,11 +301,12 @@ export const ChatScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* Strip Data Hasil Scan Aktif */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 7,
+            gap: 8,
             padding: '6px 11px',
             borderRadius: 10,
             background: 'var(--surface-2)',
@@ -236,16 +315,12 @@ export const ChatScreen: React.FC = () => {
           }}
         >
           <Sparkles size={13} color="var(--leaf-600)" style={{ flexShrink: 0 }} />
-          {latestScanForPlant ? (
+          {scanContextLabel ? (
             <span
               className="t-micro t-soft"
               style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
             >
-              <strong style={{ color: 'var(--ink)' }}>Konteks scan:</strong> {latestScanForPlant.bagian} ·{' '}
-              {latestScanForPlant.tahapDominan
-                ? `${RIPENESS_REFERENCE[latestScanForPlant.tahapDominan].label} (${latestScanForPlant.anjuranPanen})`
-                : latestScanForPlant.penyakitUtamaNama}{' '}
-              · Keyakinan <strong style={{ color: 'var(--leaf-600)' }}>{latestScanForPlant.keyakinan}%</strong>
+              <strong style={{ color: 'var(--ink)' }}>Data scan aktif:</strong> {scanContextLabel}
             </span>
           ) : (
             <span
@@ -259,7 +334,7 @@ export const ChatScreen: React.FC = () => {
         </div>
       </header>
 
-      {/* Area Pesan yang Di-scroll Secara Mandiri (flex: 1, minHeight: 0, overflowY: auto) */}
+      {/* Area Pesan yang Di-scroll Secara Mandiri */}
       <div
         ref={messagesRef}
         onScroll={handleMessagesScroll}
@@ -284,9 +359,9 @@ export const ChatScreen: React.FC = () => {
               Halo! Aku Cermo, siap bantu kebunmu
             </h3>
             <p className="t-small t-soft">
-              Semua jawaban dihasilkan langsung oleh model <strong>Gemini AI</strong> dengan acuan{' '}
-              <strong>Dataset Khusus Agronomi CermatTani</strong> (Balitsa Kementan RI, FAO IPM,
-              &amp; standar kematangan buah).
+              {scanContextLabel
+                ? `Data hasil scan (${scanContextLabel}) sudah terhubung. Langsung tanyakan detail penanganan atau langkah berikutnya di bawah!`
+                : 'Semua jawaban dihasilkan langsung oleh Gemini AI dengan acuan Dataset Khusus Agronomi CermatTani (Balitsa Kementan RI & FAO IPM).'}
             </p>
             <div
               style={{
@@ -302,7 +377,7 @@ export const ChatScreen: React.FC = () => {
               }}
             >
               <ShieldCheck size={14} color="var(--leaf-600)" />
-              Fokus pertanian &amp; CermatTani · Organik lebih dulu · Tanpa data dummy
+              Fokus pertanian &amp; CermatTani · Organik lebih dulu · Dataset Agronomi
             </div>
           </div>
         )}
@@ -335,9 +410,11 @@ export const ChatScreen: React.FC = () => {
                   gap: 8,
                 }}
               >
-                <p className="t-body" style={{ margin: 0, whiteSpace: 'pre-line', fontSize: '0.95rem' }}>
-                  {msg.isi}
-                </p>
+                <FormattedText
+                  text={msg.isi}
+                  className="t-body"
+                  style={{ fontSize: '0.95rem', color: isCermo ? 'var(--ink)' : 'var(--on-leaf)' }}
+                />
                 {isCermo && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span className="pill pill-warn" style={{ fontSize: '0.7rem', padding: '2px 9px' }}>
@@ -377,7 +454,6 @@ export const ChatScreen: React.FC = () => {
         )}
       </div>
 
-      {/* Tombol Mengambang Lompat ke Pesan Terbaru saat User Scroll ke Atas */}
       {showScrollBottom && (
         <button
           type="button"
@@ -389,10 +465,10 @@ export const ChatScreen: React.FC = () => {
         </button>
       )}
 
-      {/* Bilah Input Terkunci di Bawah (selalu terlihat & tidak pernah tertutup) */}
+      {/* Bilah Input Terkunci di Bawah */}
       <footer className="chat-composer">
         <div className="chat-quick-row" aria-label="Saran pertanyaan cepat">
-          {QUICK_QUESTIONS.map((q) => (
+          {contextualQuickQuestions.map((q) => (
             <button
               key={q}
               type="button"
@@ -419,7 +495,7 @@ export const ChatScreen: React.FC = () => {
             style={{ minHeight: 44 }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tulis pertanyaan tentang tanaman, hasil scan, pupuk, atau irigasimu..."
+            placeholder="Tulis pertanyaan lanjutan tentang hasil scan, penyakit, pupuk, atau irigasi..."
             aria-label="Pesan untuk Cermo"
           />
           <button

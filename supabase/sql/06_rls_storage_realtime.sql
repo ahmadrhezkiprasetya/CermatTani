@@ -149,3 +149,13 @@ begin
     alter publication supabase_realtime add table public.devices;
   end if;
 end $$;
+
+-- Hak akses GRANT dasar agar API Supabase (anon, authenticated, service_role) tidak terkena 42501
+grant usage on schema public to anon, authenticated, service_role;
+grant select on public.knowledge_diseases, public.knowledge_nutrients to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+grant execute on function public.owns_farm(uuid) to authenticated, service_role;
+grant execute on function public.owns_plant(uuid) to authenticated, service_role;
+grant execute on function public.owns_device(uuid) to authenticated, service_role;
+notify pgrst, 'reload schema';

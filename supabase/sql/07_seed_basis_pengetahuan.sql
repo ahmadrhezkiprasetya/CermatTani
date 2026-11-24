@@ -1,260 +1,42 @@
--- ============================================================================
--- TAHAP 7: DATA AWAL BASIS PENGETAHUAN (UMUM UNTUK SEMUA TANAMAN)
--- Jalankan terakhir setelah TAHAP 1 s.d. TAHAP 6 berhasil.
--- ============================================================================
+-- TAHAP 7: SEED BASIS PENGETAHUAN v3.0 (24 Penyakit + 10 Hara, sinkron YOLOv8 & App)
+-- Jalankan setelah TAHAP 1 s.d. TAHAP 6 berhasil (aman dijalankan ulang / idempoten).
 
-insert into public.knowledge_diseases (
-  id, penyakit, komoditas, bagian_umum, penyebab, gejala, solusi_organik, solusi_kimia, pencegahan, sumber
-) values
-(
-  'sehat',
-  'Sehat',
-  array['umum'],
-  array['buah', 'daun', 'batang', 'bunga', 'keseluruhan'],
-  'Tidak ditemukan tanda serangan jamur, bakteri, virus, atau hama yang mencolok pada foto.',
-  'Daun segar merata sesuai karakter varietas, batang kokoh, permukaan hasil panen mulus tanpa bercak cekung.',
-  array[
-    'Pertahankan penyiraman di pangkal batang pada pagi atau sore hari agar tajuk tidak basah terlalu lama.',
-    'Tambahkan mulsa organik (jerami, sekam, atau daun kering) untuk menjaga kelembapan dan suhu tanah stabil.'
-  ],
-  array[
-    'Tidak diperlukan penyemprotan kimia. Hindari penggunaan pestisida preventif berlebihan; bila terpaksa gunakan produk terdaftar dan selalu baca label produk.'
-  ],
-  array[
-    'Periksa bagian bawah daun minimal 2 kali seminggu, terutama saat cuaca lembap atau musim hujan.',
-    'Bersihkan gulma dan pangkas daun tua yang menyentuh tanah agar sirkulasi udara lancar.'
-  ],
-  'Kementan RI & FAO Integrated Pest Management (IPM)'
-),
-(
-  'bercak_kering',
-  'Bercak daun kering (Early blight / Cercospora)',
-  array['umum'],
-  array['daun', 'batang'],
-  'Infeksi jamur bercak daun (seperti Alternaria spp. atau Cercospora spp.) yang berkembang cepat saat daun sering lembap.',
-  'Bercak cokelat tua melingkar atau bertepi kuning yang biasanya dimulai dari daun tua bagian bawah.',
-  array[
-    'Petik dan buang daun yang berbercak jauh dari lahan budidaya (jangan dijadikan kompos).',
-    'Semprot fungisida nabati atau agen hayati Trichoderma / larutan baking soda 1 sendok teh per liter air + sedikit sabun cair nabati pada sore hari.',
-    'Siram langsung ke area perakaran, hindari membasahi permukaan daun.'
-  ],
-  array[
-    'Opsi terakhir bila serangan meluas (> 25% tajuk): fungisida kontak terdaftar sesuai komoditas tanaman. Wajib baca label produk, patuhi dosis dan masa tunggu panen.'
-  ],
-  array[
-    'Atur jarak tanam agar cahaya matahari dan aliran udara masuk ke sela tanaman.',
-    'Gunakan mulsa untuk mencegah percikan spora dari tanah ke daun bawah.',
-    'Lakukan rotasi jenis tanaman antar musim tanam.'
-  ],
-  'Balitsa Kementan RI & PlantVillage Reference'
-),
-(
-  'busuk_daun',
-  'Busuk daun / Hawar daun (Late blight)',
-  array['umum'],
-  array['daun', 'buah', 'batang'],
-  'Patogen jamur/oomycete (seperti Phytophthora spp.) yang menyebar sangat cepat saat kelembapan udara tinggi (>= 85%) dan suhu sejuk.',
-  'Bercak basah hijau keabu-abuan lalu menghitam cepat pada tepi daun atau batang; di pagi lembap kadang tampak lapisan putih tipis di bawah daun.',
-  array[
-    'Segera pangkas dan musnahkan bagian tanaman yang terserang agar tidak menular ke tanaman sekitar.',
-    'Kurangi kelembapan sekitar tajuk dengan menjarangkan daun rimbun bagian bawah dan hentikan siram atas.',
-    'Aplikasikan agen hayati Bacillus subtilis atau fungisida tembaga yang diizinkan untuk budidaya organik.'
-  ],
-  array[
-    'Bila gejala menyebar cepat di musim hujan: pertimbangkan fungisida spesifik sesuai anjuran penyuluh pertanian setempat. Wajib baca label produk, gunakan APD, dan taati masa tunggu panen.'
-  ],
-  array[
-    'Pantau peringatan risiko iklim mikro di CermatTani setiap kali kelembapan udara tinggi.',
-    'Pastikan drainase bedengan atau pot/polybag lancar agar air tidak menggenang.'
-  ],
-  'Kementan RI & FAO Plant Disease Advisory'
-),
-(
-  'bercak_bakteri',
-  'Bercak bakteri',
-  array['umum'],
-  array['daun', 'buah', 'batang'],
-  'Bakteri patogen (seperti Xanthomonas spp. atau Pseudomonas spp.) yang terbawa benih atau menyebar lewat percikan hujan dan alat kebun.',
-  'Bintik kecil cokelat kehitaman berair pada daun atau luka kasar kecil di permukaan batang/buah.',
-  array[
-    'Pisahkan dan buang bagian tanaman bergejala; cuci tangan serta gunting pangkas dengan sabun/alkohol sebelum menyentuh tanaman sehat.',
-    'Hindari menyentuh atau memangkas tanaman saat daun masih basah oleh embun atau hujan.',
-    'Gunakan bakterisida nabati (ekstrak daun sirih/bawang putih) sebagai penekan awal.'
-  ],
-  array[
-    'Opsi terakhir pada serangan berat: bakterisida terdaftar berbahan tembaga sesuai rekomendasi penyuluh. Wajib baca label produk dan ikuti batas aman panen.'
-  ],
-  array[
-    'Gunakan benih atau bibit sehat bersertifikat.',
-    'Sterilkan peralatan budidaya secara berkala.'
-  ],
-  'Kementan RI & FAO Integrated Crop Management'
-),
-(
-  'layu_batang',
-  'Layu fusarium / Layu bakteri pembuluh',
-  array['umum'],
-  array['batang', 'akar', 'keseluruhan'],
-  'Jamur tular tanah (Fusarium spp.) atau bakteri (Ralstonia spp.) yang menyumbat pembuluh air dari akar dan pangkal batang.',
-  'Pangkal batang kecokelatan, daun layu mendadak di siang hari walau tanah cukup lembap.',
-  array[
-    'Cabut tanaman yang sudah layu permanen beserta tanah di sekitar perakaran agar tidak menular ke tanaman lain.',
-    'Kocor lubang tanam sekitar dengan Trichoderma harzianum dan kompos matang untuk memperbaiki mikroba tanah.',
-    'Tambahkan dolomit/kapur pertanian bila pH tanah terlalu asam (pH < 5,5).'
-  ],
-  array[
-    'Penyemprotan daun tidak efektif untuk layu pembuluh. Konsultasikan ke penyuluh pertanian sebelum memakai perlakuan tanah kimiawi dan selalu baca label produk.'
-  ],
-  array[
-    'Perbaiki drainase dan buat bedengan lebih tinggi saat musim hujan.',
-    'Pilih varietas tanaman yang tahan layu serta lakukan rotasi tanaman.'
-  ],
-  'Kementan RI — Pengendalian Penyakit Tular Tanah'
-),
-(
-  'embun_tepung',
-  'Embun tepung (Powdery mildew)',
-  array['umum'],
-  array['daun', 'batang', 'bunga'],
-  'Jamur golongan Erysiphales yang tumbuh pada permukaan daun di kondisi teduh dengan sirkulasi udara kurang baik.',
-  'Lapisan serbuk putih keabu-abuan seperti tepung di permukaan atas maupun bawah daun.',
-  array[
-    'Pangkas daun yang tertutup serbuk putih berat agar tidak menyebar lewat angin.',
-    'Semprot larutan baking soda ringan atau minyak nimba (neem oil) pada sore hari.',
-    'Tingkatkan paparan sinar matahari dan jarak antar tanaman.'
-  ],
-  array[
-    'Opsi terakhir bila serangan berat: fungisida berbahan sulfur/belerang sesuai aturan tanaman. Wajib baca label produk dan hindari penyemprotan saat matahari terik.'
-  ],
-  array[
-    'Hindari pemupukan Nitrogen berlebihan yang membuat tajuk terlalu rimbun dan lembap.',
-    'Jaga kebersihan daun gugur di sekitar lahan.'
-  ],
-  'Kementan RI & FAO IPM Guide'
-)
-on conflict (id) do update set
-  penyakit = excluded.penyakit,
-  komoditas = excluded.komoditas,
-  bagian_umum = excluded.bagian_umum,
-  penyebab = excluded.penyebab,
-  gejala = excluded.gejala,
-  solusi_organik = excluded.solusi_organik,
-  solusi_kimia = excluded.solusi_kimia,
-  pencegahan = excluded.pencegahan,
-  sumber = excluded.sumber,
-  updated_at = now();
+insert into public.knowledge_diseases (id, penyakit, komoditas, bagian_umum, penyebab, gejala, solusi_organik, solusi_kimia, pencegahan, sumber) values
+('sehat', 'Sehat', array['umum'], array['buah','daun','batang'], 'Tidak ada tanda patogen atau hama mencolok.', 'Daun hijau segar merata, batang kokoh, kulit buah mulus.', array['Siram pangkal batang pagi hari agar daun tidak basah lama.','Pasang mulsa jerami/sekam untuk jaga kelembapan tanah.'], array['Tidak perlu semprot kimia; bila terpaksa pakai produk terdaftar & baca label produk.'], array['Cek balik daun 2x seminggu saat cuaca lembap.','Pangkas daun bawah yang menyentuh tanah.'], 'Balitsa Kementan RI & FAO IPM'),
+('bercak_kering', 'Bercak daun kering (Early blight)', array['tomat','kentang','terong','cabai'], array['daun','batang'], 'Jamur Alternaria solani saat cuaca hangat & daun basah.', 'Bercak cokelat tua bercincin konsentris bertepi kuning di daun tua.', array['Petik & buang daun berbercak jauh dari lahan.','Semprot Trichoderma atau baking soda 1 sdt/L sore hari.','Siram di pangkal akar, jangan basahi daun.'], array['Opsi terakhir (>25% daun): fungisida kontak mankozeb/klorotalonil; wajib baca label produk.'], array['Jarak tanam 50x60 cm, pasang mulsa & rotasi tanaman.'], 'PlantVillage, Balitsa & UF/IFAS'),
+('busuk_daun', 'Busuk daun / Hawar (Late blight)', array['tomat','kentang'], array['daun','buah','batang'], 'Oomycete Phytophthora infestans saat RH >= 85% & suhu 18-26 C.', 'Bercak basah hijau abu-abu cepat menghitam, kapang putih halus di balik daun.', array['Pangkas & musnahkan bagian terserang segera.','Jarangkan daun bawah & hentikan siram atas.','Semprot Bacillus subtilis atau tembaga organik.'], array['Opsi terakhir musim hujan: fungisida oomycete sesuai penyuluh; wajib baca label produk & APD.'], array['Pantau risiko iklim mikro & jaga drainase bedengan.'], 'PlantVillage, Balitsa & FAO'),
+('kapang_daun', 'Kapang daun (Leaf mold)', array['tomat'], array['daun'], 'Jamur Passalora fulva saat kelembapan udara > 85% & tajuk pengap.', 'Bintik kuning pucat di atas daun, lapisan beludru cokelat zaitun di bawah daun.', array['Petik daun terinfeksi ke kantong tertutup agar spora tidak terbang.','Pangkas tunas air & daun bawah untuk ventilasi.','Semprot ekstrak serai wangi atau baking soda ringan ke balik daun.'], array['Opsi terakhir: fungisida kontak sesuai penyuluh; wajib baca label produk.'], array['Hindari siram sore/malam & atur jarak tanam lega.'], 'PlantVillage & UF/IFAS'),
+('bercak_septoria', 'Bercak daun Septoria', array['tomat'], array['daun'], 'Jamur Septoria lycopersici terbawa percikan air hujan/siraman atas.', 'Banyak bercak bulat kecil bertengah abu-abu bertepi gelap di daun bawah.', array['Pangkas & musnahkan daun bawah terinfeksi.','Pasang mulsa & siram langsung ke tanah.','Aplikasikan Trichoderma atau fungisida nabati sore hari.'], array['Opsi terakhir bila naik ke daun atas: klorotalonil/tembaga sesuai penyuluh; wajib baca label produk.'], array['Jangan pangkas saat daun basah & rotasi tanaman.'], 'PlantVillage & UF/IFAS'),
+('bercak_target', 'Bercak target (Target spot)', array['tomat','mentimun','cabai'], array['daun','buah','batang'], 'Jamur Corynespora cassiicola pada suhu hangat (24-30 C) & basah.', 'Bercak cokelat gelap berpola cincin target yang cepat menyatu & berlubang.', array['Buang daun bawah bergejala berat untuk putus spora.','Pangkas cabang rimbun & semprot Bacillus subtilis sore hari.'], array['Opsi terakhir bila tajuk rusak luas: fungisida protektan sesuai penyuluh; wajib baca label produk.'], array['Bersihkan sisa panen, pakai mulsa & irigasi tetes.'], 'PlantVillage & UF/IFAS'),
+('bercak_bakteri', 'Bercak bakteri (Bacterial spot)', array['tomat','cabai'], array['daun','buah'], 'Bakteri Xanthomonas spp. terbawa benih, hujan & alat kebun.', 'Bintik kecil cokelat kehitaman berair di daun atau koreng kasar di kulit buah.', array['Buang bagian bergejala; sterilkan tangan & gunting dengan alkohol.','Jangan sentuh tanaman saat daun basah embun/hujan.','Semprot ekstrak daun sirih/bawang putih.'], array['Opsi terakhir serangan berat: bakterisida tembaga hidroksida sesuai penyuluh; wajib baca label produk.'], array['Gunakan benih bersertifikat & sterilkan alat rutin.'], 'PlantVillage, Balitsa & UF/IFAS'),
+('bintik_bakteri', 'Bintik bakteri (Bacterial speck)', array['tomat'], array['daun','buah'], 'Bakteri Pseudomonas syringae pv. tomato saat cuaca sejuk berembun.', 'Bintik hitam <2 mm bertepi kuning di daun & bintik hitam halus di buah hijau.', array['Pangkas daun terinfeksi saat kering & pasang mulsa.','Siram di pangkal saja & semprot ekstrak bawang putih/sirih.'], array['Opsi terakhir musim hujan: bakterisida berbasis tembaga sesuai penyuluh; wajib baca label produk.'], array['Pakai benih sehat & rotasi lahan minimal 2 musim.'], 'UF/IFAS & UC IPM'),
+('kanker_bakteri', 'Kanker bakteri (Bacterial canker)', array['tomat'], array['batang','buah','daun'], 'Bakteri Clavibacter michiganensis menular lewat benih & gunting pangkas.', 'Tepi daun hangus sepihak, celah cokelat batang, bintik mata burung di buah.', array['Cabut & musnahkan tanaman berat ke luar lahan (jangan dikompos).','Sterilkan gunting & ajir dengan alkohol 70% tiap pindah tanaman.'], array['Infeksi sistemik tak bisa disembuhkan; tembaga hanya tekan permukaan sesuai penyuluh; baca label produk.'], array['Benih bersih patogen & rotasi non-Solanaceae 2-3 tahun.'], 'UF/IFAS & EPPO'),
+('embun_tepung', 'Embun tepung (Powdery mildew)', array['tomat','cabai','mentimun','terong'], array['daun','batang'], 'Jamur Erysiphales (Oidium/Leveillula) terbawa angin di tajuk teduh.', 'Lapisan serbuk putih seperti tepung di permukaan daun lalu menguning.', array['Pangkas daun tertutup serbuk berat & tambah paparan matahari.','Semprot baking soda 1 sdt/L + sabun nabati atau minyak nimba sore hari.'], array['Opsi terakhir serangan berat: fungisida sulfur sesuai dosis; wajib baca label produk & jangan semprot terik.'], array['Hindari Nitrogen berlebih & bersihkan daun gugur.'], 'Balitsa, UF/IFAS & FAO IPM'),
+('embun_bulu', 'Embun bulu (Downy mildew)', array['mentimun','selada','sawi','bayam'], array['daun'], 'Oomycete Peronosporaceae saat malam sejuk & embun tebal.', 'Bercak kuning menyudut mengikuti urat daun, bulu halus abu-abu di balik daun.', array['Petik daun terinfeksi setelah embun kering & siram pangkal pagi hari.','Semprot Bacillus subtilis atau tembaga organik.'], array['Opsi terakhir musim hujan: fungisida oomycete sesuai penyuluh; wajib baca label produk.'], array['Pasang mulsa, rambatan tinggi & jarak tanam lega.'], 'FAO IPM & UF/IFAS'),
+('layu_batang', 'Layu fusarium / Layu bakteri', array['tomat','cabai','terong','kentang'], array['batang','daun'], 'Jamur Fusarium oxysporum atau bakteri Ralstonia menyumbat pembuluh.', 'Pangkal batang kecokelatan & daun layu mendadak siang hari walau tanah lembap.', array['Cabut tanaman layu permanen beserta tanah sekitar akar.','Kocor Trichoderma harzianum + kompos matang & dolomit jika pH <5,5.'], array['Semprot daun tidak efektif; konsultasi penyuluh untuk perlakuan tanah & wajib baca label produk.'], array['Bedengan tinggi berdrainase baik & varietas tahan layu.'], 'Balitsa & UF/IFAS'),
+('busuk_pangkal_sklerotium', 'Busuk pangkal (Southern blight)', array['tomat','cabai','terong','kentang'], array['batang'], 'Jamur tular tanah Athelia rolfsii di tanah hangat lembap.', 'Pangkal batang membusuk tertutup benang putih & butiran cokelat mirip biji sawi.', array['Cabut tanaman beserta 5 cm tanah permukaan agar sklerotia tidak jatuh.','Kocor Trichoderma harzianum + kompos matang & dolomit.'], array['Konsultasikan perlakuan tanah ke penyuluh bila meluas; wajib baca label produk.'], array['Solarisasi tanah sebelum tanam & jaga pH 6,5.'], 'UF/IFAS & Balitsa'),
+('keriting_kuning', 'Virus kuning keriting (TYLCV)', array['tomat','cabai'], array['daun'], 'Tomato Yellow Leaf Curl Virus ditularkan kutu kebul (Bemisia tabaci).', 'Daun pucuk keriting menggulung ke atas, menguning cerah, kerdil.', array['Pasang perangkap likat kuning untuk tangkap kutu kebul.','Semprot minyak nimba ke balik daun & cabut tanaman muda parah.'], array['Virus tak dapat diobati; pengendalian hanya menyasar kutu kebul sesuai penyuluh & baca label produk.'], array['Mulsa perak reflektif, kelambu semai & bersihkan gulma.'], 'PlantVillage, Balitsa & FAO'),
+('virus_mosaik', 'Virus mosaik (ToMV / TMV)', array['tomat','cabai','terong'], array['daun','buah'], 'Tomato Mosaic Virus menular lewat tangan, rokok, benih & gunting.', 'Daun belang hijau-kuning mosaik, menyempit melintir & buah belang.', array['Cabut tanaman muda berat; cuci tangan dengan sabun/susu skim.','Sterilkan gunting pangkas & hindari merokok saat merawat tanaman.'], array['Tidak ada obat kimia penyembuh virus; fokus sanitasi alat & benih sehat.'], array['Varietas tahan ToMV & sanitasi gunting antar petak.'], 'PlantVillage & UF/IFAS'),
+('virus_bercak_layu', 'Virus bercak layu / perunggu (TSWV)', array['tomat','cabai','selada'], array['daun','buah'], 'Tomato Spotted Wilt Virus ditularkan hama trips (Thrips spp.).', 'Pucuk warna perunggu berbintik gelap & kulit buah berpola cincin kuning.', array['Cabut tanaman berat & pasang perangkap likat biru/kuning untuk trips.','Semprot minyak nimba sore hari & bersihkan gulma berbunga.'], array['Virus tak bisa diobati; insektisida selektif hanya untuk trips sesuai penyuluh & baca label produk.'], array['Mulsa perak reflektif & varietas tahan TSWV.'], 'UF/IFAS & EPPO'),
+('tungau_laba', 'Tungau laba-laba (Spider mite)', array['tomat','cabai','terong','mentimun'], array['daun'], 'Hama tungau Tetranychus urticae meledak saat cuaca panas & kering.', 'Daun berbintik kuning halus seperti debu, kusam perunggu, jaring tipis di balik daun.', array['Semprot air bersih agak kencang ke balik daun pagi hari.','Semprot minyak nimba/sabun nabati tiap 4-5 hari sore hari.'], array['Opsi terakhir serangan berat: akarisida selektif sesuai penyuluh; wajib baca label produk.'], array['Cek balik daun rutin saat kemarau & jaga kelembapan.'], 'PlantVillage & UC IPM'),
+('serangan_hama_daun', 'Hama daun (Penggorok/Ulat/Kutu)', array['tomat','cabai','selada','bayam','sawi','mentimun'], array['daun','buah'], 'Lalat penggorok Liriomyza, ulat buah/daun, atau kutu daun (Aphids).', 'Garis korokan putih berliku, lubang gigitan ulat, atau koloni kutu di balik daun.', array['Ambil ulat/daun berkorok manual & pasang perangkap likat kuning.','Semprot minyak nimba atau larutan bawang putih + sabun nabati sore hari.'], array['Opsi terakhir melewati ambang: insektisida selektif sesuai penyuluh; wajib baca label produk & APD.'], array['Tanam refugia (marigold/kemangi) & bersihkan gulma.'], 'Balitsa & FAO IPM'),
+('busuk_ujung_buah', 'Busuk ujung buah (Blossom end rot)', array['tomat','cabai','terong'], array['buah'], 'Gangguan fisiologis serapan Kalsium akibat siram fluktuatif/tanah asam.', 'Ujung bawah buah cokelat kehitaman, cekung, dan keras seperti kulit.', array['Petik buah busuk ujung agar nutrisi fokus ke buah sehat.','Jaga siram stabil (45-65%), pasang mulsa & tabur dolomit/cangkang telur.'], array['Koreksi cepat: kocor Kalsium nitrat 2-3 g/L (bukan jamur, tak perlu fungisida); baca label produk.'], array['Hindari Nitrogen berlebih saat berbuah & jaga pH 6,0-6,8.'], 'Balitsa & UF/IFAS'),
+('antraknosa', 'Antraknosa / Patek buah', array['tomat','cabai'], array['buah'], 'Jamur Colletotrichum spp. pada buah matang saat lembap & hujan.', 'Bercak bulat cekung basah di kulit buah dengan spora jingga/hitam.', array['Petik & kubur buah patek jauh dari lahan; panen buah segera saat matang.','Semprot ekstrak lengkuas/kunyit atau agen hayati Trichoderma/Bacillus.'], array['Opsi terakhir musim hujan: fungisida azoksistrobin/mankozeb sesuai penyuluh; wajib baca label produk.'], array['Ajir + mulsa agar buah tak sentuh tanah & drainase lancar.'], 'Balitsa & UF/IFAS'),
+('busuk_basah_buah', 'Busuk basah buah (Soft rot)', array['tomat','cabai','kentang','sawi'], array['buah'], 'Bakteri Pectobacterium carotovorum masuk lewat luka/tusukan serangga.', 'Buah lembek berair, kulit mudah pecah mengelupas, daging mencair berbau asam.', array['Petik & kubur buah busuk; cuci tangan & gunting dengan alkohol/sabun.','Hentikan siram kena buah & pasang perangkap serangga pembuat luka.'], array['Buah busuk tak bisa sembuh; lindungi buah sehat dengan tembaga sesuai penyuluh & baca label produk.'], array['Ajir + mulsa & panen hati-hati jangan sampai tergores.'], 'Balitsa & FAO'),
+('busuk_jamur_buah', 'Busuk jamur buah (Buckeye rot)', array['tomat'], array['buah'], 'Oomycete Phytophthora parasitica terpercik dari tanah saat hujan.', 'Bercak lebar cokelat keabu-abuan bercincin konsentris, kulit keras lalu membusuk.', array['Petik & musnahkan buah berbercak; pasang mulsa penahan percikan tanah.','Pangkas daun bawah & semprot Trichoderma atau tembaga organik.'], array['Opsi terakhir hujan deras: fungisida protektan oomycete sesuai penyuluh; wajib baca label produk.'], array['Ikat batang di ajir agar buah menggantung >=25 cm dari tanah.'], 'Balitsa & UF/IFAS'),
+('busuk_kapang_abu', 'Busuk kapang abu-abu (Botrytis)', array['tomat','cabai','selada'], array['buah','batang'], 'Jamur Botrytis cinerea pada RH >80%, suhu sejuk & udara pengap.', 'Buah/tangkai membusuk lunak diselimuti kapang beludru abu-abu halus.', array['Petik buah berkapang ke kantong tertutup agar spora tak beterbangan.','Pangkas daun sekitar dompolan & semprot Bacillus subtilis pagi hari.'], array['Opsi terakhir serangan tinggi: fungisida khusus Botrytis sesuai penyuluh; wajib baca label produk & APD.'], array['Jaga ventilasi kebun & hindari Nitrogen berlebih.'], 'Balitsa & FAO IPM'),
+('buah_pecah_sengatan', 'Buah pecah / Sengatan matahari', array['tomat','cabai'], array['buah'], 'Gangguan fisiologis lonjakan air mendadak (cracking) atau terik langsung (sunscald).', 'Kulit buah retak sekitar tangkai atau bercak melepuh putih pucat di bahu buah.', array['Petik buah pecah lebar sebelum dihinggapi bakteri/lalat buah.','Siram rutin stabil (45-65%), pasang mulsa & sisakan daun pelindung / paranet 30%.'], array['Gangguan fisiologis bukan penyakit menular; tidak perlu fungisida atau insektisida.'], array['Jangan pangkas daun atas berlebih & jaga irigasi stabil.'], 'UF/IFAS & Balitsa')
+on conflict (id) do update set penyakit=excluded.penyakit, komoditas=excluded.komoditas, bagian_umum=excluded.bagian_umum, penyebab=excluded.penyebab, gejala=excluded.gejala, solusi_organik=excluded.solusi_organik, solusi_kimia=excluded.solusi_kimia, pencegahan=excluded.pencegahan, sumber=excluded.sumber, updated_at=now();
 
-insert into public.knowledge_nutrients (
-  id, komoditas, gejala, dugaan, rekomendasi_organik, rekomendasi_pupuk, dosis_per_fase, sumber
-) values
-(
-  'cukup',
-  array['umum'],
-  'Warna daun hijau sehat merata tanpa klorosis, nekrosis, atau tepi terbakar.',
-  'Hara terlihat seimbang',
-  'Pertahankan kompos matang 250-500 g/tanaman tiap 3-4 minggu atau POC (Pupuk Organik Cair) 10 ml/liter air.',
-  'Pemupukan berimbang NPK sesuai kebutuhan fase tumbuh dan jenis tanaman.',
-  '{
-    "Bibit": "Media tanam + kompos halus matang; belum perlu pupuk kimia pekat.",
-    "Vegetatif": "NPK seimbang dosis ringan (kocor tiap 10-14 hari) + POC organik.",
-    "Generatif": "NPK seimbang + tambahan unsur Fosfor, Kalium, dan mikro sesuai jenis tanaman.",
-    "Berbunga": "Kurangi Nitrogen berlebih, tingkatkan Fosfor, Kalium, dan Kalsium ringan.",
-    "Berbuah": "Utamakan Kalium (K) dan Kalsium (Ca) untuk kualitas hasil panen.",
-    "Panen": "Cukup pemeliharaan kompos/POC ringan agar tanah tetap subur."
-  }'::jsonb,
-  'Kementan RI — Acuan Umum Pemupukan Berimbang (Bukan pengganti uji tanah)'
-),
-(
-  'kurang_nitrogen',
-  array['umum'],
-  'Daun tua bagian bawah menguning pucat merata, pertumbuhan tunas dan batang melambat.',
-  'Dugaan kekurangan Nitrogen (N)',
-  'Berikan POC fermentasi daun hijau/urin ternak (10-15 ml/liter) atau kompos kotoran ternak matang di sekitar perakaran.',
-  'Pupuk sumber Nitrogen (NPK seimbang, ZA, atau Urea dosis rendah) secara kocor di area akar.',
-  '{
-    "Bibit": "POC ringan 5 ml/liter air seminggu sekali.",
-    "Vegetatif": "NPK seimbang atau sumber Nitrogen dosis ringan secara kocor tiap 10 hari.",
-    "Generatif": "Gunakan NPK seimbang secukupnya; hindari Nitrogen berlebih agar bunga/bakal buah tidak rontok.",
-    "Berbunga": "NPK seimbang dosis rendah + kompos cair.",
-    "Berbuah": "Utamakan kompos/POC ringan, hindari Urea pekat.",
-    "Panen": "Kompos matang ringan untuk pemulihan media tanam."
-  }'::jsonb,
-  'Kementan RI & IPNI Plant Nutrition Guide (Bukan pengganti uji tanah)'
-),
-(
-  'kurang_fosfor',
-  array['umum'],
-  'Pertumbuhan akar dan tanaman lambat, daun tua tampak hijau gelap kusam atau keunguan di bagian bawah.',
-  'Dugaan kekurangan Fosfor (P)',
-  'Tambahkan kompos matang, guano, atau tepung tulang organik ke sekitar perakaran.',
-  'Pupuk sumber Fosfor (SP-36 atau MKP dosis ringan) sesuai fase tumbuh.',
-  '{
-    "Bibit": "Campurkan kompos matang kaya bahan organik pada media semai.",
-    "Vegetatif": "Berikan sumber Fosfor dasar di sekitar perakaran saat persiapan atau awal tanam.",
-    "Generatif": "MKP dosis ringan 2-3 g/liter secara kocor tiap 10-14 hari.",
-    "Berbunga": "MKP atau pupuk tinggi P dosis ringan untuk mendukung pembungaan.",
-    "Berbuah": "Cukup NPK seimbang + kompos.",
-    "Panen": "Perbaiki bahan organik tanah menjelang tanam berikutnya."
-  }'::jsonb,
-  'Kementan RI & FAO Plant Nutrition Guide (Bukan pengganti uji tanah)'
-),
-(
-  'kurang_kalium',
-  array['umum'],
-  'Tepi daun tua menguning lalu mengering kecokelatan, batang kurang kokoh atau kualitas hasil panen menurun.',
-  'Dugaan kekurangan Kalium (K)',
-  'Tambahkan abu sekam bakar 100-200 g/tanaman atau POC kulit pisang/sabut kelapa 15 ml/liter air.',
-  'Sumber Kalium (KNO3 Putih, ZK, atau KCl dosis ringan) terutama pada fase generatif.',
-  '{
-    "Bibit": "Tambahkan sedikit abu sekam ke media tanam.",
-    "Vegetatif": "NPK seimbang + abu sekam tipis di sekitar pangkal.",
-    "Generatif": "Sumber Kalium (KNO3/ZK) dosis ringan secara kocor tiap 10-14 hari.",
-    "Berbunga": "KNO3 Putih 3-5 g/liter kocor 200 ml/tanaman tiap 10 hari.",
-    "Berbuah": "NPK tinggi Kalium atau KNO3 dosis anjuran umum tiap 10 hari.",
-    "Panen": "POC kalium organik tiap 14 hari untuk menjaga kualitas panen."
-  }'::jsonb,
-  'Kementan RI & FAO Plant Nutrition Guide (Bukan pengganti uji tanah)'
-),
-(
-  'kurang_kalsium',
-  array['umum'],
-  'Daun muda melengkung atau keriting di ujung, atau ujung buah/tunas mengalami busuk kering.',
-  'Dugaan kekurangan Kalsium (Ca)',
-  'Taburkan dolomit atau tepung cangkang telur halus di sekitar pangkal serta jaga penyiraman stabil.',
-  'Kalsium nitrat (Ca(NO3)2) dosis ringan secara kocor di perakaran.',
-  '{
-    "Bibit": "Tambahkan sedikit dolomit ke media tanam bila pH asam.",
-    "Vegetatif": "Dolomit 20 g/tanaman di sekitar perakaran.",
-    "Generatif": "Kalsium nitrat 2-3 g/liter air secara kocor tiap 10-14 hari.",
-    "Berbunga": "Kalsium nitrat 2-3 g/liter + jaga kelembapan tanah tidak kering mendadak.",
-    "Berbuah": "Kalsium nitrat 3 g/liter kocor + jaga penyiraman teratur.",
-    "Panen": "Jaga irigasi stabil dan tambahkan dolomit ringan pascapanen."
-  }'::jsonb,
-  'Kementan RI — Penanganan Defisiensi Kalsium Tanaman (Bukan pengganti uji tanah)'
-),
-(
-  'kurang_magnesium',
-  array['umum'],
-  'Daun tua menguning di antara tulang daun (klorosis interveinal) sementara tulang daun tetap hijau.',
-  'Dugaan kekurangan Magnesium (Mg)',
-  'Berikan dolomit (mengandung Ca & Mg) dan kompos matang di sekitar perakaran.',
-  'Magnesium sulfat (garam Inggris/Kieserite) dosis ringan 2-3 g/liter secara kocor.',
-  '{
-    "Bibit": "Gunakan media tanam kaya kompos matang.",
-    "Vegetatif": "Dolomit tipis di sekitar perakaran.",
-    "Generatif": "Magnesium sulfat 2 g/liter kocor tiap 14 hari bila gejala terlihat.",
-    "Berbunga": "Magnesium sulfat 2-3 g/liter kocor.",
-    "Berbuah": "Dolomit ringan atau Magnesium sulfat dosis rendah.",
-    "Panen": "Tambahkan kompos & dolomit saat olah tanah berikutnya."
-  }'::jsonb,
-  'Kementan RI & IPNI Guide (Bukan pengganti uji tanah)'
-)
-on conflict (id) do update set
-  komoditas = excluded.komoditas,
-  gejala = excluded.gejala,
-  dugaan = excluded.dugaan,
-  rekomendasi_organik = excluded.rekomendasi_organik,
-  rekomendasi_pupuk = excluded.rekomendasi_pupuk,
-  dosis_per_fase = excluded.dosis_per_fase,
-  sumber = excluded.sumber,
-  updated_at = now();
+insert into public.knowledge_nutrients (id, komoditas, gejala, dugaan, rekomendasi_organik, rekomendasi_pupuk, dosis_per_fase, sumber) values
+('cukup', array['umum'], 'Daun hijau merata tanpa klorosis atau tepi terbakar.', 'Hara terlihat seimbang', 'Kompos matang 250-500 g/tanaman tiap 3 minggu atau POC 10 ml/L.', 'NPK 16-16-16 berimbang sesuai fase tumbuh.', '{"Bibit":"Kompos halus 1:1 media.","Vegetatif":"NPK 5-8 g kocor tiap 10 hr + POC.","Generatif":"NPK seimbang + K & Ca ringan.","Berbunga":"NPK 8-10 g + K & Ca.","Berbuah":"KNO3/MKP 3-5 g/L kocor tiap 10 hr.","Panen":"Kurangi N, jaga K ringan & kompos."}'::jsonb, 'Balitsa Kementan RI (Bukan pengganti uji tanah)'),
+('kurang_nitrogen', array['umum'], 'Daun tua bawah menguning pucat merata, batang melambat.', 'Dugaan kekurangan Nitrogen (N)', 'POC daun hijau 10-15 ml/L atau kompos ayam matang 300-500 g.', 'NPK 16-16-16 atau ZA/Urea dosis rendah kocor.', '{"Bibit":"POC 5 ml/L tiap minggu.","Vegetatif":"NPK 8-10 g atau Urea 3-5 g/L kocor.","Generatif":"NPK seimbang rendah N.","Berbunga":"NPK 8 g; hindari N berlebih.","Berbuah":"Kompos cair / NPK 5 g.","Panen":"Kompos matang 250 g."}'::jsonb, 'Balitsa & IPNI (Bukan pengganti uji tanah)'),
+('kurang_fosfor', array['umum'], 'Daun tua hijau gelap kusam dengan semburat ungu di balik daun.', 'Dugaan kekurangan Fosfor (P)', 'Kompos guano 50-100 g atau hayati pelarut fosfat + kompos.', 'SP-36 atau MKP dosis ringan awal tanam-berbunga.', '{"Bibit":"Kompos + fosfat alam.","Vegetatif":"SP-36 5-8 g melingkar 10 cm.","Generatif":"MKP 2-3 g/L kocor tiap 10-14 hr.","Berbunga":"MKP 2-3 g/L kocor tiap 10 hr.","Berbuah":"MKP 3 g/L tiap 14 hr bila lambat.","Panen":"Kompos matang pascapanen."}'::jsonb, 'Balitsa & IPNI (Bukan pengganti uji tanah)'),
+('kurang_kalium', array['umum'], 'Tepi daun tua menguning lalu kering cokelat, buah belang.', 'Dugaan kekurangan Kalium (K)', 'Abu sekam bakar 100-200 g atau POC kulit pisang 15 ml/L.', 'KNO3 Putih atau KCl dosis ringan saat berbunga-berbuah.', '{"Bibit":"Sedikit abu sekam di media.","Vegetatif":"NPK 5-8 g + abu sekam.","Generatif":"KNO3 3-5 g/L kocor tiap 10-14 hr.","Berbunga":"KNO3 Putih 3-5 g/L tiap 10 hr.","Berbuah":"KNO3/NPK grower 8-10 g tiap 10 hr.","Panen":"POC kalium 15 ml/L tiap 14 hr."}'::jsonb, 'Balitsa & FAO (Bukan pengganti uji tanah)'),
+('kurang_kalsium', array['umum'], 'Daun muda melengkung atau ujung buah mulai cekung gelap.', 'Dugaan kekurangan Kalsium (Ca)', 'Dolomit/tepung cangkang telur 20-30 g + siram stabil.', 'Kalsium nitrat (Ca(NO3)2) dosis ringan secara kocor.', '{"Bibit":"Dolomit 1 sdt/polybag.","Vegetatif":"Dolomit 20 g sekitar akar.","Generatif":"Kalsium nitrat 2-3 g/L tiap 10-14 hr.","Berbunga":"Kalsium nitrat 2-3 g/L kocor.","Berbuah":"Kalsium nitrat 3 g/L + tanah 45-65%.","Panen":"Irigasi stabil + dolomit ringan."}'::jsonb, 'Balitsa Kementan RI (Bukan pengganti uji tanah)'),
+('kurang_magnesium', array['umum'], 'Sela tulang daun tua menguning, tulang daun tetap hijau.', 'Dugaan kekurangan Magnesium (Mg)', 'Kapur dolomit 20-30 g/tanaman atau kompos matang rutin.', 'Garam Epsom (MgSO4) 2 g/L kocor/semprot sore.', '{"Bibit":"Dolomit 1 sdt campur media.","Vegetatif":"Dolomit 20 g atau MgSO4 2 g/L.","Generatif":"MgSO4 2 g/L kocor tiap 14 hr.","Berbunga":"MgSO4 2 g/L tiap 14 hr.","Berbuah":"MgSO4 2 g/L + hindari K berlebih.","Panen":"Dolomit ringan 20 g."}'::jsonb, 'IPNI & Balitsa (Bukan pengganti uji tanah)'),
+('kurang_besi', array['umum'], 'Daun muda pucuk menguning pucat dengan tulang daun hijau tegas.', 'Dugaan kekurangan Besi (Fe)', 'Kompos humus + asam humat untuk turunkan pH tanah basa.', 'Kelat besi (Fe-EDTA) 0,5-1 g/L semprot tipis sore.', '{"Bibit":"Media drainase baik pH 6,0-6,5.","Vegetatif":"Kompos + Fe-EDTA 0,5 g/L tiap 14 hr.","Generatif":"Mikro majemuk dosis ringan sore.","Berbunga":"Mikro majemuk dosis ringan sore.","Berbuah":"Jaga pH <7,0 + asam humat kocor.","Panen":"Kompos matang pulihkan media."}'::jsonb, 'IPNI & FAO (Bukan pengganti uji tanah)'),
+('kurang_boron', array['umum'], 'Pucuk kerdil/rapuh, bunga gugur, bahu buah bergabus/retak.', 'Dugaan kekurangan Boron (B)', 'Kompos beragam bahan organik + mulsa cegah kekeringan.', 'Mikro Boron dosis SANGAT RENDAH 0,5 g/L (jangan berlebih).', '{"Bibit":"Media kaya kompos matang.","Vegetatif":"Mikro majemuk 1x per bulan.","Generatif":"Mikro Boron 0,5 g/L tipis 1x.","Berbunga":"Mikro Boron 0,5 g/L awal bunga.","Berbuah":"Jaga kelembapan tanah stabil.","Panen":"Kompos matang pascapanen."}'::jsonb, 'IPNI & Balitsa (Bukan pengganti uji tanah)'),
+('kurang_sulfur', array['umum'], 'Daun muda atas menguning seragam, tangkai kemerahan.', 'Dugaan kekurangan Sulfur (S)', 'Kompos terfermentasi sempurna & gipsum alami 15-20 g.', 'ZA atau MgSO4 / ZK (Kalium Sulfat) 2-3 g/L kocor.', '{"Bibit":"Media kaya kompos matang.","Vegetatif":"ZA/MgSO4 2 g/L kocor 200 ml.","Generatif":"MgSO4/ZK 2-3 g/L kocor.","Berbunga":"MgSO4/ZK 2-3 g/L kocor.","Berbuah":"ZK 3 g/L tambah K & S.","Panen":"Kompos matang musim berikut."}'::jsonb, 'IPNI & FAO (Bukan pengganti uji tanah)'),
+('kurang_seng', array['umum'], 'Daun muda mengecil menyempit, ruas memendek (roset).', 'Dugaan kekurangan Seng (Zn)', 'Kompos kandang matang + pupuk hayati mikoriza.', 'Kelat Zn (Zn-EDTA) 0,5 g/L semprot sore jika pH tinggi.', '{"Bibit":"Kompos matang, hindari kapur berlebih.","Vegetatif":"Mikro Zn 0,5 g/L tiap 14 hr.","Generatif":"Kompos + hindari Fosfor berlebih.","Berbunga":"Kompos + hindari P berlebih.","Berbuah":"Jaga pH tanah 6,0-6,8.","Panen":"Bahan organik saat olah tanah."}'::jsonb, 'IPNI & UF/IFAS (Bukan pengganti uji tanah)')
+on conflict (id) do update set komoditas=excluded.komoditas, gejala=excluded.gejala, dugaan=excluded.dugaan, rekomendasi_organik=excluded.rekomendasi_organik, rekomendasi_pupuk=excluded.rekomendasi_pupuk, dosis_per_fase=excluded.dosis_per_fase, sumber=excluded.sumber, updated_at=now();

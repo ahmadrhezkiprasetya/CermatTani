@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
+import '../../core/widgets/plant_search_field.dart';
 import '../../data/cermat_state.dart';
 
 /// Layar 1: Onboarding 3 langkah — Hijau Susu Matcha × Krim Hangat, Maskot Transparan Tanpa Frame
@@ -20,8 +21,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final nameCtrl = TextEditingController(text: 'Pak Joko');
   final farmCtrl = TextEditingController();
   final locCtrl = TextEditingController();
-  final plantCtrl = TextEditingController(text: 'Tomat Servo #01');
-  String varietas = 'Servo F1';
+  final plantCtrl = TextEditingController(text: 'Cabai Rawit #01');
+  String varietas = 'Cabai Rawit';
 
   @override
   void dispose() {
@@ -33,12 +34,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _finish({required bool goToScan}) {
+    final resolvedVar = varietas.trim().isEmpty ? 'Tanaman Kebun' : varietas.trim();
     ref.read(cermatProvider.notifier).completeOnboarding(
           userName: nameCtrl.text,
           farmName: farmCtrl.text,
           farmLocation: locCtrl.text,
           plantName: farmCtrl.text.trim().isNotEmpty ? plantCtrl.text : null,
-          varietas: varietas,
+          varietas: resolvedVar,
         );
     context.go(goToScan ? '/scan' : '/');
   }
@@ -247,17 +249,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           decoration: _inputDec(p, 'Nama tanaman / petak'),
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
+        PlantSearchField(
           value: varietas,
-          decoration: _inputDec(p, 'Varietas'),
-          items: const [
-            DropdownMenuItem(value: 'Servo F1', child: Text('Tomat Servo F1')),
-            DropdownMenuItem(value: 'Gustavi', child: Text('Tomat Gustavi')),
-            DropdownMenuItem(value: 'Tomat Ceri', child: Text('Tomat Ceri')),
-            DropdownMenuItem(value: 'Rampai', child: Text('Tomat Rampai')),
-            DropdownMenuItem(value: 'Cabai Rawit', child: Text('Cabai Rawit')),
-          ],
-          onChanged: (v) => setState(() => varietas = v ?? 'Servo F1'),
+          label: 'Jenis / Varietas (bisa semua tanaman)',
+          onChanged: (next) {
+            setState(() {
+              varietas = next;
+              if (next.trim().isNotEmpty &&
+                  (plantCtrl.text.trim().isEmpty || plantCtrl.text.trim().endsWith('#01'))) {
+                plantCtrl.text = '${next.trim()} #01';
+              }
+            });
+          },
         ),
         const SizedBox(height: 20),
         SizedBox(

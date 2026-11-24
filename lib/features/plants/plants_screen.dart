@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
 import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
+import '../../core/widgets/plant_search_field.dart';
 import '../../data/cermat_state.dart';
 
 const _growthPhases = ['Bibit', 'Vegetatif', 'Berbunga', 'Berbuah', 'Panen'];
@@ -359,19 +360,22 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
                                     runSpacing: 4,
                                     children: [
                                       Text(
-                                        sc.bagian == PlantPart.buah
-                                            ? sc.anjuranPanen
-                                            : sc.penyakitUtamaNama,
+                                        switch (sc.fokusOutput) {
+                                          ScanOutputFocus.kematangan => sc.anjuranPanen,
+                                          ScanOutputFocus.penyakit => sc.penyakitUtamaNama,
+                                          ScanOutputFocus.hara => sc.dugaanHaraNama,
+                                          ScanOutputFocus.tidakTerdeteksi => 'Perlu foto ulang',
+                                        },
                                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                                       ),
-                                      sc.penyakitUtamaId == 'sehat'
-                                          ? CermatPill.ok('Yakin ${sc.keyakinan}%')
-                                          : CermatPill.warn('Yakin ${sc.keyakinan}%'),
+                                      sc.fokusOutput == ScanOutputFocus.penyakit
+                                          ? CermatPill.bad('Yakin ${sc.keyakinan}%')
+                                          : CermatPill.ok('Yakin ${sc.keyakinan}%'),
                                     ],
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    '${DateFormat('d MMM · HH:mm', 'id_ID').format(sc.waktu)} · ${sc.dugaanHaraNama}',
+                                    '${DateFormat('d MMM · HH:mm', 'id_ID').format(sc.waktu)}${sc.adaGejalaHara ? ' · ${sc.dugaanHaraNama}' : ''}',
                                     style: TextStyle(fontSize: 12.2, color: p.inkSoft),
                                   ),
                                 ],
@@ -393,40 +397,38 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
 
   void _openAddPlantDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
-    var varietas = 'Servo F1';
+    var varietas = 'Cabai Rawit';
     var fase = 'Vegetatif';
     showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           title: const Text('Tambah tanaman / petak'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nama petak (mis. Tomat Servo #05)'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: varietas,
-                decoration: const InputDecoration(labelText: 'Varietas'),
-                items: const [
-                  DropdownMenuItem(value: 'Servo F1', child: Text('Tomat Servo F1')),
-                  DropdownMenuItem(value: 'Gustavi', child: Text('Tomat Gustavi')),
-                  DropdownMenuItem(value: 'Tomat Ceri', child: Text('Tomat Ceri')),
-                  DropdownMenuItem(value: 'Cabai Rawit', child: Text('Cabai Rawit')),
-                ],
-                onChanged: (v) => setDlg(() => varietas = v ?? 'Servo F1'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: fase,
-                decoration: const InputDecoration(labelText: 'Fase tumbuh'),
-                items: [for (final f in _growthPhases) DropdownMenuItem(value: f, child: Text(f))],
-                onChanged: (v) => setDlg(() => fase = v ?? 'Vegetatif'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama petak (mis. Cabai #02 / Durian #01 / Anggrek)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                PlantSearchField(
+                  value: varietas,
+                  label: 'Jenis / Varietas (semua tanaman)',
+                  onChanged: (v) => setDlg(() => varietas = v),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: fase,
+                  decoration: const InputDecoration(labelText: 'Fase tumbuh'),
+                  items: [for (final f in _growthPhases) DropdownMenuItem(value: f, child: Text(f))],
+                  onChanged: (v) => setDlg(() => fase = v ?? 'Vegetatif'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
@@ -435,7 +437,7 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
                 if (nameCtrl.text.trim().isNotEmpty) {
                   ref.read(cermatProvider.notifier).addPlant(
                         nameCtrl.text,
-                        varietas,
+                        varietas.trim().isEmpty ? 'Tanaman Kebun' : varietas.trim(),
                         fase,
                         DateTime.now().subtract(const Duration(days: 20)),
                       );

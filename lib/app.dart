@@ -15,21 +15,43 @@ import 'features/sensor/sensor_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/solar/solar_screen.dart';
 
+CustomTransitionPage<void> _smoothPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: const Duration(milliseconds: 240),
+    reverseTransitionDuration: const Duration(milliseconds: 190),
+    child: child,
+    transitionsBuilder: (_, animation, __, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.02),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 final _routerProvider = Provider<GoRouter>((ref) {
   final onboarded = ref.read(cermatProvider).onboarded;
   return GoRouter(
     initialLocation: onboarded ? '/' : '/onboarding',
     routes: [
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-      GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
-      GoRoute(path: '/scan', builder: (_, __) => const ScanScreen()),
-      GoRoute(path: '/plants', builder: (_, __) => const PlantsScreen()),
-      GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
-      GoRoute(path: '/sensor', builder: (_, __) => const SensorScreen()),
-      GoRoute(path: '/solar', builder: (_, __) => const SolarScreen()),
-      GoRoute(path: '/chatbot', builder: (_, __) => const ChatbotScreen()),
-      GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
-      GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+      GoRoute(path: '/onboarding', pageBuilder: (_, s) => _smoothPage(s, const OnboardingScreen())),
+      GoRoute(path: '/', pageBuilder: (_, s) => _smoothPage(s, const DashboardScreen())),
+      GoRoute(path: '/scan', pageBuilder: (_, s) => _smoothPage(s, const ScanScreen())),
+      GoRoute(path: '/plants', pageBuilder: (_, s) => _smoothPage(s, const PlantsScreen())),
+      GoRoute(path: '/calendar', pageBuilder: (_, s) => _smoothPage(s, const CalendarScreen())),
+      GoRoute(path: '/sensor', pageBuilder: (_, s) => _smoothPage(s, const SensorScreen())),
+      GoRoute(path: '/solar', pageBuilder: (_, s) => _smoothPage(s, const SolarScreen())),
+      GoRoute(path: '/chatbot', pageBuilder: (_, s) => _smoothPage(s, const ChatbotScreen())),
+      GoRoute(path: '/settings', pageBuilder: (_, s) => _smoothPage(s, const SettingsScreen())),
+      GoRoute(path: '/notifications', pageBuilder: (_, s) => _smoothPage(s, const NotificationsScreen())),
     ],
   );
 });

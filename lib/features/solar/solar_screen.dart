@@ -7,7 +7,7 @@ import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 8: Energi Surya — Monitor INA219 (F13) + Kalkulator Perancangan (F9)
+/// Layar 8: Energi Surya — Hijau Susu × Krim Hangat, Monitor INA219 + Kalkulator Responsif
 class SolarScreen extends ConsumerStatefulWidget {
   const SolarScreen({super.key});
 
@@ -16,7 +16,6 @@ class SolarScreen extends ConsumerStatefulWidget {
 }
 
 class _SolarScreenState extends ConsumerState<SolarScreen> {
-  // Default persis PRD F9.2: 1 W, 24 jam, 2 hari, DoD 0.8, η 0.85, PSH 4, f_rugi 0.7
   double dayaW = 1.0;
   double jamHarian = 24.0;
   double hariOtonomi = 2.0;
@@ -47,136 +46,144 @@ class _SolarScreenState extends ConsumerState<SolarScreen> {
       location: '/solar',
       title: 'Energi surya',
       showBack: true,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
-          // F13: Pemantauan Energi Surya INA219
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 390;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            children: [
+              // Monitor INA219 dengan Kartu Aksen Hijau Susu × Krim Hangat
+              CermatAccentCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 6,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              CermatPill.simulasi(),
-                              if (state.isPowerSave) CermatPill.warn('Mode hemat'),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  CermatPill.simulasi(),
+                                  if (state.isPowerSave) CermatPill.warn('Mode hemat'),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text('Monitor INA219', style: context.displayStyle(size: 21)),
+                              Text(
+                                'Baterai ${state.bateraiPersen}% · ${state.teganganVolt} V · ${state.dayaWatt} W',
+                                style: TextStyle(color: p.inkSoft, fontWeight: FontWeight.w600),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text('Monitor INA219', style: context.displayStyle(size: 21)),
-                          Text('Sisa baterai ${state.bateraiPersen}% · ${state.teganganVolt} V · ${state.dayaWatt} W', style: TextStyle(color: p.inkSoft)),
-                        ],
-                      ),
+                        ),
+                        CermoMascot(
+                          pose: state.isPowerSave ? CermoPose.sleep : CermoPose.happy,
+                          size: 80,
+                        ),
+                      ],
                     ),
-                    CermoMascot(pose: state.isPowerSave ? CermoPose.sleep : CermoPose.happy, size: 74),
+                    const SizedBox(height: 12),
+                    StripedBarWidget(
+                      label: 'Kapasitas baterai surya',
+                      valueLabel: '${state.bateraiPersen}%',
+                      percent: state.bateraiPersen.toDouble(),
+                      color: state.isPowerSave ? AppColors.warn : p.leaf600,
+                    ),
+                    if (state.isPowerSave) ...[
+                      const SizedBox(height: 12),
+                      const StatusAlertCard(
+                        accent: AppColors.warn,
+                        title: 'Mode hemat aktif (≤ 20%)',
+                        body: 'Baterai rendah. ESP32 memperlambat interval kirim data (30 menit sekali) agar tetap menyala.',
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Text('Uji simulasi baterai: ${state.bateraiPersen}%', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    Slider(
+                      value: state.bateraiPersen.toDouble(),
+                      min: 8,
+                      max: 100,
+                      onChanged: (v) => ref.read(cermatProvider.notifier).updateSensor(bateraiPersen: v.round()),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: state.bateraiPersen / 100,
-                  minHeight: 14,
-                  borderRadius: BorderRadius.circular(99),
-                  color: state.isPowerSave ? AppColors.warn : AppColors.ok,
-                  backgroundColor: p.surface2,
-                ),
-                if (state.isPowerSave) ...[
-                  const SizedBox(height: 12),
-                  const StatusAlertCard(
-                    accent: AppColors.warn,
-                    title: 'Mode hemat aktif (F13.2)',
-                    body: 'Baterai rendah. ESP32 mengirim data lebih jarang (30 menit sekali) dan Cermo istirahat sementara.',
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Text('Uji simulasi baterai (≤ 20% = Mode hemat): ${state.bateraiPersen}%', style: const TextStyle(fontWeight: FontWeight.w600)),
-                Slider(
-                  value: state.bateraiPersen.toDouble(),
-                  min: 8,
-                  max: 100,
-                  activeColor: p.leaf600,
-                  onChanged: (v) => ref.read(cermatProvider.notifier).updateSensor(bateraiPersen: v.round()),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 14),
 
-          // F9: Kalkulator Perancangan Tenaga Surya
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              // Kalkulator Tenaga Surya Responsif (anti-overflow di HP sempit)
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Text('Kalkulator tenaga surya', style: context.displayStyle(size: 20))),
-                    CermatPill.simulasi(label: 'Rancangan'),
+                    Row(
+                      children: [
+                        Expanded(child: Text('Kalkulator tenaga surya', style: context.displayStyle(size: 20))),
+                        CermatPill.simulasi(label: 'Rancangan'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: isNarrow ? 2 : 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: isNarrow ? 1.25 : 0.96,
+                      children: [
+                        MetricCard3(
+                          label: 'Energi harian',
+                          value: '${eHarian.toStringAsFixed(0)} Wh',
+                          icon: Icons.bolt_rounded,
+                          variant: MetricCardVariant.lime,
+                        ),
+                        MetricCard3(
+                          label: 'Baterai',
+                          value: '≈${cBaterai.round()} Wh',
+                          icon: Icons.battery_charging_full_rounded,
+                          variant: MetricCardVariant.white,
+                        ),
+                        MetricCard3(
+                          label: 'Panel surya',
+                          value: '$pRounded Wp',
+                          icon: Icons.wb_sunny_rounded,
+                          variant: MetricCardVariant.forest,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Hasil tepat: E = ${eHarian.toStringAsFixed(1)} Wh · C = ${cBaterai.toStringAsFixed(1)} Wh · P_panel = ${pPanel.toStringAsFixed(1)} Wp (standar $pRounded Wp).',
+                      style: TextStyle(fontSize: 13, color: p.inkSoft),
+                    ),
+                    const SizedBox(height: 14),
+                    _CalcSlider('Daya beban P', '${dayaW.toStringAsFixed(1)} W', dayaW, 0.5, 10, (v) => setState(() => dayaW = double.parse(v.toStringAsFixed(1)))),
+                    _CalcSlider('Durasi operasi t', '${jamHarian.round()} jam', jamHarian, 4, 24, (v) => setState(() => jamHarian = v.roundToDouble())),
+                    _CalcSlider('Hari mendung (otonomi)', '${hariOtonomi.toStringAsFixed(1)} hari', hariOtonomi, 1, 5, (v) => setState(() => hariOtonomi = double.parse(v.toStringAsFixed(1)))),
+                    _CalcSlider('PSH lokasi', '${psh.toStringAsFixed(1)} jam/hari', psh, 2, 6, (v) => setState(() => psh = double.parse(v.toStringAsFixed(1)))),
+                    const SizedBox(height: 6),
+                    SecondaryOutlineButton(
+                      label: 'Kembalikan contoh awal',
+                      icon: Icons.refresh_rounded,
+                      onPressed: () => setState(() {
+                        dayaW = 1.0;
+                        jamHarian = 24.0;
+                        hariOtonomi = 2.0;
+                        dod = 0.8;
+                        efisiensi = 0.85;
+                        psh = 4.0;
+                        faktorRugi = 0.7;
+                      }),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MetricCard3(
-                        label: 'Energi harian',
-                        value: '${eHarian.toStringAsFixed(0)} Wh',
-                        icon: Icons.bolt_rounded,
-                        variant: MetricCardVariant.lime,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: MetricCard3(
-                        label: 'Baterai',
-                        value: '≈${cBaterai.round()} Wh',
-                        icon: Icons.battery_charging_full_rounded,
-                        variant: MetricCardVariant.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: MetricCard3(
-                        label: 'Panel',
-                        value: '${pRounded} Wp',
-                        icon: Icons.wb_sunny_rounded,
-                        variant: MetricCardVariant.forest,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Hasil hitungan tepat: E = ${eHarian.toStringAsFixed(1)} Wh · C = ${cBaterai.toStringAsFixed(1)} Wh · P_panel = ${pPanel.toStringAsFixed(1)} Wp (dibulatkan $pRounded Wp).',
-                  style: TextStyle(fontSize: 13, color: p.inkSoft),
-                ),
-                const SizedBox(height: 14),
-                _CalcSlider('Daya beban P', '${dayaW.toStringAsFixed(1)} W', dayaW, 0.5, 10, (v) => setState(() => dayaW = double.parse(v.toStringAsFixed(1)))),
-                _CalcSlider('Durasi operasi t', '${jamHarian.round()} jam', jamHarian, 4, 24, (v) => setState(() => jamHarian = v.roundToDouble())),
-                _CalcSlider('Hari otonomi H', '${hariOtonomi.toStringAsFixed(1)} hari', hariOtonomi, 1, 5, (v) => setState(() => hariOtonomi = double.parse(v.toStringAsFixed(1)))),
-                _CalcSlider('PSH lokasi', '${psh.toStringAsFixed(1)} jam/hari', psh, 2, 6, (v) => setState(() => psh = double.parse(v.toStringAsFixed(1)))),
-                const SizedBox(height: 6),
-                SecondaryOutlineButton(
-                  label: 'Kembalikan contoh awal PRD',
-                  icon: Icons.refresh_rounded,
-                  onPressed: () => setState(() {
-                    dayaW = 1.0;
-                    jamHarian = 24.0;
-                    hariOtonomi = 2.0;
-                    dod = 0.8;
-                    efisiensi = 0.85;
-                    psh = 4.0;
-                    faktorRugi = 0.7;
-                  }),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -196,11 +203,11 @@ class _CalcSlider extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(display, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
+            Text(display, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
           ],
         ),
-        Slider(value: val.clamp(min, max), min: min, max: max, activeColor: context.ct.leaf600, onChanged: onChanged),
+        Slider(value: val.clamp(min, max), min: min, max: max, onChanged: onChanged),
       ],
     );
   }

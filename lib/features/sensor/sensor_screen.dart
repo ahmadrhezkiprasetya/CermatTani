@@ -1,310 +1,588 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
-import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 7: Lahan — Sensor IoT (F8), Irigasi Otomatis (F10), Risiko Penyakit (F11), Tandon (F12)
-class SensorScreen extends ConsumerWidget {
+/// Layar 7: Lahan & Irigasi — Simulator 3D Isometrik Interaktif + Grafik 24 Jam Kurva Halus (Anti-Hitam!)
+class SensorScreen extends ConsumerStatefulWidget {
   const SensorScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SensorScreen> createState() => _SensorScreenState();
+}
+
+class _SensorScreenState extends ConsumerState<SensorScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+  double _yaw = 0.0; // -1.0 .. 1.0 rotasi geser 3D isometrik
+  int _chartTab = 0; // 0: Tanah | 1: Suhu | 2: Udara | 3: Cahaya
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final p = context.ct;
     final state = ref.watch(cermatProvider);
     final notifier = ref.read(cermatProvider.notifier);
 
+    final chartPoints = switch (_chartTab) {
+      1 => state.sensor24h.map((e) => ChartPoint(e.jam, e.suhu)).toList(),
+      2 => state.sensor24h.map((e) => ChartPoint(e.jam, e.udara.toDouble())).toList(),
+      3 => state.sensor24h.map((e) => ChartPoint(e.jam, e.cahayaKlux)).toList(),
+      _ => state.sensor24h.map((e) => ChartPoint(e.jam, e.tanah.toDouble())).toList(),
+    };
+    final chartColor = switch (_chartTab) {
+      1 => AppColors.tomatoBtn,
+      2 => AppColors.water,
+      3 => AppColors.sun400,
+      _ => p.leaf600,
+    };
+    final chartUnit = switch (_chartTab) {
+      1 => '°C',
+      2 => '%',
+      3 => 'k',
+      _ => '%',
+    };
+
     return AppScaffold(
       location: '/sensor',
-      title: 'Lahan, irigasi & tandon',
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
-          Row(
+      title: 'Lahan & irigasi 3D',
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 600;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
-              CermatPill.simulasi(),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('ESP32 · DHT22 · BH1750 · Ultrasonik', style: TextStyle(fontSize: 13, color: p.inkSoft)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // F11.3: Peringatan risiko penyakit HANYA muncul bila ambang kelembapan udara terlewati
-          if (state.isDiseaseRisk) ...[
-            StatusAlertCard(
-              accent: AppColors.warn,
-              title: 'Peringatan dini risiko penyakit daun! (Simulasi)',
-              body:
-                  'Kelembapan udara ${state.kelembapanUdara}% (≥ ${state.ambangKelembapanPenyakit}%). Rawan busuk daun Phytophthora infestans (sumber: Balitsa Kementan RI).',
-              leading: const CermoMascot(pose: CermoPose.worried, size: 46, interactive: false),
-              action: Primary3DButton(
-                label: 'Scan penyakit sekarang',
-                icon: Icons.camera_alt_rounded,
-                tomato: true,
-                onPressed: () => context.go('/scan'),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          // Grid 4 nilai sensor utama
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.5,
-            children: [
-              _SensorTile('Kelembapan tanah', '${state.kelembapanTanah}%', Icons.water_drop_outlined, AppColors.water),
-              _SensorTile('Suhu udara', '${state.suhuUdara} °C', Icons.thermostat_outlined, AppColors.tomato500),
-              _SensorTile('Kelembapan udara', '${state.kelembapanUdara}%', Icons.air_rounded, state.isDiseaseRisk ? AppColors.bad : AppColors.ok),
-              _SensorTile('Cahaya (BH1750)', '${(state.cahayaLux / 1000).toStringAsFixed(1)}k lux', Icons.wb_sunny_outlined, AppColors.sun400),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // F10: Irigasi Otomatis & Pengaman
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              // 1. Simulator 3D Isometrik Lahan Interaktif (Geser untuk putar + Preset Cuaca)
+              CermatCard(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Irigasi otomatis', style: context.displayStyle(size: 20)),
-                          Text('Nyala < ${state.ambangTanahBawah}% · Mati ≥ ${state.ambangTanahAtas}%', style: TextStyle(fontSize: 13, color: p.inkSoft)),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Simulasi 3D lahan kebun', style: context.cardTitleStyle(size: 16.5)),
+                              Text(
+                                'Geser kiri/kanan untuk putar sudut lahan · ketuk cuaca untuk uji sensor',
+                                style: TextStyle(fontSize: 12, color: p.inkSoft),
+                              ),
+                            ],
+                          ),
+                        ),
+                        CermatPill.simulasi(),
+                      ],
                     ),
-                    Switch(
-                      value: state.irigasiAuto,
-                      activeColor: p.leaf600,
-                      onChanged: notifier.setIrigasiAuto,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    CermatPill(
-                      label: state.pompaMenyala ? 'Pompa: Menyala' : 'Pompa: Mati',
-                      background: state.pompaMenyala ? AppColors.water.withAlpha(42) : p.surface2,
-                      foreground: state.pompaMenyala ? AppColors.water : p.inkSoft,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Batas maks ${state.durasiMaksPompa} menit/siklus', style: TextStyle(fontSize: 12.5, color: p.inkSoft)),
-                    ),
-                  ],
-                ),
-                if (state.isTankCritical) ...[
-                  const SizedBox(height: 10),
-                  StatusAlertCard(
-                    accent: AppColors.bad,
-                    title: 'Interlock tandon aktif (F10.3)',
-                    body: 'Tandon tinggal ${state.levelTandon}%. Pompa ditahan agar tidak berjalan kering.',
-                  ),
-                ],
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: Primary3DButton(
-                    label: state.pompaMenyala ? 'Matikan pompa manual' : 'Nyalakan pompa manual',
-                    icon: Icons.power_settings_new_rounded,
-                    tomato: state.pompaMenyala,
-                    onPressed: (state.isTankCritical && !state.pompaMenyala)
-                        ? null
-                        : () {
-                            final msg = notifier.toggleManualPump();
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                          },
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text('Ambang bawah: ${state.ambangTanahBawah}%', style: const TextStyle(fontWeight: FontWeight.w600)),
-                Slider(
-                  value: state.ambangTanahBawah.toDouble(),
-                  min: 15,
-                  max: 55,
-                  activeColor: p.leaf600,
-                  onChanged: (v) => notifier.updateThresholds(
-                    tanahBawah: v.round(),
-                    tanahAtas: state.ambangTanahAtas < v.round() + 10 ? v.round() + 10 : state.ambangTanahAtas,
-                  ),
-                ),
-                Text('Ambang atas: ${state.ambangTanahAtas}%', style: const TextStyle(fontWeight: FontWeight.w600)),
-                Slider(
-                  value: state.ambangTanahAtas.toDouble(),
-                  min: 45,
-                  max: 85,
-                  activeColor: p.leaf600,
-                  onChanged: (v) => notifier.updateThresholds(
-                    tanahAtas: v.round(),
-                    tanahBawah: state.ambangTanahBawah > v.round() - 10 ? v.round() - 10 : state.ambangTanahBawah,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // F12: Level Air Tandon (Ultrasonik)
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Text('Level air tandon', style: context.displayStyle(size: 20))),
-                    state.isTankCritical ? CermatPill.bad('Kritis (< 20%)') : CermatPill.simulasi(),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 92,
-                      decoration: BoxDecoration(
-                        color: p.surface2,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: p.line, width: 2),
-                      ),
-                      alignment: Alignment.bottomCenter,
-                      child: FractionallySizedBox(
-                        heightFactor: (state.levelTandon / 100).clamp(0.05, 1.0),
-                        widthFactor: 1,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: state.isTankCritical ? AppColors.bad : AppColors.water,
-                            borderRadius: BorderRadius.circular(11),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onHorizontalDragUpdate: (d) =>
+                          setState(() => _yaw = (_yaw + d.delta.dx * 0.008).clamp(-1.0, 1.0)),
+                      onDoubleTap: () => setState(() => _yaw = 0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          height: 210,
+                          width: double.infinity,
+                          child: AnimatedBuilder(
+                            animation: _anim,
+                            builder: (_, __) => CustomPaint(
+                              painter: _FarmIso3DPainter(
+                                animValue: _anim.value,
+                                yaw: _yaw,
+                                soilMoisture: state.kelembapanTanah,
+                                tankLevel: state.levelTandon,
+                                pumpOn: state.pompaMenyala,
+                                weather: state.cuacaPreset,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
                         children: [
-                          Text('${state.levelTandon}%', style: context.displayStyle(size: 30)),
-                          Text('Jarak ultrasonik: ${state.jarakUltrasonikCm} cm · ≈ ${state.levelTandon * 5} L', style: TextStyle(color: p.inkSoft)),
-                          if (state.isTankCritical) ...[
-                            const SizedBox(height: 6),
-                            Text('Tandon tinggal ${state.levelTandon}%. Pompa kutahan dulu.', style: const TextStyle(color: AppColors.bad, fontWeight: FontWeight.w700)),
-                          ],
+                          _WeatherChip('Cerah', Icons.wb_sunny_outlined, state.cuacaPreset == 'cerah', () => notifier.applyWeatherScenario('cerah')),
+                          const SizedBox(width: 8),
+                          _WeatherChip('Kemarau', Icons.local_fire_department_outlined, state.cuacaPreset == 'kemarau', () => notifier.applyWeatherScenario('kemarau')),
+                          const SizedBox(width: 8),
+                          _WeatherChip('Hujan', Icons.grain_rounded, state.cuacaPreset == 'hujan', () => notifier.applyWeatherScenario('hujan')),
+                          const SizedBox(width: 8),
+                          _WeatherChip('Malam', Icons.dark_mode_outlined, state.cuacaPreset == 'malam', () => notifier.applyWeatherScenario('malam')),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 14),
 
-          // Kontrol Uji Simulasi ESP32
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              // 2. 4 KPI Sensor Utama
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: isWide ? 4 : 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: isWide ? 1.15 : 1.38,
+                children: [
+                  MetricCard3(
+                    label: 'Kelembapan tanah',
+                    value: '${state.kelembapanTanah}%',
+                    icon: Icons.water_drop_rounded,
+                    variant: MetricCardVariant.lime,
+                    badge: state.isSoilDry ? 'Kering' : 'Ideal',
+                  ),
+                  MetricCard3(
+                    label: 'Suhu udara',
+                    value: '${state.suhuUdara}°C',
+                    icon: Icons.thermostat_rounded,
+                    variant: MetricCardVariant.forest,
+                    badge: state.suhuUdara > 31 ? 'Panas' : 'Nyaman',
+                  ),
+                  MetricCard3(
+                    label: 'Kelembapan udara',
+                    value: '${state.kelembapanUdara}%',
+                    icon: Icons.cloud_outlined,
+                    variant: MetricCardVariant.white,
+                    badge: state.isDiseaseRisk ? 'Jamur!' : 'Aman',
+                  ),
+                  MetricCard3(
+                    label: 'Cahaya kebun',
+                    value: '${(state.cahayaLux / 1000).toStringAsFixed(1)}k',
+                    icon: Icons.light_mode_outlined,
+                    variant: MetricCardVariant.white,
+                    badge: 'Lux',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // 3. Grafik Sensor 24 Jam (SmoothAreaChart Pastel — anti-hitam!)
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Text('Kontrol uji simulasi ESP32', style: context.displayStyle(size: 18))),
-                    CermatPill.simulasi(),
+                    Text('Grafik sensor 24 jam', style: context.cardTitleStyle(size: 16.5)),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _ChartMetricChip('Tanah (%)', _chartTab == 0, () => setState(() => _chartTab = 0)),
+                          const SizedBox(width: 6),
+                          _ChartMetricChip('Suhu (°C)', _chartTab == 1, () => setState(() => _chartTab = 1)),
+                          const SizedBox(width: 6),
+                          _ChartMetricChip('Udara (%)', _chartTab == 2, () => setState(() => _chartTab = 2)),
+                          const SizedBox(width: 6),
+                          _ChartMetricChip('Cahaya (kLux)', _chartTab == 3, () => setState(() => _chartTab = 3)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SmoothAreaChart(
+                      points: chartPoints,
+                      color: chartColor,
+                      unit: chartUnit,
+                      height: 175,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text('Simulasi kelembapan tanah: ${state.kelembapanTanah}%'),
-                Slider(
-                  value: state.kelembapanTanah.toDouble(),
-                  min: 10,
-                  max: 90,
-                  onChanged: (v) => notifier.updateSensor(kelembapanTanah: v.round()),
-                ),
-                Text('Simulasi kelembapan udara: ${state.kelembapanUdara}%'),
-                Slider(
-                  value: state.kelembapanUdara.toDouble(),
-                  min: 45,
-                  max: 98,
-                  onChanged: (v) => notifier.updateSensor(kelembapanUdara: v.round()),
-                ),
-                Text('Simulasi level tandon: ${state.levelTandon}%'),
-                Slider(
-                  value: state.levelTandon.toDouble(),
-                  min: 5,
-                  max: 100,
-                  onChanged: (v) => notifier.updateSensor(levelTandon: v.round()),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 14),
 
-          // F10.4: Riwayat Siklus Pompa
-          CermatCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Riwayat siklus pompa', style: context.displayStyle(size: 18)),
-                const SizedBox(height: 10),
-                for (final ev in state.irrigationEvents.take(5))
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: p.surface2,
-                      child: Icon(Icons.water_drop_rounded, color: p.leaf600, size: 18),
+              // 4. Kontrol Irigasi Otomatis / Manual + Pengaman Tandon
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text('Kontrol irigasi & tandon', style: context.cardTitleStyle(size: 16.5))),
+                        state.pompaMenyala ? CermatPill.water('Pompa MENYALA') : CermatPill.ok('Pompa Siaga'),
+                      ],
                     ),
-                    title: Text('${ev.mode} · ${ev.durasiMenit} menit', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Tanah ${ev.kelembapanAwal}% → ${ev.kelembapanAkhir}%'),
-                  ),
-              ],
-            ),
-          ),
-        ],
+                    if (state.isTankCritical) ...[
+                      const SizedBox(height: 10),
+                      StatusAlertCard(
+                        accent: AppColors.bad,
+                        title: 'Tandon kritis (${state.levelTandon}%) — Interlock aktif',
+                        body: 'Pompa ditahan otomatis agar dinamo tidak rusak karena kering. Isi tandon terlebih dahulu.',
+                      ),
+                    ],
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: p.leaf600,
+                      title: const Text('Mode irigasi otomatis', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                      subtitle: Text('ON < ${state.ambangTanahBawah}% · OFF ≥ ${state.ambangTanahAtas}% · Maks ${state.durasiMaksPompa} mnt'),
+                      value: state.irigasiAuto,
+                      onChanged: (v) => notifier.setIrigasiAuto(v),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Primary3DButton(
+                        label: state.pompaMenyala ? 'Matikan pompa sekarang' : 'Nyalakan pompa manual',
+                        icon: state.pompaMenyala ? Icons.stop_circle_outlined : Icons.water_drop_rounded,
+                        tomato: state.pompaMenyala,
+                        onPressed: () {
+                          final msg = notifier.toggleManualPump();
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(content: Text(msg)));
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text('Uji kelembapan tanah: ${state.kelembapanTanah}%', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    Slider(
+                      value: state.kelembapanTanah.toDouble(),
+                      min: 10,
+                      max: 90,
+                      onChanged: (v) => notifier.updateSensor(kelembapanTanah: v.round()),
+                    ),
+                    Text('Uji level air tandon: ${state.levelTandon}% (jarak ${state.jarakUltrasonikCm} cm)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    Slider(
+                      value: state.levelTandon.toDouble(),
+                      min: 5,
+                      max: 100,
+                      onChanged: (v) => notifier.updateSensor(levelTandon: v.round()),
+                    ),
+                    Text('Uji kelembapan udara: ${state.kelembapanUdara}% RH', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    Slider(
+                      value: state.kelembapanUdara.toDouble(),
+                      min: 40,
+                      max: 98,
+                      onChanged: (v) => notifier.updateSensor(kelembapanUdara: v.round()),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 5. NPK Tanah & Riwayat Pompa
+              CermatCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Indikator hara tanah (NPK)', style: context.cardTitleStyle(size: 16.5)),
+                    const SizedBox(height: 10),
+                    StripedBarWidget(label: 'Nitrogen (N)', valueLabel: '${state.nitrogenMgKg} mg/kg', percent: state.nitrogenMgKg.toDouble(), color: p.leaf600),
+                    const SizedBox(height: 8),
+                    StripedBarWidget(label: 'Fosfor (P)', valueLabel: '${state.fosforMgKg} mg/kg', percent: state.fosforMgKg.toDouble(), color: AppColors.sun400),
+                    const SizedBox(height: 8),
+                    StripedBarWidget(label: 'Kalium (K)', valueLabel: '${state.kaliumMgKg} mg/kg', percent: state.kaliumMgKg.toDouble(), color: AppColors.tomato500),
+                    const SizedBox(height: 14),
+                    Text('Riwayat penyiraman terakhir', style: context.cardTitleStyle(size: 15)),
+                    const SizedBox(height: 8),
+                    for (final ev in state.irrigationEvents.take(4))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${DateFormat('d MMM · HH:mm', 'id_ID').format(ev.waktu)} (${ev.mode})',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Text(
+                              '${ev.durasiMenit} mnt · ${ev.kelembapanAwal}%→${ev.kelembapanAkhir}%',
+                              style: TextStyle(fontSize: 12.5, color: p.inkSoft),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _SensorTile extends StatelessWidget {
-  const _SensorTile(this.label, this.value, this.icon, this.color);
+class _WeatherChip extends StatelessWidget {
+  const _WeatherChip(this.label, this.icon, this.active, this.onTap);
   final String label;
-  final String value;
   final IconData icon;
-  final Color color;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = context.ct;
-    return CermatCard(
-      radius: 20,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: color, size: 22),
-              CermatPill.simulasi(),
-            ],
-          ),
-          const Spacer(),
-          Text(value, style: context.displayStyle(size: 22)),
-          Text(label, style: TextStyle(fontSize: 12.5, color: p.inkSoft)),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? p.leaf600 : p.surface2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: active ? p.leaf600 : p.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: active ? p.onLeaf : p.leaf700),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w700, color: active ? p.onLeaf : p.ink)),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _ChartMetricChip extends StatelessWidget {
+  const _ChartMetricChip(this.label, this.active, this.onTap);
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.ct;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? p.surfaceMilk : p.surface2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: active ? p.leaf600 : p.line),
+        ),
+        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: active ? p.leaf700 : p.inkSoft)),
+      ),
+    );
+  }
+}
+
+/// CustomPainter 3D Isometrik Lahan Ringan & Interaktif (60fps native)
+class _FarmIso3DPainter extends CustomPainter {
+  const _FarmIso3DPainter({
+    required this.animValue,
+    required this.yaw,
+    required this.soilMoisture,
+    required this.tankLevel,
+    required this.pumpOn,
+    required this.weather,
+  });
+
+  final double animValue;
+  final double yaw;
+  final int soilMoisture;
+  final int tankLevel;
+  final bool pumpOn;
+  final String weather;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // 1. Langit sesuai preset cuaca (tetap cerah nyaman kecuali malam lembut)
+    final skyColors = switch (weather) {
+      'kemarau' => const [Color(0xFFFDF2D9), Color(0xFFF5E6C8)],
+      'hujan' => const [Color(0xFFD8E7EE), Color(0xFFE6EFEA)],
+      'malam' => const [Color(0xFF28423A), Color(0xFF3E6155)],
+      _ => const [Color(0xFFF6F2E4), Color(0xFFDCEEE0)],
+    };
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: skyColors,
+        ).createShader(Offset.zero & size),
+    );
+
+    // Matahari / Bulan
+    final orbX = w * 0.82 - yaw * 14;
+    if (weather == 'malam') {
+      canvas.drawCircle(Offset(orbX, 34), 14, Paint()..color = const Color(0xFFF6E7B4));
+    } else if (weather != 'hujan') {
+      canvas.drawCircle(Offset(orbX, 34), 22, Paint()..color = const Color(0xFFF8D680).withAlpha(90));
+      canvas.drawCircle(Offset(orbX, 34), 13, Paint()..color = const Color(0xFFF2BC52));
+    }
+
+    // 2. Platform Lahan 3D Isometrik
+    final cx = w * 0.5 + yaw * 16;
+    final cy = h * 0.62;
+    final rx = math.min(w * 0.36, 138.0);
+    const ry = 46.0;
+    final tiltShift = yaw * 16;
+
+    final top = Offset(cx + tiltShift * 0.4, cy - ry);
+    final right = Offset(cx + rx, cy);
+    final bottom = Offset(cx - tiltShift * 0.4, cy + ry);
+    final left = Offset(cx - rx, cy);
+
+    // Tebal tanah 3D sisi bawah
+    const depth = 22.0;
+    final leftSide = Path()
+      ..moveTo(left.dx, left.dy)
+      ..lineTo(bottom.dx, bottom.dy)
+      ..lineTo(bottom.dx, bottom.dy + depth)
+      ..lineTo(left.dx, left.dy + depth)
+      ..close();
+    canvas.drawPath(leftSide, Paint()..color = const Color(0xFF9C7B5C));
+
+    final rightSide = Path()
+      ..moveTo(bottom.dx, bottom.dy)
+      ..lineTo(right.dx, right.dy)
+      ..lineTo(right.dx, right.dy + depth)
+      ..lineTo(bottom.dx, bottom.dy + depth)
+      ..close();
+    canvas.drawPath(rightSide, Paint()..color = const Color(0xFF816347));
+
+    // Permukaan lahan berubah warna sesuai kelembapan tanah
+    final turfColor = soilMoisture < 35
+        ? const Color(0xFFB5C78E)
+        : soilMoisture > 70
+            ? const Color(0xFF69AE7D)
+            : const Color(0xFF83C28E);
+    final deck = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(right.dx, right.dy)
+      ..lineTo(bottom.dx, bottom.dy)
+      ..lineTo(left.dx, left.dy)
+      ..close();
+    canvas.drawPath(deck, Paint()..color = turfColor);
+
+    // 3. Bedengan tomat + titik buah koral + pipa tetes
+    for (var row = 0; row < 3; row++) {
+      final t = (row + 1) / 4.0;
+      final pStart = Offset.lerp(top, left, t)!;
+      final pEnd = Offset.lerp(right, bottom, t)!;
+      final bedStart = Offset.lerp(pStart, pEnd, 0.16)!;
+      final bedEnd = Offset.lerp(pStart, pEnd, 0.84)!;
+
+      canvas.drawLine(
+        bedStart,
+        bedEnd,
+        Paint()
+          ..color = const Color(0xFF6D513B)
+          ..strokeWidth = 9
+          ..strokeCap = StrokeCap.round,
+      );
+
+      if (pumpOn) {
+        final dripPos = Offset.lerp(bedStart, bedEnd, animValue)!;
+        canvas.drawLine(
+          bedStart,
+          bedEnd,
+          Paint()
+            ..color = const Color(0xFF4CA4DF).withAlpha(170)
+            ..strokeWidth = 2.4,
+        );
+        canvas.drawCircle(dripPos, 4, Paint()..color = const Color(0xFF56B7F5));
+      }
+
+      for (var k = 0; k < 4; k++) {
+        final plantPos = Offset.lerp(bedStart, bedEnd, (k + 0.5) / 4.0)!;
+        final sway = math.sin(animValue * math.pi * 2 + row + k) * 1.4;
+        canvas.drawCircle(
+          Offset(plantPos.dx + sway, plantPos.dy - 9),
+          8.5,
+          Paint()..color = soilMoisture < 35 ? const Color(0xFF7CA462) : const Color(0xFF3E8F5F),
+        );
+        if ((row + k).isEven) {
+          canvas.drawCircle(
+            Offset(plantPos.dx + 2.5 + sway, plantPos.dy - 7),
+            2.6,
+            Paint()..color = AppColors.tomatoBtn,
+          );
+        }
+      }
+    }
+
+    // 4. Tandon Air Silinder 3D di pojok kiri atas lahan
+    final tankBase = Offset(top.dx - 44, top.dy + 14);
+    const tankW = 28.0;
+    const tankH = 42.0;
+    final waterH = tankH * (tankLevel / 100.0).clamp(0.08, 1.0);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(tankBase.dx, tankBase.dy - tankH, tankW, tankH), const Radius.circular(8)),
+      Paint()..color = const Color(0xFFE4F0F7),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(tankBase.dx + 2, tankBase.dy - waterH + 2, tankW - 4, math.max(4, waterH - 4)),
+        const Radius.circular(6),
+      ),
+      Paint()..color = tankLevel < 20 ? AppColors.bad : AppColors.water,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(tankBase.dx, tankBase.dy - tankH, tankW, tankH), const Radius.circular(8)),
+      Paint()
+        ..color = const Color(0xFF6B8A9E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+
+    // 5. Panel Surya Mini di pojok kanan atas lahan
+    final solarPos = Offset(top.dx + 28, top.dy - 14);
+    canvas.drawLine(
+      Offset(solarPos.dx + 14, solarPos.dy + 16),
+      Offset(solarPos.dx + 14, solarPos.dy + 30),
+      Paint()
+        ..color = const Color(0xFF5D7268)
+        ..strokeWidth = 3,
+    );
+    final panel = Path()
+      ..moveTo(solarPos.dx, solarPos.dy + 6)
+      ..lineTo(solarPos.dx + 28, solarPos.dy)
+      ..lineTo(solarPos.dx + 34, solarPos.dy + 16)
+      ..lineTo(solarPos.dx + 6, solarPos.dy + 22)
+      ..close();
+    canvas.drawPath(panel, Paint()..color = const Color(0xFF2B5D7A));
+    canvas.drawPath(
+      panel,
+      Paint()
+        ..color = Colors.white.withAlpha(150)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3,
+    );
+
+    // 6. Tetesan hujan bila preset Hujan
+    if (weather == 'hujan') {
+      final rainPaint = Paint()
+        ..color = const Color(0xFF5B99C2).withAlpha(140)
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round;
+      for (var i = 0; i < 16; i++) {
+        final rxDrop = ((i * 37.0 + animValue * 45) % w);
+        final ryDrop = ((i * 29.0 + animValue * h) % h);
+        canvas.drawLine(Offset(rxDrop, ryDrop), Offset(rxDrop - 4, ryDrop + 11), rainPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FarmIso3DPainter old) => true;
 }

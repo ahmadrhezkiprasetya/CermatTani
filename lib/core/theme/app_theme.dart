@@ -1,56 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Token warna CermatTani persis DESIGN (3).md §3 & §13
+/// Palet Terpadu CermatTani — Hijau Susu Matcha × Krim Susu Hangat × Koral Lembut
+/// 100% sinkron dengan website/src/styles/tokens.css (WCAG 2.2 AA)
 abstract final class AppColors {
-  // Inti Light
-  static const leaf600 = Color(0xFF17803F);
-  static const leaf500 = Color(0xFF1F9D55);
-  static const leaf700 = Color(0xFF0F5E2D);
-  static const lime300 = Color(0xFFD8F36A);
-  static const forest900 = Color(0xFF0E4F43);
-  static const tomato500 = Color(0xFFF2562B);
-  static const tomatoBtn = Color(0xFFD63D12);
-  static const tomatoBtnDark = Color(0xFFA62D0B);
-  static const sun400 = Color(0xFFFFB63D);
+  // Hijau Susu Matcha (teduh, segar, tidak gelap)
+  static const leaf700 = Color(0xFF286C46);
+  static const leaf600 = Color(0xFF358458);
+  static const leaf500 = Color(0xFF4A9E6E);
+  static const lime300 = Color(0xFFC3E5C8);
+  static const limeSoft = Color(0xFFDDF0E0);
+  static const forest900 = Color(0xFF358458);
 
-  // Inti Dark
-  static const leaf600Dark = Color(0xFF3DBE74);
-  static const leaf700Dark = Color(0xFF2FA862);
-  static const lime300Dark = Color(0xFFC9E85A);
-  static const forest900Dark = Color(0xFF0A3A32);
-  static const tomato500Dark = Color(0xFFFF6B42);
-  static const sun400Dark = Color(0xFFFFC45E);
+  // Krim Susu Hangat (warna pendamping utama)
+  static const creamWarm = Color(0xFFF9F3E4);
+  static const creamSoft = Color(0xFFF2ECDC);
+  static const creamBorder = Color(0xFFE5D8BE);
 
-  // Netral Light
-  static const bgLight = Color(0xFFEEF7F1);
+  // Koral Tomat Lembut
+  static const tomato500 = Color(0xFFE87C5E);
+  static const tomatoBtn = Color(0xFFD86749);
+  static const tomatoBtnDark = Color(0xFFB85135);
+  static const sun400 = Color(0xFFE8AC44);
+
+  // Inti Mode Gelap Lembut
+  static const leaf600Dark = Color(0xFF64BB8B);
+  static const leaf700Dark = Color(0xFF4CA374);
+  static const lime300Dark = Color(0xFF2B4C3A);
+  static const forest900Dark = Color(0xFF397858);
+  static const tomato500Dark = Color(0xFFF29074);
+  static const sun400Dark = Color(0xFFF5C66F);
+
+  // Netral Light (Hijau Susu × Putih Bersih)
+  static const bgLight = Color(0xFFEEF6EF);
   static const surfaceLight = Color(0xFFFFFFFF);
-  static const surface2Light = Color(0xFFF5FAF6);
-  static const inkLight = Color(0xFF14302A);
-  static const inkSoftLight = Color(0xFF5B746B);
-  static const lineLight = Color(0xFFDCEBE1);
+  static const surface2Light = Color(0xFFE2EFE4);
+  static const surfaceMilkLight = Color(0xFFD6EAD9);
+  static const inkLight = Color(0xFF1F392D);
+  static const inkSoftLight = Color(0xFF536E61);
+  static const lineLight = Color(0xFFC5DEC9);
 
-  // Netral Dark
-  static const bgDark = Color(0xFF0C1713);
-  static const surfaceDark = Color(0xFF14231D);
-  static const surface2Dark = Color(0xFF1A2D25);
-  static const inkDark = Color(0xFFEAF5EE);
-  static const inkSoftDark = Color(0xFF9DB8AD);
-  static const lineDark = Color(0xFF25402F);
+  // Netral Dark Lembut
+  static const bgDark = Color(0xFF16241E);
+  static const surfaceDark = Color(0xFF1E3028);
+  static const surface2Dark = Color(0xFF253B31);
+  static const surfaceMilkDark = Color(0xFF22382E);
+  static const inkDark = Color(0xFFECF6EE);
+  static const inkSoftDark = Color(0xFFAEC7B9);
+  static const lineDark = Color(0xFF314D40);
 
-  // Semantik
-  static const ok = Color(0xFF1F9D55);
-  static const warn = Color(0xFFFFB63D);
-  static const warnInk = Color(0xFF8A5600);
-  static const bad = Color(0xFFE5484D);
-  static const water = Color(0xFF2B8FD9);
-  static const sim = Color(0xFF7A6CF0);
+  // Semantik Pastel Lembut
+  static const okBg = Color(0xFFD5ECD9);
+  static const okFg = Color(0xFF215F3D);
+  static const warnBg = Color(0xFFFCEFD4);
+  static const warnInk = Color(0xFF825510);
+  static const badBg = Color(0xFFFCE6E4);
+  static const badFg = Color(0xFFA13731);
+  static const waterBg = Color(0xFFE0EFF9);
+  static const waterFg = Color(0xFF2E79AD);
+  static const simBg = Color(0xFFECEAFE);
+  static const simFg = Color(0xFF6054C2);
 
-  // Kematangan tomat (konsisten di kotak deteksi, chip, kalender)
-  static const mentah = Color(0xFF5DBB63);
-  static const setengahMatang = Color(0xFFFFB63D);
-  static const matang = Color(0xFFF2562B);
-  static const peachBar = Color(0xFFFFD8C2);
+  static const ok = Color(0xFF419A68);
+  static const warn = Color(0xFFE8AC44);
+  static const bad = Color(0xFFD95F58);
+  static const water = Color(0xFF4494CA);
+  static const sim = Color(0xFF7D72DF);
+
+  // Kematangan tomat (harmonis dengan palet hijau susu)
+  static const mentah = Color(0xFF48A370);
+  static const setengahMatang = Color(0xFFECB04C);
+  static const matang = Color(0xFFE37153);
+  static const peachBar = Color(0xFFF6DAD0);
 }
 
 class CermatPalette {
@@ -59,6 +80,9 @@ class CermatPalette {
     required this.bg,
     required this.surface,
     required this.surface2,
+    required this.surfaceMilk,
+    required this.creamWarm,
+    required this.creamBorder,
     required this.ink,
     required this.inkSoft,
     required this.line,
@@ -75,6 +99,9 @@ class CermatPalette {
   final Color bg;
   final Color surface;
   final Color surface2;
+  final Color surfaceMilk;
+  final Color creamWarm;
+  final Color creamBorder;
   final Color ink;
   final Color inkSoft;
   final Color line;
@@ -86,11 +113,26 @@ class CermatPalette {
   final Color tomato500;
   final Color sun400;
 
+  LinearGradient get accentGradient => isDark
+      ? const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF21372D), Color(0xFF273D33), Color(0xFF2C352A)],
+        )
+      : const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFD8ECD9), Color(0xFFEAF4EB), Color(0xFFF8F2E2)],
+        );
+
   static const light = CermatPalette(
     isDark: false,
     bg: AppColors.bgLight,
     surface: AppColors.surfaceLight,
     surface2: AppColors.surface2Light,
+    surfaceMilk: AppColors.surfaceMilkLight,
+    creamWarm: AppColors.creamWarm,
+    creamBorder: AppColors.creamBorder,
     ink: AppColors.inkLight,
     inkSoft: AppColors.inkSoftLight,
     line: AppColors.lineLight,
@@ -108,12 +150,15 @@ class CermatPalette {
     bg: AppColors.bgDark,
     surface: AppColors.surfaceDark,
     surface2: AppColors.surface2Dark,
+    surfaceMilk: AppColors.surfaceMilkDark,
+    creamWarm: Color(0xFF2A2C24),
+    creamBorder: Color(0xFF3A3F34),
     ink: AppColors.inkDark,
     inkSoft: AppColors.inkSoftDark,
     line: AppColors.lineDark,
     leaf600: AppColors.leaf600Dark,
     leaf700: AppColors.leaf700Dark,
-    onLeaf: Color(0xFF0B2619),
+    onLeaf: Color(0xFF0F291C),
     lime300: AppColors.lime300Dark,
     forest900: AppColors.forest900Dark,
     tomato500: AppColors.tomato500Dark,
@@ -132,8 +177,7 @@ extension CermatThemeContext on BuildContext {
         color: color ?? ct.ink,
       );
 
-  /// H3 judul kartu profesional (Plus Jakarta Sans 700 — DESIGN.md v1.1 §3)
-  TextStyle cardTitleStyle({double size = 18, Color? color}) => GoogleFonts.plusJakartaSans(
+  TextStyle cardTitleStyle({double size = 17.5, Color? color}) => GoogleFonts.plusJakartaSans(
         fontSize: size,
         fontWeight: FontWeight.w700,
         height: 1.3,
@@ -156,7 +200,7 @@ abstract final class AppTheme {
         primary: p.leaf600,
         onPrimary: p.onLeaf,
         secondary: p.lime300,
-        onSecondary: AppColors.inkLight,
+        onSecondary: p.ink,
         error: AppColors.bad,
         onError: Colors.white,
         surface: p.surface,
@@ -172,19 +216,25 @@ abstract final class AppTheme {
 
     return base.copyWith(
       textTheme: bodyTheme.copyWith(
-        displaySmall: GoogleFonts.fredoka(fontSize: 32, fontWeight: FontWeight.w600, height: 1.08, color: p.ink),
-        headlineMedium: GoogleFonts.fredoka(fontSize: 26, fontWeight: FontWeight.w600, height: 1.15, color: p.ink),
-        headlineSmall: GoogleFonts.fredoka(fontSize: 22, fontWeight: FontWeight.w600, height: 1.2, color: p.ink),
-        titleLarge: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, height: 1.3, color: p.ink),
-        bodyLarge: GoogleFonts.plusJakartaSans(fontSize: 16, height: 1.55, color: p.ink),
-        bodyMedium: GoogleFonts.plusJakartaSans(fontSize: 15, height: 1.5, color: p.ink),
-        bodySmall: GoogleFonts.plusJakartaSans(fontSize: 13, height: 1.45, color: p.inkSoft),
+        displaySmall: GoogleFonts.fredoka(fontSize: 30, fontWeight: FontWeight.w600, height: 1.08, color: p.ink),
+        headlineMedium: GoogleFonts.fredoka(fontSize: 24, fontWeight: FontWeight.w600, height: 1.15, color: p.ink),
+        headlineSmall: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.w600, height: 1.2, color: p.ink),
+        titleLarge: GoogleFonts.plusJakartaSans(fontSize: 17.5, fontWeight: FontWeight.w700, height: 1.3, color: p.ink),
+        bodyLarge: GoogleFonts.plusJakartaSans(fontSize: 15.5, height: 1.55, color: p.ink),
+        bodyMedium: GoogleFonts.plusJakartaSans(fontSize: 14.5, height: 1.5, color: p.ink),
+        bodySmall: GoogleFonts.plusJakartaSans(fontSize: 12.5, height: 1.45, color: p.inkSoft),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: p.bg,
         foregroundColor: p.ink,
         elevation: 0,
         scrolledUnderElevation: 0,
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: p.leaf600,
+        inactiveTrackColor: p.line,
+        thumbColor: p.leaf600,
+        overlayColor: p.leaf600.withAlpha(32),
       ),
     );
   }

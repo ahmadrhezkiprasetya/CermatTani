@@ -4,6 +4,7 @@
 .pub-cache/
 .pub/
 build/
+*.apk
 .flutter-plugins
 .flutter-plugins-dependencies
 # Environment rahasia lokal

@@ -7,7 +7,7 @@ import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 1: Onboarding 3 langkah, Cermo melambai (PRD §6, §10, X5)
+/// Layar 1: Onboarding 3 langkah — Hijau Susu Matcha × Krim Hangat, Maskot Transparan Tanpa Frame
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -43,220 +43,242 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     context.go(goToScan ? '/scan' : '/');
   }
 
+  InputDecoration _inputDec(CermatPalette p, String label) => InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: p.surface2,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: p.line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: p.line),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final p = context.ct;
+    final pose = switch (step) {
+      1 => CermoPose.wave,
+      2 => CermoPose.bibit,
+      _ => CermoPose.happy,
+    };
+
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            CermatCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                CermatCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const GardenLandscapeBanner(height: 155),
-                      Positioned(
-                        left: 20,
-                        bottom: -34,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF14302A).withAlpha(24),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                      // Banner kebun cerah + Pak Cermat transparan tanpa bingkai/lingkaran putih
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const GardenLandscapeBanner(height: 158),
+                          Positioned(
+                            right: 16,
+                            top: 12,
+                            child: CermatPill.ok('CermatTani'),
                           ),
-                          child: CermoMascot(
-                            pose: step == 3 ? CermoPose.happy : CermoPose.wave,
-                            size: 76,
+                          Positioned(
+                            left: 16,
+                            bottom: -26,
+                            child: CermoMascot(pose: pose, size: 108),
                           ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 38, 20, 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Indikator 3 langkah halus
+                            Row(
+                              children: [
+                                for (var i = 1; i <= 3; i++) ...[
+                                  Expanded(
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 260),
+                                      height: 7,
+                                      decoration: BoxDecoration(
+                                        color: i <= step ? p.leaf600 : p.line,
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                    ),
+                                  ),
+                                  if (i < 3) const SizedBox(width: 6),
+                                ],
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Langkah $step/3',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.inkSoft),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              switchInCurve: Curves.easeOutCubic,
+                              child: _buildStepBody(p),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 44, 20, 22),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Indikator 3 langkah
-                        Row(
-                          children: [
-                            for (var i = 1; i <= 3; i++) ...[
-                              Expanded(
-                                child: Container(
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: i <= step ? p.leaf600 : p.line,
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                ),
-                              ),
-                              if (i < 3) const SizedBox(width: 6),
-                            ],
-                            const SizedBox(width: 10),
-                            Text('Langkah $step/3', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.inkSoft)),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-
-                        if (step == 1) ...[
-                          Text('Halo! Yuk, cek tomatmu bareng Cermo.', style: context.displayStyle(size: 26)),
-                          const SizedBox(height: 8),
-                          Text(
-                            'CermatTani membantumu menilai kematangan buah, mengenali penyakit daun, menduga kebutuhan pupuk, dan memantau irigasi surya.',
-                            style: TextStyle(fontSize: 15.5, color: p.inkSoft, height: 1.5),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: nameCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Nama panggilanmu',
-                              filled: true,
-                              fillColor: p.surface2,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              CermatPill.ok('Khusus tomat'),
-                              CermatPill.ok('Organik lebih dulu'),
-                              CermatPill.ok('Ramah sinyal lemah'),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: Primary3DButton(
-                              label: 'Mulai atur kebun',
-                              icon: Icons.arrow_forward_rounded,
-                              onPressed: () => setState(() => step = 2),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: SecondaryOutlineButton(
-                              label: 'Langsung lihat kebun contoh',
-                              onPressed: () => _finish(goToScan: false),
-                            ),
-                          ),
-                        ] else if (step == 2) ...[
-                          Text('Buat kebun tomat pertamamu', style: context.displayStyle(size: 24)),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Kosongkan bila ingin memakai data contoh Kebun Blok A milik Pak Joko.',
-                            style: TextStyle(fontSize: 15, color: p.inkSoft),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: farmCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Nama kebun (mis. Kebun Blok B)',
-                              filled: true,
-                              fillColor: p.surface2,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: locCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Lokasi (mis. Ciawi, Bogor)',
-                              filled: true,
-                              fillColor: p.surface2,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              TextButton(onPressed: () => setState(() => step = 1), child: const Text('Kembali')),
-                              const Spacer(),
-                              Primary3DButton(
-                                label: 'Lanjut tanaman',
-                                icon: Icons.arrow_forward_rounded,
-                                onPressed: () => setState(() => step = 3),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          Text('Catat satu tanaman tomat', style: context.displayStyle(size: 24)),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Setiap hasil scan akan disimpan ke timeline tanaman ini agar jadwal panen akurat.',
-                            style: TextStyle(fontSize: 15, color: p.inkSoft),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: plantCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Nama tanaman / rumpun',
-                              filled: true,
-                              fillColor: p.surface2,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            value: varietas,
-                            decoration: InputDecoration(
-                              labelText: 'Varietas tomat',
-                              filled: true,
-                              fillColor: p.surface2,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 'Servo F1', child: Text('Servo F1')),
-                              DropdownMenuItem(value: 'Gustavi', child: Text('Gustavi')),
-                              DropdownMenuItem(value: 'Tomat Ceri', child: Text('Tomat Ceri')),
-                              DropdownMenuItem(value: 'Rampai', child: Text('Tomat Rampai')),
-                            ],
-                            onChanged: (v) => setState(() => varietas = v ?? 'Servo F1'),
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: Primary3DButton(
-                              label: 'Selesai & langsung scan',
-                              icon: Icons.camera_alt_rounded,
-                              tomato: true,
-                              onPressed: () => _finish(goToScan: true),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: Primary3DButton(
-                              label: 'Masuk ke Beranda',
-                              icon: Icons.home_rounded,
-                              onPressed: () => _finish(goToScan: false),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStepBody(CermatPalette p) {
+    if (step == 1) {
+      return Column(
+        key: const ValueKey('step-1'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Halo! Yuk, pantau kebunmu bareng Pak Cermat.', style: context.displayStyle(size: 25)),
+          const SizedBox(height: 8),
+          Text(
+            'Analisis foto buah & daun secara nyata lewat Gemini AI, atur jadwal siram dan panen, serta pantau irigasi surya dalam satu aplikasi.',
+            style: TextStyle(fontSize: 14.5, color: p.inkSoft, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: nameCtrl,
+            decoration: _inputDec(p, 'Nama panggilanmu'),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              CermatPill.ok('Gemini AI + Dataset Agronomi'),
+              CermatPill.ok('Organik lebih dulu'),
+              CermatPill.water('Pengingat tepat waktu'),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: Primary3DButton(
+              label: 'Mulai atur kebun',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: () => setState(() => step = 2),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: SecondaryOutlineButton(
+              label: 'Langsung masuk ke Beranda',
+              onPressed: () => _finish(goToScan: false),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (step == 2) {
+      return Column(
+        key: const ValueKey('step-2'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Buat kebun pertamamu', style: context.displayStyle(size: 23)),
+          const SizedBox(height: 6),
+          Text(
+            'Kosongkan bila ingin memakai profil kebun Blok A — Ciawi terlebih dahulu.',
+            style: TextStyle(fontSize: 14.5, color: p.inkSoft),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: farmCtrl,
+            decoration: _inputDec(p, 'Nama kebun (mis. Kebun Blok B)'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: locCtrl,
+            decoration: _inputDec(p, 'Lokasi (mis. Ciawi, Bogor)'),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              TextButton(onPressed: () => setState(() => step = 1), child: const Text('Kembali')),
+              const Spacer(),
+              Primary3DButton(
+                label: 'Lanjut tanaman',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: () => setState(() => step = 3),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      key: const ValueKey('step-3'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Catat tanaman utamamu', style: context.displayStyle(size: 23)),
+        const SizedBox(height: 6),
+        Text(
+          'Setiap hasil scan foto nyata akan tersimpan ke timeline tanaman dan jadwal panen.',
+          style: TextStyle(fontSize: 14.5, color: p.inkSoft),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: plantCtrl,
+          decoration: _inputDec(p, 'Nama tanaman / petak'),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: varietas,
+          decoration: _inputDec(p, 'Varietas'),
+          items: const [
+            DropdownMenuItem(value: 'Servo F1', child: Text('Tomat Servo F1')),
+            DropdownMenuItem(value: 'Gustavi', child: Text('Tomat Gustavi')),
+            DropdownMenuItem(value: 'Tomat Ceri', child: Text('Tomat Ceri')),
+            DropdownMenuItem(value: 'Rampai', child: Text('Tomat Rampai')),
+            DropdownMenuItem(value: 'Cabai Rawit', child: Text('Cabai Rawit')),
+          ],
+          onChanged: (v) => setState(() => varietas = v ?? 'Servo F1'),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: Primary3DButton(
+            label: 'Selesai & langsung scan foto',
+            icon: Icons.camera_alt_rounded,
+            tomato: true,
+            onPressed: () => _finish(goToScan: true),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: Primary3DButton(
+            label: 'Masuk ke Beranda',
+            icon: Icons.home_rounded,
+            onPressed: () => _finish(goToScan: false),
+          ),
+        ),
+      ],
     );
   }
 }

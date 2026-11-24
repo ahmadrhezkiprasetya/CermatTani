@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
 
-/// Layar 6: Kalender Panen & Notifikasi Bot Telegram (F7.1–F7.3)
+/// Layar 6: Kalender Panen & Pengingat Otomatis (Grid Bulanan + Antrean Panen + Tab Harian & Telegram)
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
@@ -15,19 +16,37 @@ class CalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
+  DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  int _reminderTab = 0; // 0: Harian | 1: Telegram
+  final _noteCtrl = TextEditingController();
   final _tgCtrl = TextEditingController();
-  bool _testSent = false;
+  String? _addPlantId;
 
   @override
   void dispose() {
+    _noteCtrl.dispose();
     _tgCtrl.dispose();
     super.dispose();
   }
+
+  bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   Widget build(BuildContext context) {
     final p = context.ct;
     final state = ref.watch(cermatProvider);
+    final notifier = ref.read(cermatProvider.notifier);
+
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final upcoming = state.harvestEvents.where((h) => h.sumber == 'estimasi').toList()
+      ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    final actualCount = state.harvestEvents.where((h) => h.sumber == 'aktual').length;
+    final selectedEvents = state.harvestEvents.where((h) => _sameDay(h.tanggal, _selectedDate)).toList();
+
+    final firstOfMonth = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
+    final daysInMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0).day;
+    final leadingBlanks = (firstOfMonth.weekday - 1) % 7; // Senin = 0
 
     return AppScaffold(
       location: '/calendar',
@@ -36,161 +55,456 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
+          // Ringkasan atas + tombol cepat Ke hari ini & Uji alert
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              CermatPill.bad('${upcoming.length} siap/estimasi'),
+              CermatPill.ok('$actualCount sudah dipetik'),
+              CermatPill.water('${state.jadwalPengingat.where((r) => r.aktif).length} pengingat aktif'),
+              ActionChip(
+                backgroundColor: p.surface,
+                side: BorderSide(color: p.line),
+                label: Text('Ke hari ini', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.leaf700)),
+                onPressed: () => setState(() {
+                  _visibleMonth = DateTime(today.year, today.month);
+                  _selectedDate = today;
+                }),
+              ),
+              ActionChip(
+                backgroundColor: p.creamWarm,
+                side: BorderSide(color: p.creamBorder),
+                label: Text('Uji alert', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.ink)),
+                onPressed: () => notifier.triggerTestAlert(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Kalender Grid Bulanan Interaktif
           CermatCard(
+            padding: const EdgeInsets.all(14),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Jadwal panen tanaman', style: context.displayStyle(size: 20)),
-                const SizedBox(height: 4),
-                Text('Hari panen ditandai warna tomat merah-oranye.', style: TextStyle(fontSize: 13.5, color: p.inkSoft)),
-                const SizedBox(height: 14),
-                if (state.harvestEvents.isEmpty)
-                  Text('Belum ada jadwal panen. Scan buah tomat untuk menjadwalkan otomatis.', style: TextStyle(color: p.inkSoft))
-                else
-                  for (final ev in state.harvestEvents)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: ev.sumber == 'aktual' ? AppColors.ok.withAlpha(24) : AppColors.tomato500.withAlpha(26),
-                          borderRadius: BorderRadius.circular(16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: () => setState(
+                        () => _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month - 1),
+                      ),
+                      icon: Icon(Icons.chevron_left_rounded, color: p.ink),
+                    ),
+                    Text(
+                      DateFormat('MMMM yyyy', 'id_ID').format(_visibleMonth),
+                      style: context.displayStyle(size: 19),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(
+                        () => _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1),
+                      ),
+                      icon: Icon(Icons.chevron_right_rounded, color: p.ink),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    for (final d in const ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'])
+                      Expanded(
+                        child: Center(
+                          child: Text(d, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
                         ),
-                        child: Row(
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: leadingBlanks + daysInMonth,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemBuilder: (_, idx) {
+                    if (idx < leadingBlanks) return const SizedBox.shrink();
+                    final day = idx - leadingBlanks + 1;
+                    final date = DateTime(_visibleMonth.year, _visibleMonth.month, day);
+                    final isToday = _sameDay(date, today);
+                    final isSel = _sameDay(date, _selectedDate);
+                    final dayEvents = state.harvestEvents.where((h) => _sameDay(h.tanggal, date)).toList();
+                    final hasEst = dayEvents.any((e) => e.sumber == 'estimasi');
+                    final hasAct = dayEvents.any((e) => e.sumber == 'aktual');
+
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedDate = date),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? p.leaf600
+                              : isToday
+                                  ? p.creamWarm
+                                  : p.surface2,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSel
+                                ? p.leaf600
+                                : isToday
+                                    ? AppColors.tomatoBtn
+                                    : p.line.withAlpha(130),
+                            width: isToday && !isSel ? 1.6 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: ev.sumber == 'aktual' ? AppColors.ok : AppColors.tomato500,
-                                shape: BoxShape.circle,
+                            Text(
+                              '$day',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isSel ? p.onLeaf : p.ink,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            if (hasEst || hasAct) ...[
+                              const SizedBox(height: 3),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    '${state.plants.where((pl) => pl.id == ev.plantId).firstOrNull?.nama ?? 'Tomat'} · ${ev.tanggal.day}/${ev.tanggal.month}/${ev.tanggal.year}',
-                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
-                                  ),
-                                  Text(ev.catatan, style: TextStyle(fontSize: 13, color: p.inkSoft)),
+                                  if (hasEst)
+                                    Container(
+                                      width: 5.5,
+                                      height: 5.5,
+                                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: isSel ? Colors.white : AppColors.tomatoBtn,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  if (hasAct)
+                                    Container(
+                                      width: 5.5,
+                                      height: 5.5,
+                                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: isSel ? p.lime300 : p.leaf600,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
                                 ],
                               ),
-                            ),
-                            if (ev.sumber == 'estimasi')
-                              TextButton(
-                                onPressed: () => ref.read(cermatProvider.notifier).markHarvestActual(ev.id),
-                                child: const Text('Sudah panen'),
-                              )
-                            else
-                              CermatPill.ok('Aktual'),
+                            ],
                           ],
                         ),
                       ),
-                    ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Notifikasi Bot Telegram 6 digit (F7.2, F7.3)
+          // Agenda Tanggal Terpilih + Tambah Jadwal Manual
           CermatCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: Text('Pengingat Telegram', style: context.displayStyle(size: 20))),
-                    state.telegramChatId != null ? CermatPill.ok('Tertaut') : CermatPill.warn('Belum tertaut'),
-                  ],
+                Text(
+                  'Agenda ${DateFormat('d MMMM yyyy', 'id_ID').format(_selectedDate)}',
+                  style: context.cardTitleStyle(size: 16),
                 ),
-                const SizedBox(height: 12),
-                if (state.telegramChatId == null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: p.forest900, borderRadius: BorderRadius.circular(18)),
-                    child: Column(
-                      children: [
-                        Text('Kode tautan 6 digit', style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12.5)),
-                        const SizedBox(height: 6),
-                        Text(
-                          state.telegramCode,
-                          style: context.displayStyle(size: 32, color: AppColors.lime300),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Kirim "/link ${state.telegramCode}" ke @CermatTaniBot',
-                          style: TextStyle(color: Colors.white.withAlpha(215), fontSize: 13),
-                        ),
-                      ],
+                const SizedBox(height: 10),
+                if (selectedEvents.isEmpty)
+                  Text('Belum ada jadwal panen pada tanggal ini.', style: TextStyle(fontSize: 13.5, color: p.inkSoft))
+                else
+                  for (final ev in selectedEvents) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: p.surface2,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  state.plants.where((pl) => pl.id == ev.plantId).firstOrNull?.nama ?? 'Tanaman',
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                Text(ev.catatan, style: TextStyle(fontSize: 12.8, color: p.inkSoft)),
+                              ],
+                            ),
+                          ),
+                          if (ev.sumber == 'estimasi')
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: p.leaf600, foregroundColor: p.onLeaf),
+                              onPressed: () => notifier.markHarvestActual(ev.id),
+                              child: const Text('Panen'),
+                            )
+                          else
+                            CermatPill.ok('Dipanen'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _tgCtrl,
+                  ],
+                const SizedBox(height: 10),
+                if (state.plants.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    value: _addPlantId ?? state.plants.first.id,
                     decoration: InputDecoration(
-                      labelText: 'Username Telegram (opsional)',
+                      labelText: 'Tambah jadwal panen untuk',
                       filled: true,
                       fillColor: p.surface2,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
+                    items: [
+                      for (final pl in state.plants)
+                        DropdownMenuItem(value: pl.id, child: Text(pl.nama)),
+                    ],
+                    onChanged: (v) => setState(() => _addPlantId = v),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
-                        child: Primary3DButton(
-                          label: 'Konfirmasi tautan',
-                          icon: Icons.send_rounded,
-                          onPressed: () => ref.read(cermatProvider.notifier).linkTelegram(_tgCtrl.text),
+                        child: TextField(
+                          controller: _noteCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Catatan panen (opsional)',
+                            filled: true,
+                            fillColor: p.surface2,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'Kode baru',
-                        onPressed: () => ref.read(cermatProvider.notifier).regenerateTelegramCode(),
-                        icon: const Icon(Icons.refresh_rounded),
+                      Primary3DButton(
+                        label: 'Tambah',
+                        onPressed: () {
+                          final pid = _addPlantId ?? state.plants.first.id;
+                          notifier.addHarvestEvent(pid, _selectedDate, _noteCtrl.text);
+                          _noteCtrl.clear();
+                        },
                       ),
                     ],
                   ),
-                ] else ...[
-                  StatusAlertCard(
-                    accent: AppColors.ok,
-                    title: 'Tersambung ke ${state.telegramChatId}',
-                    body: 'Pengingat panen dikirim otomatis setiap hari pukul ${state.telegramTime} WIB.',
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Primary3DButton(
-                          label: 'Uji pengingat',
-                          icon: Icons.notifications_active_outlined,
-                          onPressed: () {
-                            ref.read(cermatProvider.notifier).sendTestTelegram();
-                            setState(() => _testSent = true);
-                          },
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Antrean Panen Terdekat
+          if (upcoming.isNotEmpty) ...[
+            CermatCard(
+              color: p.creamWarm,
+              borderColor: p.creamBorder,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Antrean panen mendatang', style: context.cardTitleStyle(size: 16)),
+                  const SizedBox(height: 10),
+                  for (final ev in upcoming.take(4)) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(color: p.line),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  state.plants.where((pl) => pl.id == ev.plantId).firstOrNull?.nama ?? 'Tanaman',
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.8),
+                                ),
+                                Text(
+                                  '${DateFormat('d MMM', 'id_ID').format(ev.tanggal)} · ${ev.catatan}',
+                                  style: TextStyle(fontSize: 12.2, color: p.inkSoft),
+                                ),
+                              ],
+                            ),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: p.leaf600,
+                              foregroundColor: p.onLeaf,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            onPressed: () => notifier.markHarvestActual(ev.id),
+                            child: const Text('Panen'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Pengingat Otomatis (2 Tab: Harian & Telegram)
+          CermatCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Pengingat otomatis', style: context.cardTitleStyle(size: 16.5)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SmallTab('Jadwal Harian', _reminderTab == 0, () => setState(() => _reminderTab = 0)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _SmallTab('Bot Telegram', _reminderTab == 1, () => setState(() => _reminderTab = 1)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_reminderTab == 0) ...[
+                  for (final r in state.jadwalPengingat)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(r.judul, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      subtitle: Text(r.catatan, style: TextStyle(fontSize: 12.2, color: p.inkSoft)),
+                      leading: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => _pickTime(context, r),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: p.surfaceMilk,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(r.jam, style: TextStyle(fontWeight: FontWeight.w700, color: p.leaf700)),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      SecondaryOutlineButton(
-                        label: 'Putuskan',
-                        onPressed: () => ref.read(cermatProvider.notifier).unlinkTelegram(),
+                      trailing: Switch(
+                        activeColor: p.leaf600,
+                        value: r.aktif,
+                        onChanged: (v) => notifier.updateReminderSchedule(r.id, aktif: v),
                       ),
-                    ],
-                  ),
-                  if (_testSent) ...[
+                    ),
+                ] else ...[
+                  if (state.telegramChatId != null) ...[
+                    StatusAlertCard(
+                      accent: AppColors.ok,
+                      title: 'Tertaut ke ${state.telegramChatId}',
+                      body: 'Pengingat panen harian aktif setiap pukul ${state.telegramTime} WIB.',
+                    ),
                     const SizedBox(height: 10),
-                    Text('Pesan uji berhasil dikirim ke ${state.telegramChatId} dan dicatat di Notifikasi.', style: TextStyle(fontSize: 13, color: p.leaf600, fontWeight: FontWeight.w600)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Primary3DButton(
+                            label: 'Kirim pesan uji',
+                            onPressed: () => notifier.sendTestTelegram(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SecondaryOutlineButton(
+                          label: 'Putuskan',
+                          onPressed: () => notifier.unlinkTelegram(),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Text(
+                      'Kode verifikasi 6 digit: ${state.telegramCode}',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _tgCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Username Telegram (mis. @pakjoko_tani)',
+                        filled: true,
+                        fillColor: p.surface2,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Primary3DButton(
+                            label: 'Tautkan Bot Telegram',
+                            onPressed: () => notifier.linkTelegram(_tgCtrl.text),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SecondaryOutlineButton(
+                          label: 'Kode baru',
+                          onPressed: () => notifier.regenerateTelegramCode(),
+                        ),
+                      ],
+                    ),
                   ],
                 ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _pickTime(BuildContext context, ReminderScheduleModel item) async {
+    final parts = item.jam.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? 7,
+      minute: int.tryParse(parts.last) ?? 0,
+    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null) return;
+    final formatted =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    ref.read(cermatProvider.notifier).updateReminderSchedule(item.id, jam: formatted);
+  }
+}
+
+class _SmallTab extends StatelessWidget {
+  const _SmallTab(this.label, this.active, this.onTap);
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.ct;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? p.leaf600 : p.surface2,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: active ? p.onLeaf : p.inkSoft),
+        ),
       ),
     );
   }

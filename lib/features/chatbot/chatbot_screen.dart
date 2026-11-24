@@ -5,10 +5,11 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
 import '../../core/widgets/cermo_mascot.dart';
 import '../../core/widgets/common_cards.dart';
+import '../../core/widgets/formatted_text.dart';
 import '../../data/cermat_state.dart';
 import '../../data/services/gemini_service.dart';
 
-/// Layar 9: Tanya Cermo AI — Viewport-Locked (hanya daftar chat yang scroll!), 100% Gemini AI nyata
+/// Layar 9: Tanya Cermo AI — Viewport-Locked + Auto-Terima Pertanyaan & Data Scan dari Layar Scan
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
 
@@ -22,12 +23,13 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   bool _loading = false;
   bool _showJumpDown = false;
   String? _errorText;
+  String? _lastDispatchedSig;
 
-  static const _quickQuestions = [
+  static const _defaultQuestions = [
     'Apa arti hasil scan terakhirku?',
     'Kapan waktu terbaik panen?',
     'Pupuk organik apa yang cocok?',
-    'Cara atasi bercak daun organik?',
+    'Cara atasi penyakit secara organik?',
     'Apakah tandon & irigasi aman?',
   ];
 
@@ -71,7 +73,61 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     });
   }
 
-  Future<void> _send(String rawText) async {
+  ScanModel? _resolveActiveScan(CermatState state, PlantModel? plant) {
+    if (state.chatContextScan != null &&
+        (plant == null || state.chatContextScan!.plantId == plant.id)) {
+      return state.chatContextScan;
+    }
+    if (plant == null) return null;
+    return state.scans.where((s) => s.plantId == plant.id).firstOrNull;
+  }
+
+  String? _scanBannerText(ScanModel? scan) {
+    if (scan == null) return null;
+    return switch (scan.fokusOutput) {
+      ScanOutputFocus.penyakit =>
+        'Data scan aktif: ${scan.penyakitUtamaNama} · Keyakinan ${scan.keyakinan}%',
+      ScanOutputFocus.kematangan => () {
+          final rip = scan.tahapDominan != null ? knowledgeRipeness[scan.tahapDominan!] : null;
+          final minor = scan.penyakitRinganId != null &&
+                  knowledgeDiseases.containsKey(scan.penyakitRinganId!)
+              ? ' (+ catatan: ${knowledgeDiseases[scan.penyakitRinganId!]!.penyakit})'
+              : '';
+          return 'Data scan aktif: ${rip?.label ?? '-'} (${scan.anjuranPanen})$minor · Keyakinan ${scan.keyakinan}%';
+        }(),
+      ScanOutputFocus.hara =>
+        'Data scan aktif: ${scan.dugaanHaraNama} · Keyakinan ${scan.keyakinan}%',
+      ScanOutputFocus.tidakTerdeteksi =>
+        'Data scan aktif: Foto sebelumnya belum jelas · Keyakinan ${scan.keyakinan}%',
+    };
+  }
+
+  List<String> _contextualQuickQuestions(ScanModel? scan) {
+    if (scan == null) return _defaultQuestions;
+    return switch (scan.fokusOutput) {
+      ScanOutputFocus.penyakit => const [
+          'Cara cegah ini menular ke buah/tanaman lain?',
+          'Langkah penanganan organik paling aman?',
+          'Boleh dijadikan kompos tidak?',
+          'Apakah kelembapan kebun memicu ini?',
+        ],
+      ScanOutputFocus.kematangan => const [
+          'Jam berapa terbaik memetik buah ini?',
+          'Cara simpan supaya tahan lama?',
+          'Pupuk organik apa yang cocok fase ini?',
+          'Apakah tandon & irigasi aman?',
+        ],
+      ScanOutputFocus.hara => const [
+          'Berapa takaran pupuk organik yang aman?',
+          'Berapa hari sekali pupuk susulan?',
+          'Tanda tanaman pulih setelah dipupuk?',
+          'Apakah penyiraman perlu disesuaikan?',
+        ],
+      ScanOutputFocus.tidakTerdeteksi => _defaultQuestions,
+    };
+  }
+
+  Future<void> _send(String rawText, {ScanModel? overrideScan}) async {
     final text = rawText.trim();
     if (text.isEmpty || _loading) return;
     _ctrl.clear();
@@ -80,8 +136,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final notifier = ref.read(cermatProvider.notifier);
     final plant =
         state.plants.where((p) => p.id == state.chatPlantId).firstOrNull ?? state.plants.firstOrNull;
-    final latestScan =
-        plant == null ? null : state.scans.where((s) => s.plantId == plant.id).firstOrNull;
+    final activeScan = overrideScan ?? _resolveActiveScan(state, plant);
     final historySnapshot = [...state.chatMessages];
 
     notifier.appendChatMessage(
@@ -102,7 +157,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         message: text,
         history: historySnapshot,
         plant: plant,
-        latestScan: latestScan,
+        latestScan: activeScan,
         state: ref.read(cermatProvider),
       );
       if (!mounted) return;
@@ -133,9 +188,25 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final notifier = ref.read(cermatProvider.notifier);
     final activePlant =
         state.plants.where((pl) => pl.id == state.chatPlantId).firstOrNull ?? state.plants.firstOrNull;
-    final latestScan = activePlant == null
-        ? null
-        : state.scans.where((s) => s.plantId == activePlant.id).firstOrNull;
+    final activeScan = _resolveActiveScan(state, activePlant);
+    final bannerText = _scanBannerText(activeScan);
+    final quickQuestions = _contextualQuickQuestions(activeScan);
+
+    // Otomatis kirim pertanyaan yang baru dikirim dari layar hasil Scan
+    final pendingQ = state.pendingChatQuestion;
+    if (pendingQ != null && pendingQ.isNotEmpty) {
+      final sig = '$pendingQ|${activeScan?.id ?? ''}';
+      if (_lastDispatchedSig != sig) {
+        _lastDispatchedSig = sig;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(cermatProvider.notifier).clearPendingChatQuestion();
+          _send(pendingQ, overrideScan: activeScan);
+        });
+      }
+    } else {
+      _lastDispatchedSig = null;
+    }
 
     return AppScaffold(
       location: '/chatbot',
@@ -154,7 +225,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
         child: Column(
           children: [
-            // 1. Header konteks tanaman (tetap diam di atas, tidak ikut scroll)
+            // 1. Header konteks tanaman & data scan aktif (diam di atas)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
@@ -205,9 +276,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      latestScan != null
-                          ? 'Konteks scan terakhir: ${latestScan.penyakitUtamaNama} · ${latestScan.anjuranPanen} (${latestScan.keyakinan}%)'
-                          : 'Belum ada hasil scan tersimpan. Tanyakan budidaya, pupuk organik, atau irigasi langsung di bawah.',
+                      bannerText ??
+                          'Belum ada hasil scan tersimpan. Tanyakan budidaya, penyakit, pupuk organik, atau irigasi di bawah.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: p.inkSoft),
@@ -218,7 +288,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             ),
             const SizedBox(height: 8),
 
-            // 2. Area daftar pesan yang BISA DI-SCROLL secara mandiri (tidak pernah tertutup composer!)
+            // 2. Area daftar pesan yang BISA DI-SCROLL secara mandiri
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -246,12 +316,14 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Semua jawaban dihasilkan langsung oleh Gemini AI dengan acuan Dataset Agronomi CermatTani v2.0 (Balitsa Kementan RI & FAO IPM).',
+                                  bannerText != null
+                                      ? '$bannerText sudah terhubung. Langsung tanyakan langkah lanjutan di bawah!'
+                                      : 'Semua jawaban dihasilkan langsung oleh Gemini AI dengan acuan Dataset Agronomi CermatTani v2.1.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 13.2, color: p.inkSoft, height: 1.48),
                                 ),
                                 const SizedBox(height: 12),
-                                CermatPill.ok('Organik dulu · Tanpa data dummy'),
+                                CermatPill.ok('Organik dulu · Dataset Agronomi'),
                               ],
                             ),
                           ),
@@ -260,11 +332,11 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                         ListView.builder(
                           controller: _scrollCtrl,
                           padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-                          itemCount: state.chatMessages.length + (_loading ? 1 : 0) + (_errorText != null ? 1 : 0),
+                          itemCount:
+                              state.chatMessages.length + (_loading ? 1 : 0) + (_errorText != null ? 1 : 0),
                           itemBuilder: (_, idx) {
                             if (idx < state.chatMessages.length) {
-                              final msg = state.chatMessages[idx];
-                              return _ChatBubble(msg: msg);
+                              return _ChatBubble(msg: state.chatMessages[idx]);
                             }
                             if (_loading && idx == state.chatMessages.length) {
                               return Padding(
@@ -343,19 +415,19 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             ),
             const SizedBox(height: 8),
 
-            // 3. Chip pertanyaan cepat 1 baris horizontal (tetap ramping)
+            // 3. Chip pertanyaan cepat kontekstual 1 baris horizontal
             SizedBox(
               height: 36,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: _quickQuestions.length,
+                itemCount: quickQuestions.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (_, i) => ActionChip(
                   backgroundColor: p.surface,
                   side: BorderSide(color: p.line),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                  label: Text(_quickQuestions[i], style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w600, color: p.ink)),
-                  onPressed: _loading ? null : () => _send(_quickQuestions[i]),
+                  label: Text(quickQuestions[i], style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w600, color: p.ink)),
+                  onPressed: _loading ? null : () => _send(quickQuestions[i]),
                 ),
               ),
             ),
@@ -368,9 +440,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                   child: TextField(
                     controller: _ctrl,
                     textInputAction: TextInputAction.send,
-                    onSubmitted: _send,
+                    onSubmitted: (v) => _send(v),
                     decoration: InputDecoration(
-                      hintText: 'Tanya hasil scan, pupuk, atau irigasi...',
+                      hintText: 'Tanya lanjutan tentang hasil scan, penyakit, atau pupuk...',
                       hintStyle: TextStyle(fontSize: 13.5, color: p.inkSoft),
                       filled: true,
                       fillColor: p.surface,
@@ -438,7 +510,7 @@ class _ChatBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              FormattedText(
                 msg.isi,
                 style: TextStyle(
                   fontSize: 13.8,

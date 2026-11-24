@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BellRing,
   CalendarDays,
@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  ExternalLink,
   Plus,
   RefreshCw,
   Send,
@@ -81,7 +82,29 @@ export const CalendarScreen: React.FC = () => {
   const [addedNotice, setAddedNotice] = useState(false);
   const [tgHandle, setTgHandle] = useState('');
   const [copied, setCopied] = useState(false);
-  const [tgPreviewSent, setTgPreviewSent] = useState(false);
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgFeedback, setTgFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tgBotInfo, setTgBotInfo] = useState<{
+    configured: boolean;
+    username: string;
+    botUrl: string;
+  }>({ configured: true, username: '', botUrl: '' });
+
+  useEffect(() => {
+    if (reminderTab !== 'telegram') return;
+    fetch('/api/telegram/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) {
+          setTgBotInfo({
+            configured: Boolean(d.configured),
+            username: d.username || '',
+            botUrl: d.botUrl || '',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [reminderTab]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -631,13 +654,25 @@ export const CalendarScreen: React.FC = () => {
                         {state.user.telegramLinkCode}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        {tgBotInfo.botUrl && (
+                          <a
+                            href={`${tgBotInfo.botUrl}?start=${state.user.telegramLinkCode}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary"
+                            style={{ minHeight: 36, padding: '5px 14px', fontSize: '0.82rem', textDecoration: 'none' }}
+                          >
+                            1. Buka Bot {tgBotInfo.username ? `@${tgBotInfo.username}` : 'Telegram'}{' '}
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
                         <button
                           type="button"
                           className="btn-secondary"
                           style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.8rem' }}
                           onClick={handleCopyCode}
                         >
-                          <Copy size={14} /> {copied ? 'Tersalin!' : 'Salin perintah'}
+                          <Copy size={14} /> {copied ? 'Tersalin!' : `Salin /link ${state.user.telegramLinkCode}`}
                         </button>
                         <button
                           type="button"
@@ -651,34 +686,78 @@ export const CalendarScreen: React.FC = () => {
                     </div>
 
                     <ol className="t-small t-soft" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
-                      <li>Buka bot <strong style={{ color: 'var(--ink)' }}>@CermatTaniBot</strong> di Telegram.</li>
-                      <li>Ketik <code>/start</code> lalu salin Chat ID numerik akunmu.</li>
-                      <li>Tempel Chat ID di bawah dan konfirmasi tautan.</li>
+                      <li>
+                        Buka bot{' '}
+                        <strong style={{ color: 'var(--ink)' }}>
+                          {tgBotInfo.username ? `@${tgBotInfo.username}` : 'Telegram CermatTani'}
+                        </strong>{' '}
+                        lalu tekan <strong>Start</strong> (atau kirim{' '}
+                        <code>/link {state.user.telegramLinkCode}</code>).
+                      </li>
+                      <li>
+                        Klik tombol <strong>Deteksi &amp; Sambungkan Otomatis</strong> di bawah — Chat ID kamu langsung tertangkap otomatis.
+                      </li>
                     </ol>
 
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <input
-                        id="tg-handle"
-                        className="field-input"
-                        style={{ flex: '1 1 160px', minHeight: 42 }}
-                        value={tgHandle}
-                        onChange={(e) => setTgHandle(e.target.value)}
-                        placeholder="Chat ID (mis. 123456789)"
-                        aria-label="Chat ID Telegram"
-                      />
-                      <button type="button" className="btn-primary" onClick={() => linkTelegram(tgHandle)}>
-                        <Send size={16} /> Tautkan
-                      </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={tgBusy}
+                      onClick={async () => {
+                        setTgBusy(true);
+                        setTgFeedback(null);
+                        const res = await linkTelegram();
+                        setTgBusy(false);
+                        setTgFeedback({ ok: res.ok, text: res.message });
+                      }}
+                    >
+                      <Sparkles size={16} />{' '}
+                      {tgBusy ? 'Mendeteksi pesan dari Telegram...' : '2. Deteksi & Sambungkan Otomatis'}
+                    </button>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span className="t-micro t-soft">Atau masukkan Chat ID numerik secara manual:</span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <input
+                          id="tg-handle"
+                          className="field-input"
+                          style={{ flex: '1 1 160px', minHeight: 42 }}
+                          value={tgHandle}
+                          onChange={(e) => setTgHandle(e.target.value)}
+                          placeholder="Chat ID numerik (mis. 123456789)"
+                          aria-label="Chat ID Telegram"
+                        />
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          disabled={tgBusy || !tgHandle.trim()}
+                          onClick={async () => {
+                            setTgBusy(true);
+                            setTgFeedback(null);
+                            const res = await linkTelegram(tgHandle);
+                            setTgBusy(false);
+                            setTgFeedback({ ok: res.ok, text: res.message });
+                          }}
+                        >
+                          <Send size={15} /> Tautkan Manual
+                        </button>
+                      </div>
                     </div>
+
+                    {tgFeedback && (
+                      <div className={`alert-card ${tgFeedback.ok ? 'alert-card--ok' : 'alert-card--warn'}`} role="status">
+                        <div className="t-small">{tgFeedback.text}</div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
                     <div className="alert-card alert-card--ok">
                       <BellRing size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
                       <div>
-                        <strong>Tersambung ke {state.user.telegramChatId}</strong>
+                        <strong>Tersambung ke Chat ID {state.user.telegramChatId}</strong>
                         <p className="t-small t-soft" style={{ marginTop: 3 }}>
-                          Pengingat harian dikirim setiap pukul <strong>{state.user.telegramReminderTime} WIB</strong>.
+                          Jadwal panen/siram ({state.user.telegramReminderTime} WIB), peringatan sensor kritis, dan temuan penyakit scan aktif dikirim ke Telegram.
                         </p>
                       </div>
                     </div>
@@ -700,27 +779,32 @@ export const CalendarScreen: React.FC = () => {
                       <button
                         type="button"
                         className="btn-primary"
-                        onClick={() => {
-                          sendTestTelegramReminder();
-                          setTgPreviewSent(true);
+                        disabled={tgBusy}
+                        onClick={async () => {
+                          setTgBusy(true);
+                          setTgFeedback(null);
+                          const res = await sendTestTelegramReminder();
+                          setTgBusy(false);
+                          setTgFeedback({ ok: res.ok, text: res.message });
                         }}
                       >
-                        <Send size={16} /> Uji kirim sekarang
+                        <Send size={16} /> {tgBusy ? 'Mengirim ke Telegram...' : 'Uji kirim sekarang'}
                       </button>
-                      <button type="button" className="btn-ghost" onClick={unlinkTelegram}>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => {
+                          unlinkTelegram();
+                          setTgFeedback(null);
+                        }}
+                      >
                         <Unlink size={15} /> Putuskan
                       </button>
                     </div>
 
-                    {tgPreviewSent && (
-                      <div className="card-subtle" role="status">
-                        <div className="t-micro" style={{ fontWeight: 700, color: 'var(--leaf-600)' }}>
-                          Pratinjau pesan terkirim (@CermatTaniBot):
-                        </div>
-                        <p className="t-small t-soft" style={{ marginTop: 4 }}>
-                          &ldquo;Halo {state.user.nama}! Pengingat panen CermatTani ({state.user.telegramReminderTime}{' '}
-                          WIB): cek jadwal panen hari ini di kebunmu!&rdquo;
-                        </p>
+                    {tgFeedback && (
+                      <div className={`alert-card ${tgFeedback.ok ? 'alert-card--ok' : 'alert-card--warn'}`} role="status">
+                        <div className="t-small">{tgFeedback.text}</div>
                       </div>
                     )}
                   </>

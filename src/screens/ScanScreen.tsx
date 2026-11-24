@@ -3,23 +3,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
+  BookOpen,
   Camera,
   Check,
   CheckCircle2,
   CloudOff,
+  ExternalLink,
   FlaskConical,
+  Info,
   Leaf,
   MessageCircle,
   RefreshCw,
+  Send,
   ShieldAlert,
   Sparkles,
-  Sprout,
   SwitchCamera,
   Upload,
   X,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
+import { FormattedText } from '../components/FormattedText';
 import { TomatoConfetti } from '../components/Illustrations';
 import { StripedProgressBar } from '../components/Charts';
 import {
@@ -32,21 +37,19 @@ import {
   compressImageClient,
   runSmartPlantScan,
 } from '../utils/scanAnalyzer';
-import { PlantPart, ScanRecord } from '../types/cermattani';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
-import { cermatSupabaseRepo } from '@/lib/supabase/repository';
+import { ScanOutputFocus, ScanRecord } from '../types/cermattani';
 
-/* Layar 3 & 4: Scan (pilih bagian -> kamera langsung / unggah foto -> proses AI -> hasil 3 tab) */
+/* Layar 3 & 4: Scan Otomatis (Langsung Kamera/Unggah -> Output Dataset Terfokus -> Tanya Lanjutan ke Chatbot) */
 export const ScanScreen: React.FC = () => {
   const {
     state,
     activeFarmPlants,
-    scanPreselectPart,
     scanPreselectPlantId,
     saveScan,
     enqueueOfflineScan,
     isOffline,
-    openChatWithPlant,
+    openChatWithScan,
+    shareScanToTelegram,
     setActiveScreen,
   } = useApp();
 
@@ -54,7 +57,6 @@ export const ScanScreen: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [selectedPart, setSelectedPart] = useState<PlantPart>(scanPreselectPart || 'buah');
   const [selectedPlantId, setSelectedPlantId] = useState<string>(
     scanPreselectPlantId || activeFarmPlants[0]?.id || state.plants[0]?.id || ''
   );
@@ -69,18 +71,37 @@ export const ScanScreen: React.FC = () => {
   const [queueNotice, setQueueNotice] = useState<string>('');
   const [result, setResult] = useState<ScanRecord | null>(null);
   const [aiModel, setAiModel] = useState<string>('');
-  const [aiNote, setAiNote] = useState<string>('');
   const [temuanVisual, setTemuanVisual] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'kematangan' | 'penyakit' | 'pupuk'>('kematangan');
   const [savedToTimeline, setSavedToTimeline] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [followUpQuestion, setFollowUpQuestion] = useState('');
+  const [tgShareBusy, setTgShareBusy] = useState(false);
+  const [tgShareStatus, setTgShareStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [externalRef, setExternalRef] = useState<{
+    judul: string;
+    ringkasan: string;
+    sumberLabel: string;
+    sumberUrl: string;
+    tautanResmi?: Array<{
+      label: string;
+      domain: string;
+      url: string;
+      kategori: string;
+      terverifikasiLive: boolean;
+    }>;
+    taksonomi?: {
+      namaIlmiah: string;
+      kerajaan?: string;
+      famili?: string;
+      gbifUrl?: string;
+    };
+  } | null>(null);
+  const [loadingExtRef, setLoadingExtRef] = useState(false);
 
   useEffect(() => {
-    if (scanPreselectPart) setSelectedPart(scanPreselectPart);
     if (scanPreselectPlantId) setSelectedPlantId(scanPreselectPlantId);
-  }, [scanPreselectPart, scanPreselectPlantId]);
+  }, [scanPreselectPlantId]);
 
-  // Hentikan stream kamera secara bersih agar lampu kamera langsung mati
   const stopCameraStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -97,7 +118,6 @@ export const ScanScreen: React.FC = () => {
     return () => stopCameraStream();
   }, [stopCameraStream]);
 
-  // Buka kamera nyata via MediaDevices API (bekerja di webcam laptop & kamera HP)
   const openLiveCamera = useCallback(
     async (mode: 'environment' | 'user' = facingMode) => {
       setUploadError('');
@@ -130,7 +150,6 @@ export const ScanScreen: React.FC = () => {
             audio: false,
           });
         } catch {
-          // Fallback jika perangkat hanya punya 1 kamera (mis. webcam laptop)
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
@@ -140,7 +159,7 @@ export const ScanScreen: React.FC = () => {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
+          await videoRef.current.play().catch(() => { });
         }
         setCameraReady(true);
         setCameraStarting(false);
@@ -166,11 +185,10 @@ export const ScanScreen: React.FC = () => {
     [facingMode, stopCameraStream]
   );
 
-  // Pasang ulang stream saat elemen <video> baru ter-render
   useEffect(() => {
     if (stage === 'camera' && streamRef.current && videoRef.current && !videoRef.current.srcObject) {
       videoRef.current.srcObject = streamRef.current;
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   }, [stage]);
 
@@ -184,7 +202,6 @@ export const ScanScreen: React.FC = () => {
 
   const startAnalysis = async (params: {
     fotoUrl: string;
-    part: PlantPart;
     originalKb?: number;
     compressedKb?: number;
   }) => {
@@ -197,18 +214,18 @@ export const ScanScreen: React.FC = () => {
     setUploadError('');
     setQueueNotice('');
     setSavedToTimeline(false);
-    setAiNote('');
     setTemuanVisual([]);
+    setFollowUpQuestion('');
 
     if (isOffline) {
       enqueueOfflineScan({
         plantId: targetPlant.id,
-        bagian: params.part,
+        bagian: 'buah',
         fotoUrl: params.fotoUrl,
       });
       setStage('pick');
       setQueueNotice(
-        'Koneksi sedang offline. Foto sudah dikompres dan masuk antrean — akan otomatis dianalisis dengan Gemini AI saat jaringan kembali.'
+        'Koneksi sedang offline. Foto sudah dikompres dan masuk antrean — akan otomatis dianalisis saat jaringan kembali.'
       );
       return;
     }
@@ -221,7 +238,7 @@ export const ScanScreen: React.FC = () => {
     try {
       const output = await runSmartPlantScan({
         plant: targetPlant,
-        bagian: params.part,
+        bagian: 'auto',
         fotoUrl: params.fotoUrl,
         originalKb: params.originalKb,
         compressedKb: params.compressedKb,
@@ -232,12 +249,13 @@ export const ScanScreen: React.FC = () => {
 
       setResult(output.record);
       setAiModel(output.aiModel);
-      setAiNote(output.aiNote || '');
       setTemuanVisual(output.temuanVisual || []);
-      setActiveTab(params.part === 'buah' ? 'kematangan' : 'penyakit');
       setStage('result');
 
-      if (output.record.anjuranPanen === 'Panen sekarang') {
+      if (
+        output.record.fokusOutput === 'kematangan' &&
+        output.record.anjuranPanen === 'Panen sekarang'
+      ) {
         setShowConfetti(true);
         window.setTimeout(() => setShowConfetti(false), 1400);
       }
@@ -247,12 +265,11 @@ export const ScanScreen: React.FC = () => {
       setUploadError(
         err instanceof Error
           ? err.message
-          : 'Analisis Gemini AI gagal diproses. Pastikan internet aktif dan coba unggah atau foto ulang.'
+          : 'Analisis AI gagal diproses. Pastikan internet aktif dan coba unggah atau foto ulang.'
       );
     }
   };
 
-  // Jepret frame nyata dari kamera langsung
   const handleCaptureCamera = async () => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -273,7 +290,6 @@ export const ScanScreen: React.FC = () => {
     const compressed = await compressDataUrlClient(rawDataUrl);
     await startAnalysis({
       fotoUrl: compressed.dataUrl,
-      part: selectedPart,
       originalKb: compressed.originalKb,
       compressedKb: compressed.compressedKb,
     });
@@ -290,7 +306,6 @@ export const ScanScreen: React.FC = () => {
       const compressed = await compressImageClient(file);
       await startAnalysis({
         fotoUrl: compressed.dataUrl,
-        part: selectedPart,
         originalKb: compressed.originalKb,
         compressedKb: compressed.compressedKb,
       });
@@ -322,279 +337,271 @@ export const ScanScreen: React.FC = () => {
     if (!result || savedToTimeline) return;
     saveScan(result);
     setSavedToTimeline(true);
-
-    // Sinkron non-blocking ke Supabase jika pengguna sudah login
-    if (isSupabaseConfigured) {
-      void (async () => {
-        try {
-          const session = await cermatSupabaseRepo.getCurrentSession();
-          if (!session) return;
-          const fotoPath = await cermatSupabaseRepo.uploadScanPhotoDataUrl(
-            result.plantId,
-            result.fotoUrl
-          );
-          await cermatSupabaseRepo.insertScan(result, fotoPath);
-        } catch {
-          // Tetap aman tersimpan lokal bila ID tanaman masih mode demo
-        }
-      })();
-    }
   };
 
-  const detectionAltText = useMemo(() => {
-    if (!result) return 'Foto tanaman';
-    if (result.boxes.length === 0) {
-      return `Foto ${result.bagian} tanaman: ${result.penyakitUtamaNama}`;
-    }
-    const raw = result.boxes.filter((b) => b.stage === 'mentah').length;
-    const half = result.boxes.filter((b) => b.stage === 'setengah_matang').length;
-    const ripe = result.boxes.filter((b) => b.stage === 'matang').length;
-    return `${result.boxes.length} buah terdeteksi: ${raw} mentah, ${half} setengah matang, ${ripe} matang`;
+  // Kirim pertanyaan lanjutan + bawa seluruh data hasil scan langsung ke Chatbot Cermo
+  const handleAskFollowUp = (questionText?: string) => {
+    if (!result) return;
+    if (!savedToTimeline) handleSave();
+    const q = (questionText ?? followUpQuestion).trim();
+    openChatWithScan(result, q || undefined);
+  };
+
+  const focus: ScanOutputFocus = useMemo(() => {
+    if (!result) return 'tidak_terdeteksi';
+    if (result.fokusOutput) return result.fokusOutput;
+    if (result.tanpaBuahTerdeteksi) return 'tidak_terdeteksi';
+    if (result.tahapDominan) return 'kematangan';
+    return 'penyakit';
   }, [result]);
+
+  // Tarik pengetahuan eksternal live (Wikipedia & GBIF Taxonomy) tanpa memperlambat waktu scan
+  useEffect(() => {
+    if (!result || focus === 'tidak_terdeteksi' || isOffline) {
+      setExternalRef(null);
+      setLoadingExtRef(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingExtRef(true);
+    setExternalRef(null);
+
+    const params = new URLSearchParams();
+    if (focus === 'penyakit' && result.penyakitUtamaId && result.penyakitUtamaId !== 'sehat') {
+      params.set('diseaseId', result.penyakitUtamaId);
+    } else if (focus === 'hara' && result.dugaanHaraId && result.dugaanHaraId !== 'cukup') {
+      params.set('nutrientId', result.dugaanHaraId);
+    } else if (focus === 'kematangan' && result.penyakitRinganId) {
+      params.set('diseaseId', result.penyakitRinganId);
+    } else if (targetPlant) {
+      params.set('crop', targetPlant.varietas || targetPlant.nama);
+    } else {
+      params.set('crop', 'tomat');
+    }
+
+    fetch(`/api/knowledge/external?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.ok && data.external) {
+          setExternalRef(data.external);
+        }
+      })
+      .catch(() => { })
+      .finally(() => {
+        if (!cancelled) setLoadingExtRef(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [result, focus, isOffline, targetPlant]);
 
   const diseaseInfo = result
     ? KNOWLEDGE_DISEASES[result.penyakitUtamaId] || KNOWLEDGE_DISEASES.sehat
     : null;
-  const nutrientInfo = result
-    ? KNOWLEDGE_NUTRIENTS[result.dugaanHaraId] || KNOWLEDGE_NUTRIENTS.cukup
-    : null;
+  const minorDiseaseInfo =
+    result?.penyakitRinganId && KNOWLEDGE_DISEASES[result.penyakitRinganId]
+      ? KNOWLEDGE_DISEASES[result.penyakitRinganId]
+      : null;
+  const ripenessInfo =
+    result?.tahapDominan && RIPENESS_REFERENCE[result.tahapDominan]
+      ? RIPENESS_REFERENCE[result.tahapDominan]
+      : null;
+  const nutrientInfo =
+    result?.adaGejalaHara &&
+      result.dugaanHaraId !== 'cukup' &&
+      KNOWLEDGE_NUTRIENTS[result.dugaanHaraId]
+      ? KNOWLEDGE_NUTRIENTS[result.dugaanHaraId]
+      : null;
+
+  const followUpSuggestions = useMemo(() => {
+    if (!result) return [];
+    if (focus === 'penyakit') {
+      return [
+        'Bagaimana cara mencegah ini menular ke tanaman atau buah lain?',
+        'Apakah buah atau daun yang rusak boleh dijadikan kompos?',
+        'Langkah organik pertama apa yang paling efektif dilakukan hari ini?',
+      ];
+    }
+    if (focus === 'kematangan') {
+      return [
+        'Kapan jam paling baik untuk memetik buah ini?',
+        'Bagaimana cara menyimpan hasil panen supaya tetap segar?',
+        result.penyakitRinganId
+          ? 'Apakah bercak kecil pada buah ini aman dan bagaimana mencegahnya?'
+          : 'Bagaimana perawatan sampai buah matang sempurna?',
+      ];
+    }
+    if (focus === 'hara') {
+      return [
+        'Berapa takaran pupuk organik yang aman untuk fase tanaman ini?',
+        'Seberapa sering pupuk susulan perlu diberikan?',
+        'Apa tanda tanaman sudah pulih setelah dipupuk?',
+      ];
+    }
+    return ['Tips mengambil foto kebun agar hasil analisis lebih akurat?'];
+  }, [result, focus]);
+
+  const headlineTitle = useMemo(() => {
+    if (!result) return '';
+    if (focus === 'tidak_terdeteksi') {
+      return result.diluarKonteksTanaman ? 'Foto bukan objek tanaman' : 'Objek belum terlihat jelas';
+    }
+    if (focus === 'penyakit') {
+      return diseaseInfo?.penyakit || result.penyakitUtamaNama;
+    }
+    if (focus === 'hara') {
+      return nutrientInfo?.dugaan || result.dugaanHaraNama;
+    }
+    return result.anjuranPanen === 'Panen sekarang'
+      ? 'Panen sekarang'
+      : `Tunggu ${result.estimasiHariMin}–${result.estimasiHariMax} hari`;
+  }, [result, focus, diseaseInfo, nutrientInfo]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920, margin: '0 auto', width: '100%' }}>
-      {/* STEP 1 & 2: Pilih bagian tanaman -> Buka kamera / Unggah foto */}
+      {/* STEP 1: Langsung pilih tanaman & ambil/unggah foto (tanpa perlu memilih bagian manual) */}
       {stage === 'pick' && (
-        <>
-          <section
-            className="card stagger-card"
-            style={{
-              background:
-                'radial-gradient(circle at 96% 8%, rgba(216,243,106,0.18), transparent 44%), var(--surface)',
-              padding: '24px 26px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 22 }}>
-              <CermoMascot pose="wave" size={76} />
-              <div style={{ flex: '1 1 260px' }}>
-                <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Sparkles size={13} /> Gemini Vision AI · Dataset Agronomi Khusus
-                </span>
-                <h2 className="t-h2" style={{ marginTop: 2 }}>Scan kondisi tanaman</h2>
-                <p className="t-small t-soft" style={{ marginTop: 3 }}>
-                  Pilih tanaman dan bagian yang ingin diperiksa, lalu ambil foto langsung atau unggah dari galeri.
-                </p>
-              </div>
+        <section
+          className="card stagger-card"
+          style={{
+            background:
+              'radial-gradient(circle at 96% 8%, rgba(216,243,106,0.18), transparent 44%), var(--surface)',
+            padding: '24px 26px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 22 }}>
+            <CermoMascot pose="scan" size={80} />
+            <div style={{ flex: '1 1 260px' }}>
+              <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Sparkles size={13} /> Gemini Vision AI · Dataset Agronomi CermatTani
+              </span>
+              <h2 className="t-h2" style={{ marginTop: 2 }}>Scan foto tanaman</h2>
+              <p className="t-small t-soft" style={{ marginTop: 3 }}>
+                Langsung ambil foto buah, daun, atau batang dari kamera atau galeri. Cermo akan langsung memeriksa dan menampilkan panduan dari dataset agronomi.
+              </p>
             </div>
+          </div>
 
-            {/* Pilih tanaman target */}
-            <div className="field-group" style={{ marginBottom: 20 }}>
-              <label htmlFor="scan-plant-select" className="field-label">
-                Tanaman yang dipindai
-              </label>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <select
-                  id="scan-plant-select"
-                  className="field-select"
-                  style={{ flex: '1 1 240px' }}
-                  value={targetPlant?.id || ''}
-                  onChange={(e) => setSelectedPlantId(e.target.value)}
-                >
-                  {state.plants.map((p) => {
-                    const farm = state.farms.find((f) => f.id === p.farmId);
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {p.nama} ({p.varietas} · Fase {p.fase}) — {farm?.nama}
-                      </option>
-                    );
-                  })}
-                </select>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setActiveScreen('tanaman')}
-                >
-                  + Kelola tanaman
-                </button>
-              </div>
-            </div>
-
-            {/* F2.1: Pilihan bagian tanaman dengan ikon besar */}
-            <div style={{ marginBottom: 22 }}>
-              <div className="field-label" style={{ marginBottom: 10 }}>
-                1. Pilih bagian tanaman
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
-                  gap: 12,
-                }}
+          {/* Pilih tanaman target */}
+          <div className="field-group" style={{ marginBottom: 20 }}>
+            <label htmlFor="scan-plant-select" className="field-label">
+              Tanaman yang dipindai
+            </label>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <select
+                id="scan-plant-select"
+                className="field-select"
+                style={{ flex: '1 1 240px' }}
+                value={targetPlant?.id || ''}
+                onChange={(e) => setSelectedPlantId(e.target.value)}
               >
-                {(
-                  [
-                    {
-                      id: 'buah',
-                      title: 'Buah',
-                      desc: 'Cek kematangan, hari panen & perkiraan hasil',
-                      color: 'var(--fruit-ripe)',
-                      icon: Sparkles,
-                    },
-                    {
-                      id: 'daun',
-                      title: 'Daun',
-                      desc: 'Kenali bercak/penyakit & dugaan kekurangan pupuk',
-                      color: 'var(--leaf-500)',
-                      icon: Leaf,
-                    },
-                    {
-                      id: 'batang',
-                      title: 'Batang',
-                      desc: 'Deteksi gejala layu batang & pangkal tanaman',
-                      color: 'var(--forest-900)',
-                      icon: Sprout,
-                    },
-                  ] as const
-                ).map((part) => {
-                  const Icon = part.icon;
-                  const active = selectedPart === part.id;
+                {state.plants.map((p) => {
+                  const farm = state.farms.find((f) => f.id === p.farmId);
                   return (
-                    <button
-                      key={part.id}
-                      type="button"
-                      onClick={() => setSelectedPart(part.id)}
-                      aria-pressed={active}
-                      className="card-interactive"
-                      style={{
-                        border: active ? '2px solid var(--leaf-600)' : '1px solid var(--line)',
-                        background: active ? 'var(--ok-bg)' : 'var(--surface-2)',
-                        borderRadius: 16,
-                        padding: 16,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 10,
-                        transition: 'transform 160ms ease, border-color 160ms ease, background 160ms ease',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: 12,
-                          background: active ? part.color : 'var(--surface)',
-                          color: active ? '#FFFFFF' : part.color,
-                          border: active ? 'none' : '1px solid var(--line)',
-                          display: 'grid',
-                          placeItems: 'center',
-                        }}
-                      >
-                        <Icon size={21} strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <div className="t-h3" style={{ fontSize: '1rem' }}>{part.title}</div>
-                        <p className="t-micro t-soft" style={{ marginTop: 3, fontWeight: 500 }}>
-                          {part.desc}
-                        </p>
-                      </div>
-                    </button>
+                    <option key={p.id} value={p.id}>
+                      {p.nama} ({p.varietas} · Fase {p.fase}) — {farm?.nama}
+                    </option>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* F1.1: Buka Kamera Langsung vs Unggah Foto (Drag & Drop + File Picker) */}
-            <div>
-              <div className="field-label" style={{ marginBottom: 10 }}>
-                2. Buka kamera atau unggah foto (JPG, PNG, WebP, HEIC · maks 10 MB)
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
-                onChange={handleFileSelected}
-                style={{ display: 'none' }}
-              />
-
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-                <button
-                  type="button"
-                  className="btn-tomato"
-                  onClick={() => void openLiveCamera(facingMode)}
-                >
-                  <Camera size={20} /> Buka kamera
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={20} /> Unggah foto
-                </button>
-              </div>
-
-              {/* Zona tarik & lepas foto (drag & drop upload) */}
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={handleDropFile}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
-                }}
-                style={{
-                  border: `2px dashed ${dragActive ? 'var(--leaf-600)' : 'var(--line)'}`,
-                  background: dragActive ? 'var(--ok-soft)' : 'var(--surface-2)',
-                  borderRadius: 18,
-                  padding: '18px 16px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'border-color 150ms ease, background 150ms ease',
-                }}
+              </select>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setActiveScreen('tanaman')}
               >
-                <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
-                  Tarik foto ke sini atau klik untuk memilih file dari galeri/komputer
-                </div>
-                <p className="t-micro t-soft" style={{ marginTop: 4 }}>
-                  Foto dikompres otomatis di sisi klien. Tips: cahaya terang, jarak 20–40 cm dari
-                  bagian {selectedPart}.
-                </p>
-              </div>
+                + Kelola tanaman
+              </button>
+            </div>
+          </div>
+
+          {/* Ambil Kamera atau Unggah Foto */}
+          <div>
+            <div className="field-label" style={{ marginBottom: 10 }}>
+              Ambil foto langsung atau unggah dari perangkat (JPG, PNG, WebP, HEIC · maks 10 MB)
             </div>
 
-            {uploadError && (
-              <div className="alert-card alert-card--bad" style={{ marginTop: 14 }} role="alert">
-                <AlertTriangle size={20} style={{ flexShrink: 0 }} />
-                <div>{uploadError}</div>
-              </div>
-            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+              onChange={handleFileSelected}
+              style={{ display: 'none' }}
+            />
 
-            {queueNotice && (
-              <div className="alert-card alert-card--warn" style={{ marginTop: 14 }} role="status">
-                <CloudOff size={20} style={{ flexShrink: 0 }} />
-                <div>{queueNotice}</div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+              <button
+                type="button"
+                className="btn-tomato"
+                onClick={() => void openLiveCamera(facingMode)}
+              >
+                <Camera size={20} /> Buka kamera
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={20} /> Unggah foto
+              </button>
+            </div>
+
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={handleDropFile}
+              onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
+              }}
+              style={{
+                border: `2px dashed ${dragActive ? 'var(--leaf-600)' : 'var(--line)'}`,
+                background: dragActive ? 'var(--ok-bg)' : 'var(--surface-2)',
+                borderRadius: 18,
+                padding: '20px 16px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'border-color 150ms ease, background 150ms ease',
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
+                Tarik foto ke sini atau klik untuk memilih gambar dari galeri/komputer
               </div>
-            )}
-          </section>
-        </>
+              <p className="t-micro t-soft" style={{ marginTop: 4 }}>
+                Tips: ambil di cahaya terang, jarak 20–40 cm, fokus pada buah, daun, atau batang yang ingin diperiksa.
+              </p>
+            </div>
+          </div>
+
+          {uploadError && (
+            <div className="alert-card alert-card--bad" style={{ marginTop: 14 }} role="alert">
+              <AlertTriangle size={20} style={{ flexShrink: 0 }} />
+              <div>{uploadError}</div>
+            </div>
+          )}
+
+          {queueNotice && (
+            <div className="alert-card alert-card--warn" style={{ marginTop: 14 }} role="status">
+              <CloudOff size={20} style={{ flexShrink: 0 }} />
+              <div>{queueNotice}</div>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* LIVE CAMERA VIEWFINDER (getUserMedia — benar-benar membuka kamera!) */}
+      {/* LIVE CAMERA VIEWFINDER */}
       {stage === 'camera' && (
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2 className="t-h2">Kamera langsung</h2>
-                <span className="pill pill-ok">Bagian: {selectedPart}</span>
-              </div>
+              <h2 className="t-h2">Kamera langsung</h2>
               <p className="t-small t-soft">
-                Arahkan kamera ke {selectedPart} {targetPlant?.nama || 'tanaman'} dengan cahaya cukup.
+                Arahkan kamera ke {targetPlant?.nama || 'tanaman'} dengan pencahayaan cukup.
               </p>
             </div>
             <button
@@ -626,15 +633,8 @@ export const ScanScreen: React.FC = () => {
               autoPlay
               playsInline
               muted
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-              }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
-
-            {/* Bingkai bidik viewfinder */}
             <div
               aria-hidden="true"
               style={{
@@ -645,7 +645,6 @@ export const ScanScreen: React.FC = () => {
                 pointerEvents: 'none',
               }}
             />
-
             {cameraStarting && (
               <div
                 style={{
@@ -671,9 +670,8 @@ export const ScanScreen: React.FC = () => {
               disabled={!cameraReady}
               style={{ minWidth: 190 }}
             >
-              <Camera size={20} /> Ambil foto & pindai
+              <Camera size={20} /> Ambil foto &amp; pindai
             </button>
-
             <button
               type="button"
               className="btn-secondary"
@@ -682,7 +680,6 @@ export const ScanScreen: React.FC = () => {
             >
               <SwitchCamera size={18} /> Ganti kamera
             </button>
-
             <button
               type="button"
               className="btn-secondary"
@@ -698,7 +695,7 @@ export const ScanScreen: React.FC = () => {
         </section>
       )}
 
-      {/* STEP 3: Proses animasi memindai (DESIGN.md §10) */}
+      {/* PROSES MEMINDAI */}
       {stage === 'scanning' && (
         <section
           className="card"
@@ -738,21 +735,20 @@ export const ScanScreen: React.FC = () => {
               }}
             />
           </div>
-
           <CermoMascot pose="scan" size={104} interactive={false} />
-
           <div>
             <h2 className="t-h2">Cermo sedang memeriksa fotomu...</h2>
             <p className="t-body t-soft" style={{ marginTop: 6 }}>
-              Menganalisis kondisi {selectedPart}, kematangan, tanda penyakit, serta gejala hara.
+              Mencocokkan kondisi foto dengan dataset agronomi CermatTani.
             </p>
           </div>
         </section>
       )}
 
-      {/* STEP 4 (Layar 4): Hasil Scan dengan 3 Tab (Kematangan / Penyakit / Pupuk) */}
-      {stage === 'result' && result && diseaseInfo && nutrientInfo && (
+      {/* HASIL SCAN — TERFOKUS 100% DARI DATASET (TANPA MENYEBUT LOGIKA KONTEKS) */}
+      {stage === 'result' && result && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* 1. Foto & Ringkasan Keputusan Utama */}
           <section className="card" style={{ position: 'relative', overflow: 'hidden' }}>
             <TomatoConfetti active={showConfetti} />
 
@@ -764,65 +760,66 @@ export const ScanScreen: React.FC = () => {
                 alignItems: 'center',
               }}
             >
-              {/* Foto + Detection Boxes */}
+              {/* Foto + Kotak Deteksi (HANYA tampil untuk buah segar / kematangan) */}
               <div
                 style={{
                   position: 'relative',
                   borderRadius: 20,
                   overflow: 'hidden',
-                  background: '#12241C',
+                  background: 'var(--surface-milk)',
                 }}
               >
                 <img
                   src={result.fotoUrl}
-                  alt={detectionAltText}
+                  alt={`Foto ${targetPlant?.nama || 'tanaman'}`}
                   style={{ width: '100%', display: 'block', aspectRatio: '16 / 10.5', objectFit: 'cover' }}
                 />
-                {result.boxes.map((box, idx) => {
-                  const ref = RIPENESS_REFERENCE[box.stage];
-                  return (
-                    <div
-                      key={box.id}
-                      style={{
-                        position: 'absolute',
-                        left: `${box.x}%`,
-                        top: `${box.y}%`,
-                        width: `${box.w}%`,
-                        height: `${box.h}%`,
-                        border: `3px solid ${ref.color}`,
-                        borderRadius: 12,
-                        boxShadow: '0 0 0 1px #FFFFFF, 0 2px 10px rgba(0,0,0,0.35)',
-                        animation: `boxPopIn 360ms cubic-bezier(.2,.8,.2,1) ${idx * 160}ms both`,
-                      }}
-                    >
-                      <span
+                {focus === 'kematangan' &&
+                  result.boxes.map((box, idx) => {
+                    const ref = RIPENESS_REFERENCE[box.stage];
+                    return (
+                      <div
+                        key={box.id}
                         style={{
                           position: 'absolute',
-                          top: -26,
-                          left: -2,
-                          background: ref.color,
-                          color: box.stage === 'setengah_matang' ? '#14302A' : '#FFFFFF',
-                          padding: '2px 9px',
-                          borderRadius: '999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.22)',
+                          left: `${box.x}%`,
+                          top: `${box.y}%`,
+                          width: `${box.w}%`,
+                          height: `${box.h}%`,
+                          border: `3px solid ${ref.color}`,
+                          borderRadius: 12,
+                          boxShadow: '0 0 0 1px #FFFFFF, 0 2px 10px rgba(0,0,0,0.3)',
+                          animation: `boxPopIn 360ms cubic-bezier(.2,.8,.2,1) ${idx * 140}ms both`,
                         }}
                       >
-                        {ref.label} {box.confidence}%
-                      </span>
-                    </div>
-                  );
-                })}
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: -26,
+                            left: -2,
+                            background: ref.color,
+                            color: box.stage === 'setengah_matang' ? '#14302A' : '#FFFFFF',
+                            padding: '2px 9px',
+                            borderRadius: '999px',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                          }}
+                        >
+                          {ref.label} {box.confidence}%
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
 
-              {/* Ringkasan keputusan utama */}
+              {/* Ringkasan Utama */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <CermoMascot
                     pose={
-                      result.tanpaBuahTerdeteksi || result.keyakinanRendah || result.penyakitUtamaId !== 'sehat'
+                      focus === 'penyakit' || focus === 'tidak_terdeteksi' || result.keyakinanRendah
                         ? 'worried'
                         : 'happy'
                     }
@@ -830,57 +827,47 @@ export const ScanScreen: React.FC = () => {
                   />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span className="pill pill-neutral">
-                        {targetPlant?.nama} · Bagian {result.bagian}
-                      </span>
+                      <span className="pill pill-neutral">{targetPlant?.nama}</span>
                       <span className="pill pill-ok">
                         Gemini AI · {aiModel || result.aiModel || 'Vision'}
                       </span>
-                      <span className="pill pill-neutral">Dataset Agronomi Khusus</span>
                     </div>
                     {result.fotoUkuranAsliKb && result.fotoUkuranKompresKb && (
                       <div className="t-micro t-soft">
-                        Kompresi klien: {result.fotoUkuranAsliKb} KB → {result.fotoUkuranKompresKb} KB
+                        Kompresi foto: {result.fotoUkuranAsliKb} KB → {result.fotoUkuranKompresKb} KB
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Keputusan besar */}
                 <div
                   className="card-subtle"
                   style={{
-                    borderLeft: `5px solid ${
-                      result.tanpaBuahTerdeteksi
-                        ? 'var(--warn)'
-                        : result.anjuranPanen === 'Panen sekarang'
-                          ? 'var(--tomato-500)'
-                          : result.penyakitUtamaId !== 'sehat'
-                            ? 'var(--bad)'
+                    borderLeft: `5px solid ${focus === 'tidak_terdeteksi'
+                      ? 'var(--warn)'
+                      : focus === 'penyakit'
+                        ? 'var(--bad)'
+                        : focus === 'hara'
+                          ? 'var(--warn)'
+                          : result.anjuranPanen === 'Panen sekarang'
+                            ? 'var(--tomato-500)'
                             : 'var(--leaf-600)'
-                    }`,
+                      }`,
                   }}
                 >
                   <div className="t-micro t-soft" style={{ fontWeight: 700 }}>
-                    Anjuran utama Cermo
+                    {focus === 'penyakit'
+                      ? 'Hasil pemeriksaan penyakit'
+                      : focus === 'hara'
+                        ? 'Hasil pemeriksaan hara'
+                        : 'Anjuran panen Cermo'}
                   </div>
                   <div className="t-display" style={{ marginTop: 4 }}>
-                    {result.tanpaBuahTerdeteksi
-                      ? 'Objek belum terlihat jelas'
-                      : result.bagian === 'buah'
-                        ? result.anjuranPanen === 'Panen sekarang'
-                          ? 'Panen sekarang'
-                          : `Tunggu ${result.estimasiHariMin}–${result.estimasiHariMax} hari`
-                        : result.penyakitUtamaNama}
+                    {headlineTitle}
                   </div>
                   <div className="t-small t-soft" style={{ marginTop: 6 }}>
                     Seberapa yakin Cermo: <strong className="tabular-nums">{result.keyakinan}%</strong>
                   </div>
-                  {aiNote && (
-                    <p className="t-small" style={{ marginTop: 8 }}>
-                      {aiNote}
-                    </p>
-                  )}
                   {temuanVisual.length > 0 && (
                     <ul
                       style={{
@@ -893,32 +880,31 @@ export const ScanScreen: React.FC = () => {
                     >
                       {temuanVisual.map((t, idx) => (
                         <li key={idx} className="t-micro t-soft">
-                          {t}
+                          <FormattedText text={t} className="t-micro t-soft" />
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
 
-                {result.tanpaBuahTerdeteksi && (
+                {focus === 'tidak_terdeteksi' && (
                   <div className="alert-card alert-card--warn">
                     <AlertTriangle size={20} style={{ flexShrink: 0 }} />
                     <div>
                       <strong>
                         {result.diluarKonteksTanaman
                           ? 'Foto ini terdeteksi bukan objek tanaman kebun.'
-                          : 'Foto terlalu gelap atau bagian tanaman tidak tampak jelas.'}
+                          : 'Foto terlalu gelap atau objek tanaman belum tampak jelas.'}
                       </strong>
                       <p className="t-small" style={{ marginTop: 4 }}>
-                        {result.diluarKonteksTanaman
-                          ? `CermatTani hanya menganalisis foto buah, daun, atau batang tanaman pertanian. Arahkan kamera ke bagian ${result.bagian} tanamanmu lalu pindai ulang.`
-                          : `Coba dekat jendela atau nyalakan cahaya tambahan, arahkan kamera 20–40 cm ke bagian ${result.bagian}, dan pastikan tidak tertutup bayangan.`}
+                        {result.ringkasanAi ||
+                          'Arahkan kamera 20–40 cm pada buah, daun, atau batang di tempat terang lalu pindai ulang.'}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {result.keyakinanRendah && !result.tanpaBuahTerdeteksi && (
+                {result.keyakinanRendah && focus !== 'tidak_terdeteksi' && (
                   <div className="alert-card alert-card--warn" role="alert">
                     <ShieldAlert size={22} style={{ flexShrink: 0 }} />
                     <div>
@@ -926,8 +912,7 @@ export const ScanScreen: React.FC = () => {
                         Cermo belum cukup yakin ({result.keyakinan}% &lt; {state.settings.ambangKeyakinanRendah}%).
                       </strong>
                       <p className="t-small" style={{ marginTop: 4 }}>
-                        Coba ambil foto ulang di tempat terang, dan konfirmasi juga ke penyuluh
-                        pertanian setempat sebelum mengambil tindakan.
+                        Foto ulang di tempat terang dan konfirmasi juga ke penyuluh pertanian setempat sebelum bertindak.
                       </p>
                     </div>
                   </div>
@@ -936,260 +921,370 @@ export const ScanScreen: React.FC = () => {
             </div>
           </section>
 
-          {/* 3 Tab Hasil Scan: Kematangan / Penyakit / Pupuk */}
-          <section className="card">
-            <div className="tabs-bar" role="tablist" aria-label="Tab hasil scan">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'kematangan'}
-                className={`tab-btn ${activeTab === 'kematangan' ? 'active' : ''}`}
-                onClick={() => setActiveTab('kematangan')}
-              >
-                <Sparkles size={18} /> Kematangan &amp; panen
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'penyakit'}
-                className={`tab-btn ${activeTab === 'penyakit' ? 'active' : ''}`}
-                onClick={() => setActiveTab('penyakit')}
-              >
-                <ShieldAlert size={18} /> Penyakit &amp; solusi
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'pupuk'}
-                className={`tab-btn ${activeTab === 'pupuk' ? 'active' : ''}`}
-                onClick={() => setActiveTab('pupuk')}
-              >
-                <FlaskConical size={18} /> Rekomendasi pupuk
-              </button>
-            </div>
+          {/* 2A. OUTPUT KEMATANGAN BUAH (HANYA untuk buah segar: matang / setengah matang / mentah) */}
+          {focus === 'kematangan' && ripenessInfo && (
+            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <h3 className="t-h2" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={20} color="var(--leaf-600)" /> Kematangan &amp; panen buah
+                </h3>
+                <span className="pill pill-ok">{ripenessInfo.anjuran}</span>
+              </div>
 
-            <div style={{ marginTop: 20 }}>
-              {activeTab === 'kematangan' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {result.bagian !== 'buah' ? (
-                    <div className="card-subtle">
-                      <p className="t-body">
-                        Kamu memindai bagian <strong>{result.bagian}</strong>. Untuk melihat tahap
-                        kematangan buah dan perkiraan hasil panen, pilih bagian <strong>Buah</strong>{' '}
-                        saat memindai.
-                      </p>
-                    </div>
-                  ) : result.tanpaBuahTerdeteksi ? (
-                    <div className="card-subtle">
-                      <p className="t-body">
-                        Tidak ada buah yang terdeteksi pada foto ini. Klik &ldquo;Scan lagi&rdquo; di
-                        bawah dengan pencahayaan yang lebih jelas.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                          gap: 14,
-                        }}
-                      >
-                        <div className="card-subtle">
-                          <div className="t-micro t-soft">Tahap dominan</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                            <span
-                              className="ripeness-dot"
-                              style={{
-                                width: 14,
-                                height: 14,
-                                background: result.tahapDominan
-                                  ? RIPENESS_REFERENCE[result.tahapDominan].color
-                                  : '#5DBB63',
-                              }}
-                            />
-                            <span className="t-h2">
-                              {result.tahapDominan ? RIPENESS_REFERENCE[result.tahapDominan].label : '-'}
-                            </span>
-                          </div>
-                          <p className="t-small t-soft" style={{ marginTop: 6 }}>
-                            {result.tahapDominan ? RIPENESS_REFERENCE[result.tahapDominan].ringkasan : ''}
-                          </p>
-                        </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                <div className="card-subtle">
+                  <div className="t-micro t-soft">Tahap kematangan</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <span
+                      className="ripeness-dot"
+                      style={{ width: 14, height: 14, background: ripenessInfo.color }}
+                    />
+                    <span className="t-h2">{ripenessInfo.label}</span>
+                  </div>
+                  <p className="t-small t-soft" style={{ marginTop: 6 }}>
+                    {ripenessInfo.ringkasan}
+                  </p>
+                </div>
 
-                        <div className="card-subtle">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                            <span className="t-micro t-soft">Perkiraan hasil (foto ini)</span>
-                            <span className="pill pill-warn">Estimasi kasar</span>
-                          </div>
-                          <div className="t-h2 tabular-nums" style={{ marginTop: 6 }}>
-                            {result.jumlahBuah} buah ≈ {result.estimasiBobotGram} gram
-                          </div>
-                          <p className="t-small t-soft" style={{ marginTop: 6 }}>
-                            Dihitung dari {result.jumlahBuah} kotak deteksi × bobot rata-rata{' '}
-                            {targetPlant?.bobotRataBuahGram || 85} g ({targetPlant?.varietas}). Angka ini
-                            estimasi kasar karena foto hanya menangkap sebagian tanaman.
-                          </p>
-                        </div>
-                      </div>
+                <div className="card-subtle">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                    <span className="t-micro t-soft">Perkiraan hasil (foto ini)</span>
+                    <span className="pill pill-warn">Estimasi kasar</span>
+                  </div>
+                  <div className="t-h2 tabular-nums" style={{ marginTop: 6 }}>
+                    {result.jumlahBuah} buah ≈ {result.estimasiBobotGram} gram
+                  </div>
+                  <p className="t-small t-soft" style={{ marginTop: 6 }}>
+                    Dihitung dari {result.jumlahBuah} buah terdeteksi × bobot rata-rata{' '}
+                    {targetPlant?.bobotRataBuahGram || 85} g ({targetPlant?.varietas}).
+                  </p>
+                </div>
+              </div>
 
-                      {result.estimasiDisesuaikanRiwayat && (
-                        <div className="alert-card alert-card--ok">
-                          <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
-                          <div className="t-small">
-                            <strong>Estimasi disesuaikan dengan riwayat tanaman.</strong> Karena{' '}
-                            {targetPlant?.nama} sudah memiliki ≥ 2 scan, rentang hari panen menghitung
-                            laju perubahan warna buah sebelumnya.
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
+              <div className="alert-card alert-card--ok">
+                <CheckCircle2 size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+                <div>
+                  <strong>Penanganan &amp; panen (Dataset Agronomi)</strong>
+                  <p className="t-small" style={{ marginTop: 4 }}>
+                    {ripenessInfo.penangananPascaPanen}
+                  </p>
+                  <p className="t-micro t-soft" style={{ marginTop: 6 }}>
+                    Ciri acuan: {ripenessInfo.ciriVisual} · Sumber: {ripenessInfo.sumber}
+                  </p>
+                </div>
+              </div>
+
+              {result.estimasiDisesuaikanRiwayat && (
+                <div className="card-subtle">
+                  <div className="t-small">
+                    <strong>Estimasi disesuaikan riwayat tanaman.</strong> Rentang hari panen memperhitungkan laju pematangan dari scan sebelumnya pada {targetPlant?.nama}.
+                  </div>
                 </div>
               )}
 
-              {activeTab === 'penyakit' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div className="card-subtle">
-                    <div className="t-small" style={{ fontWeight: 700, marginBottom: 10 }}>
-                      3 kemungkinan teratas (termasuk kelas Sehat)
+              {/* Info tambahan ringkas di bawah HANYA bila ada gejala penyakit kecil pada buah segar */}
+              {minorDiseaseInfo && (
+                <div
+                  className="alert-card alert-card--warn"
+                  style={{ marginTop: 4 }}
+                >
+                  <Info size={20} style={{ flexShrink: 0 }} />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <strong>Catatan tambahan: ditemukan tanda ringan {minorDiseaseInfo.penyakit}</strong>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {result.penyakitTop3.map((item, idx) => (
-                        <StripedProgressBar
-                          key={item.id}
-                          label={`${idx + 1}. ${item.nama}`}
-                          valueLabel={`${item.confidence}%`}
-                          percent={item.confidence}
-                          color={
-                            item.id === 'sehat'
-                              ? '#1F9D55'
-                              : idx === 0
-                                ? '#E5484D'
-                                : '#FFB63D'
-                          }
-                        />
+                    <p className="t-small" style={{ marginTop: 4 }}>
+                      {minorDiseaseInfo.gejala}
+                    </p>
+                    <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {minorDiseaseInfo.solusiOrganik.slice(0, 2).map((step, i) => (
+                        <li key={i} className="t-micro">
+                          {step}
+                        </li>
                       ))}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div>
-                      <h3 className="t-h3">{diseaseInfo.penyakit}</h3>
-                      <p className="t-small t-soft" style={{ marginTop: 4 }}>
-                        <strong>Penyebab:</strong> {diseaseInfo.penyebab}
-                      </p>
-                      <p className="t-small t-soft" style={{ marginTop: 4 }}>
-                        <strong>Gejala pembanding:</strong> {diseaseInfo.gejala}
-                      </p>
-                    </div>
-
-                    <div className="alert-card alert-card--ok">
-                      <Leaf size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <strong>Solusi organik &amp; budidaya</strong>
-                          <span className="pill pill-ok">Organik lebih dulu</span>
-                        </div>
-                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {diseaseInfo.solusiOrganik.map((s, i) => (
-                            <li key={i} className="t-small">
-                              {s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="alert-card alert-card--warn">
-                      <AlertTriangle size={22} style={{ flexShrink: 0 }} />
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                          <strong>Opsi kimiawi (pilihan terakhir)</strong>
-                          <span className="pill pill-warn">Baca label produk</span>
-                        </div>
-                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {diseaseInfo.solusiKimia.map((s, i) => (
-                            <li key={i} className="t-small">
-                              {s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="card-subtle">
-                      <strong className="t-small">Langkah pencegahan:</strong>
-                      <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {diseaseInfo.pencegahan.map((p, i) => (
-                          <li key={i} className="t-small t-soft">
-                            {p}
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="t-micro t-soft" style={{ marginTop: 10 }}>
-                        Sumber: {diseaseInfo.sumber} · Konfirmasi ke penyuluh pertanian bila ragu.
-                      </p>
-                    </div>
+                    </ul>
+                    <p className="t-micro t-soft" style={{ marginTop: 6 }}>
+                      Sumber: {minorDiseaseInfo.sumber}
+                    </p>
                   </div>
                 </div>
               )}
+            </section>
+          )}
 
-              {activeTab === 'pupuk' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h3 className="t-h3">{nutrientInfo.dugaan}</h3>
-                    {result.pakaiDataSensor ? (
-                      <>
-                        <span className="pill pill-ok">Dengan data sensor</span>
-                        <span className="pill pill-sim">Simulasi</span>
-                      </>
-                    ) : (
-                      <span className="pill pill-warn">Dugaan visual</span>
+          {/* 2B. OUTPUT BUSUK & PENYAKIT SAJA (HANYA untuk buah busuk / daun sakit / batang sakit — NOL kematangan!) */}
+          {focus === 'penyakit' && diseaseInfo && (
+            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <h3 className="t-h2" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldAlert size={20} color="var(--bad)" /> Diagnosa &amp; penanganan penyakit
+                </h3>
+                <span className="pill pill-bad">Dataset Agronomi</span>
+              </div>
+
+              <div className="card-subtle">
+                <div className="t-small" style={{ fontWeight: 700, marginBottom: 10 }}>
+                  3 kemungkinan teratas
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {result.penyakitTop3.map((item, idx) => (
+                    <StripedProgressBar
+                      key={item.id}
+                      label={`${idx + 1}. ${item.nama}`}
+                      valueLabel={`${item.confidence}%`}
+                      percent={item.confidence}
+                      color={
+                        item.id === 'sehat'
+                          ? '#419A68'
+                          : idx === 0
+                            ? '#D95F58'
+                            : '#E8AC44'
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <h4 className="t-h3">{diseaseInfo.penyakit}</h4>
+                  <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                    <strong>Penyebab:</strong> {diseaseInfo.penyebab}
+                  </p>
+                  <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                    <strong>Gejala utama:</strong> {diseaseInfo.gejala}
+                  </p>
+                </div>
+
+                <div className="alert-card alert-card--ok">
+                  <Leaf size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <strong>Solusi organik &amp; sanitasi kebun</strong>
+                      <span className="pill pill-ok">Organik lebih dulu</span>
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {diseaseInfo.solusiOrganik.map((s, i) => (
+                        <li key={i} className="t-small">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="alert-card alert-card--warn">
+                  <AlertTriangle size={22} style={{ flexShrink: 0 }} />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <strong>Opsi kimiawi (pilihan terakhir)</strong>
+                      <span className="pill pill-warn">Baca label produk</span>
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {diseaseInfo.solusiKimia.map((s, i) => (
+                        <li key={i} className="t-small">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="card-subtle">
+                  <strong className="t-small">Langkah pencegahan:</strong>
+                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {diseaseInfo.pencegahan.map((p, i) => (
+                      <li key={i} className="t-small t-soft">
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="t-micro t-soft" style={{ marginTop: 10 }}>
+                    Sumber: {diseaseInfo.sumber} · Konfirmasi ke penyuluh pertanian bila ragu.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 2D. REFERENSI PORTAL RESMI AGRONOMI LIVE (Multi-Portal Se-Topik + Auto-Fallback) */}
+          {focus !== 'tidak_terdeteksi' && (loadingExtRef || externalRef) && (
+            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <h3 className="t-h3" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '1rem' }}>
+                  <BookOpen size={18} color="var(--leaf-600)" /> Pengetahuan Eksternal Terverifikasi
+                </h3>
+                {externalRef && (
+                  <span className="pill pill-water">{externalRef.sumberLabel}</span>
+                )}
+              </div>
+
+              {loadingExtRef && !externalRef ? (
+                <p className="t-small t-soft loading-pulse">
+                  Mencari &amp; memverifikasi portal resmi agronomi se-topik (UC IPM, EPPO, Cornell, OpenAlex, GBIF)...
+                </p>
+              ) : externalRef ? (
+                <>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <strong className="t-small">{externalRef.judul}</strong>
+                    {externalRef.taksonomi?.namaIlmiah && (
+                      <span className="pill pill-neutral">
+                        <em>{externalRef.taksonomi.namaIlmiah}</em>
+                      </span>
+                    )}
+                    {externalRef.taksonomi?.famili && (
+                      <span className="pill pill-ok">Famili: {externalRef.taksonomi.famili}</span>
                     )}
                   </div>
+                  <FormattedText
+                    text={externalRef.ringkasan}
+                    className="t-small t-soft"
+                    style={{ lineHeight: 1.55 }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {(externalRef.tautanResmi && externalRef.tautanResmi.length > 0
+                      ? externalRef.tautanResmi
+                      : [
+                          {
+                            label: `Baca di ${externalRef.sumberLabel}`,
+                            domain: '',
+                            url: externalRef.sumberUrl,
+                            kategori: 'panduan_resmi',
+                            terverifikasiLive: true,
+                          },
+                        ]
+                    ).map((link, idx) => (
+                      <a
+                        key={`${link.url}-${idx}`}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={idx === 0 ? 'btn-primary' : 'btn-secondary'}
+                        style={{
+                          minHeight: 36,
+                          padding: '5px 12px',
+                          fontSize: '0.82rem',
+                          textDecoration: 'none',
+                        }}
+                        title={link.domain ? `Buka portal resmi ${link.domain}` : undefined}
+                      >
+                        {link.label} <ExternalLink size={13} />
+                      </a>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </section>
+          )}
 
-                  <p className="t-small t-soft">
-                    <strong>Gejala acuan:</strong> {nutrientInfo.gejala}
+          {/* 2C. OUTPUT HARA & PUPUK (HANYA tampil otomatis jika benar-benar terdeteksi gejala kekurangan hara!) */}
+          {nutrientInfo && (focus === 'hara' || result.adaGejalaHara) && (
+            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h3 className="t-h3" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <FlaskConical size={19} color="var(--leaf-600)" /> {nutrientInfo.dugaan}
+                </h3>
+                {result.pakaiDataSensor ? (
+                  <>
+                    <span className="pill pill-ok">Dengan data sensor</span>
+                    <span className="pill pill-sim">Simulasi</span>
+                  </>
+                ) : (
+                  <span className="pill pill-warn">Dugaan visual</span>
+                )}
+              </div>
+
+              <p className="t-small t-soft">
+                <strong>Gejala acuan:</strong> {nutrientInfo.gejala}
+              </p>
+
+              <div className="alert-card alert-card--ok">
+                <Leaf size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
+                <div>
+                  <strong>Pilihan organik lebih dulu</strong>
+                  <p className="t-small" style={{ marginTop: 4 }}>
+                    {nutrientInfo.rekomendasiOrganik}
                   </p>
-
-                  <div className="alert-card alert-card--ok">
-                    <Leaf size={22} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
-                    <div>
-                      <strong>Pilihan organik lebih dulu</strong>
-                      <p className="t-small" style={{ marginTop: 4 }}>
-                        {nutrientInfo.rekomendasiOrganik}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="card-subtle">
-                    <strong className="t-small">
-                      Dosis umum untuk fase aktif ({targetPlant?.fase || 'Berbuah'})
-                    </strong>
-                    <p className="t-body" style={{ marginTop: 4, fontWeight: 600 }}>
-                      {nutrientInfo.dosisPerFase[targetPlant?.fase || 'Berbuah']}
-                    </p>
-                    <p className="t-micro t-soft" style={{ marginTop: 10 }}>
-                      Sumber: {nutrientInfo.sumber}
-                    </p>
-                  </div>
-
-                  <div className="alert-card alert-card--warn" role="note">
-                    <AlertTriangle size={20} style={{ flexShrink: 0 }} />
-                    <div className="t-small">
-                      <strong>Bukan pengganti uji tanah.</strong> Takaran pupuk di atas adalah acuan
-                      umum dan sebaiknya disesuaikan dengan kondisi lahan serta arahan penyuluh
-                      pertanian.
-                    </div>
-                  </div>
                 </div>
-              )}
+              </div>
+
+              <div className="card-subtle">
+                <strong className="t-small">
+                  Dosis umum untuk fase aktif ({targetPlant?.fase || 'Berbuah'})
+                </strong>
+                <p className="t-body" style={{ marginTop: 4, fontWeight: 600 }}>
+                  {nutrientInfo.dosisPerFase[targetPlant?.fase || 'Berbuah']}
+                </p>
+                <p className="t-micro t-soft" style={{ marginTop: 8 }}>
+                  Sumber: {nutrientInfo.sumber} · <strong>Bukan pengganti uji tanah.</strong>
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* 3. INPUT TANYA LANJUTAN LANGSUNG KE CHATBOT CERMO (MEMBAWA DATA HASIL SCAN INI) */}
+          <section
+            className="card-forest"
+            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <CermoMascot pose="wave" size={58} interactive={false} />
+              <div style={{ flex: '1 1 240px' }}>
+                <h3 className="t-h3" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <MessageCircle size={18} color="var(--leaf-700)" /> Tanya lebih lanjut tentang hasil scan ini
+                </h3>
+                <p className="t-small t-soft" style={{ marginTop: 2 }}>
+                  Tulis pertanyaanmu di bawah — data hasil scan ini otomatis dibawa ke ruang Chatbot Cermo supaya kamu bisa langsung diskusi lanjutan.
+                </p>
+              </div>
             </div>
+
+            {followUpSuggestions.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {followUpSuggestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    className="btn-secondary"
+                    style={{ minHeight: 36, padding: '5px 12px', fontSize: '0.82rem', borderRadius: 999 }}
+                    onClick={() => handleAskFollowUp(q)}
+                  >
+                    {q} <ArrowRight size={13} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAskFollowUp();
+              }}
+              style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}
+            >
+              <input
+                type="text"
+                className="field-input"
+                style={{ flex: '1 1 240px', background: 'var(--surface)' }}
+                value={followUpQuestion}
+                onChange={(e) => setFollowUpQuestion(e.target.value)}
+                placeholder="Contoh: Langkah apa yang harus kulakukan duluan hari ini?"
+                aria-label="Tanya lanjutan ke Chatbot Cermo"
+              />
+              <button type="submit" className="btn-primary" style={{ flexShrink: 0 }}>
+                <Send size={17} /> {followUpQuestion.trim() ? 'Kirim ke Chatbot' : 'Lanjut ke Chatbot'}
+              </button>
+            </form>
           </section>
 
-          {/* Aksi bawah hasil scan */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {/* 4. Aksi Simpan, Kirim ke Telegram & Scan Lagi */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               type="button"
               className="btn-primary"
@@ -1198,7 +1293,7 @@ export const ScanScreen: React.FC = () => {
             >
               {savedToTimeline ? (
                 <>
-                  <Check size={18} /> Tersimpan di timeline &amp; kalender
+                  <Check size={18} /> Tersimpan di timeline
                 </>
               ) : (
                 'Simpan ke timeline'
@@ -1208,25 +1303,64 @@ export const ScanScreen: React.FC = () => {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => {
-                if (!savedToTimeline) handleSave();
-                openChatWithPlant(result.plantId);
+              disabled={tgShareBusy}
+              onClick={async () => {
+                if (!result) return;
+                if (!state.user.telegramChatId) {
+                  setTgShareStatus({
+                    ok: false,
+                    msg: 'Telegram belum tertaut. Sambungkan dulu di menu Kalender → tab Telegram.',
+                  });
+                  return;
+                }
+                setTgShareBusy(true);
+                setTgShareStatus(null);
+                const res = await shareScanToTelegram(result);
+                setTgShareBusy(false);
+                setTgShareStatus({ ok: res.ok, msg: res.message });
               }}
             >
-              <MessageCircle size={18} /> Tanya Cermo tentang hasil ini
+              <Send size={16} />{' '}
+              {tgShareBusy
+                ? 'Mengirim ke Telegram...'
+                : tgShareStatus?.ok
+                  ? 'Terkirim ke Telegram ✓'
+                  : 'Kirim ke Telegram'}
             </button>
 
             <button
               type="button"
-              className="btn-ghost"
+              className="btn-secondary"
               onClick={() => {
                 setStage('pick');
                 setResult(null);
+                setFollowUpQuestion('');
+                setTgShareStatus(null);
               }}
             >
-              <RefreshCw size={18} /> Scan lagi
+              <RefreshCw size={18} /> Scan foto lain
             </button>
           </div>
+
+          {tgShareStatus && (
+            <div
+              className={`alert-card ${tgShareStatus.ok ? 'alert-card--ok' : 'alert-card--warn'}`}
+              role="status"
+              style={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+            >
+              <div className="t-small">{tgShareStatus.msg}</div>
+              {!state.user.telegramChatId && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ minHeight: 34, padding: '4px 12px', fontSize: '0.8rem' }}
+                  onClick={() => setActiveScreen('kalender')}
+                >
+                  Sambungkan Telegram
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

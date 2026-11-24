@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -6,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_scaffold.dart';
 import '../../core/widgets/common_cards.dart';
 import '../../data/cermat_state.dart';
+import '../../data/services/telegram_service.dart';
 
 /// Layar 6: Kalender Panen & Pengingat Otomatis (Grid Bulanan + Antrean Panen + Tab Harian & Telegram)
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -22,6 +24,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   final _noteCtrl = TextEditingController();
   final _tgCtrl = TextEditingController();
   String? _addPlantId;
+  bool _tgBusy = false;
+  String? _tgStatusMsg;
+  bool _tgStatusOk = false;
+  String? _botUsername;
+
+  @override
+  void initState() {
+    super.initState();
+    TelegramService.getBotInfo().then((info) {
+      if (mounted && info != null) {
+        setState(() => _botUsername = info.username);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -408,55 +424,164 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   if (state.telegramChatId != null) ...[
                     StatusAlertCard(
                       accent: AppColors.ok,
-                      title: 'Tertaut ke ${state.telegramChatId}',
-                      body: 'Pengingat panen harian aktif setiap pukul ${state.telegramTime} WIB.',
+                      title: 'Tertaut ke Chat ID ${state.telegramChatId}',
+                      body:
+                          'Jadwal panen/siram (${state.telegramTime} WIB), peringatan sensor kritis, dan temuan penyakit scan aktif dikirim ke Telegram.',
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
                           child: Primary3DButton(
-                            label: 'Kirim pesan uji',
-                            onPressed: () => notifier.sendTestTelegram(),
+                            label: _tgBusy ? 'Mengirim...' : 'Kirim pesan uji',
+                            icon: Icons.send_rounded,
+                            onPressed: _tgBusy
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      _tgBusy = true;
+                                      _tgStatusMsg = null;
+                                    });
+                                    final res = await notifier.sendTestTelegram();
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _tgBusy = false;
+                                      _tgStatusOk = res.ok;
+                                      _tgStatusMsg = res.message;
+                                    });
+                                  },
                           ),
                         ),
                         const SizedBox(width: 8),
                         SecondaryOutlineButton(
                           label: 'Putuskan',
-                          onPressed: () => notifier.unlinkTelegram(),
+                          onPressed: () {
+                            notifier.unlinkTelegram();
+                            setState(() => _tgStatusMsg = null);
+                          },
                         ),
                       ],
                     ),
                   ] else ...[
-                    Text(
-                      'Kode verifikasi 6 digit: ${state.telegramCode}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: p.surface2,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: p.line),
+                      ),
+                      child: Column(
+                        children: [
+                          Text('Kode tautan 6 digit', style: TextStyle(fontSize: 12, color: p.inkSoft)),
+                          const SizedBox(height: 4),
+                          Text(
+                            state.telegramCode,
+                            style: context.displayStyle(size: 26),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ActionChip(
+                                avatar: Icon(Icons.copy_rounded, size: 15, color: p.leaf700),
+                                label: Text(
+                                  _botUsername != null
+                                      ? 'Salin link @$_botUsername'
+                                      : 'Salin /link ${state.telegramCode}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                                onPressed: () {
+                                  final text = _botUsername != null
+                                      ? 'https://t.me/$_botUsername?start=${state.telegramCode}'
+                                      : '/link ${state.telegramCode}';
+                                  Clipboard.setData(ClipboardData(text: text));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Disalin: $text')),
+                                  );
+                                },
+                              ),
+                              ActionChip(
+                                avatar: Icon(Icons.refresh_rounded, size: 15, color: p.inkSoft),
+                                label: const Text('Kode baru', style: TextStyle(fontSize: 12)),
+                                onPressed: () => notifier.regenerateTelegramCode(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 8),
+                    Text(
+                      '1. Buka bot ${_botUsername != null ? '@$_botUsername' : 'Telegram CermatTani'} lalu tekan Start (atau kirim /link ${state.telegramCode}).\n2. Tekan "Deteksi & Sambungkan Otomatis" di bawah.',
+                      style: TextStyle(fontSize: 12.5, color: p.inkSoft, height: 1.45),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Primary3DButton(
+                        label: _tgBusy ? 'Mendeteksi pesan bot...' : 'Deteksi & Sambungkan Otomatis',
+                        icon: Icons.auto_awesome_rounded,
+                        onPressed: _tgBusy
+                            ? null
+                            : () async {
+                                setState(() {
+                                  _tgBusy = true;
+                                  _tgStatusMsg = null;
+                                });
+                                final res = await notifier.linkTelegram();
+                                if (!mounted) return;
+                                setState(() {
+                                  _tgBusy = false;
+                                  _tgStatusOk = res.ok;
+                                  _tgStatusMsg = res.message;
+                                });
+                              },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     TextField(
                       controller: _tgCtrl,
+                      keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: 'Username Telegram (mis. @pakjoko_tani)',
+                        labelText: 'Atau Chat ID numerik manual (opsional)',
                         filled: true,
                         fillColor: p.surface2,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SecondaryOutlineButton(
+                        label: 'Tautkan Chat ID Manual',
+                        icon: Icons.send_rounded,
+                        onPressed: _tgBusy
+                            ? null
+                            : () async {
+                                setState(() {
+                                  _tgBusy = true;
+                                  _tgStatusMsg = null;
+                                });
+                                final res = await notifier.linkTelegram(manualChatId: _tgCtrl.text);
+                                if (!mounted) return;
+                                setState(() {
+                                  _tgBusy = false;
+                                  _tgStatusOk = res.ok;
+                                  _tgStatusMsg = res.message;
+                                });
+                              },
+                      ),
+                    ),
+                  ],
+                  if (_tgStatusMsg != null) ...[
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Primary3DButton(
-                            label: 'Tautkan Bot Telegram',
-                            onPressed: () => notifier.linkTelegram(_tgCtrl.text),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SecondaryOutlineButton(
-                          label: 'Kode baru',
-                          onPressed: () => notifier.regenerateTelegramCode(),
-                        ),
-                      ],
+                    StatusAlertCard(
+                      accent: _tgStatusOk ? AppColors.ok : AppColors.warn,
+                      title: _tgStatusOk ? 'Berhasil' : 'Info Telegram',
+                      body: _tgStatusMsg!,
                     ),
                   ],
                 ],

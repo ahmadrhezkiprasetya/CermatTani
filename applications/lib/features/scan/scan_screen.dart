@@ -12,7 +12,7 @@ import '../../data/cermat_state.dart';
 import '../../data/services/gemini_service.dart';
 import 'scan_results.dart';
 
-/// Layar 3 & 4: Scan Nyata 100% Gemini Vision AI + Dataset Agronomi v2.0 (Tanpa Data Dummy)
+/// Layar 3 & 4: Scan Otomatis (Langsung Kamera/Galeri -> Output Dataset Terfokus -> Tanya Lanjutan ke Chatbot)
 class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
 
@@ -21,7 +21,6 @@ class ScanScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
-  PlantPart _part = PlantPart.buah;
   String? _selectedPlantId;
   bool _scanning = false;
   Uint8List? _capturedPhotoBytes;
@@ -70,7 +69,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     final bytes = _capturedPhotoBytes;
     if (bytes == null) return;
     final state = ref.read(cermatProvider);
-    final plant = state.plants.where((p) => p.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
+    final plant =
+        state.plants.where((p) => p.id == _selectedPlantId).firstOrNull ?? state.plants.firstOrNull;
     if (plant == null) {
       setState(() => _errorMsg = 'Belum ada tanaman terdaftar. Tambahkan tanaman dulu di menu Tanaman.');
       return;
@@ -84,13 +84,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     });
 
     try {
-      final prevFruitScans =
-          state.scans.where((s) => s.plantId == plant.id && s.bagian == PlantPart.buah).length;
+      final prevFruitScans = state.scans
+          .where((s) => s.plantId == plant.id && s.fokusOutput == ScanOutputFocus.kematangan)
+          .length;
       final out = await GeminiService.analyzePlantPhoto(
         imageBytes: bytes,
         mimeType: _capturedMime,
         plant: plant,
-        part: _part,
         sensorAvailable: state.sensorTersedia,
         lowConfidenceThreshold: state.ambangKeyakinanRendah,
         prevFruitScans: prevFruitScans,
@@ -141,10 +141,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   ],
                   const CermoMascot(pose: CermoPose.scan, size: 102, interactive: false),
                   const SizedBox(height: 12),
-                  Text('Gemini AI sedang memindai...', style: context.displayStyle(size: 21)),
+                  Text('Cermo sedang memeriksa fotomu...', style: context.displayStyle(size: 21)),
                   const SizedBox(height: 6),
                   Text(
-                    'Menganalisis kematangan buah, bercak penyakit, dan dugaan hara berdasarkan Dataset Agronomi CermatTani v2.0.',
+                    'Mencocokkan kondisi foto dengan dataset agronomi CermatTani.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13.5, color: p.inkSoft),
                   ),
@@ -169,9 +169,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 ref.read(cermatProvider.notifier).saveScan(_result!);
                 setState(() => _saved = true);
               },
-              onAskCermo: () {
-                if (!_saved) ref.read(cermatProvider.notifier).saveScan(_result!);
-                ref.read(cermatProvider.notifier).setChatPlant(plant.id);
+              onAskFollowUp: (String? question) {
+                if (!_saved) {
+                  ref.read(cermatProvider.notifier).saveScan(_result!);
+                  setState(() => _saved = true);
+                }
+                ref.read(cermatProvider.notifier).openChatWithScan(
+                      _result!,
+                      initialQuestion: question,
+                    );
                 context.go('/chatbot');
               },
               onScanAgain: () => setState(() {
@@ -179,6 +185,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 _capturedPhotoBytes = null;
                 _errorMsg = null;
               }),
+              onShareTelegram: () =>
+                  ref.read(cermatProvider.notifier).shareScanToTelegram(_result!),
             )
           else ...[
             if (_errorMsg != null) ...[
@@ -198,23 +206,24 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               const SizedBox(height: 12),
             ],
 
+            // Langsung pilih tanaman + kamera/galeri (tanpa perlu pilih bagian manual)
             CermatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const CermoMascot(pose: CermoPose.scan, size: 78),
+                      const CermoMascot(pose: CermoPose.scan, size: 80),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CermatPill.ok('Gemini Vision AI · Nyata'),
+                            CermatPill.ok('Gemini Vision AI · Dataset Agronomi'),
                             const SizedBox(height: 6),
                             Text(
-                              'Pilih tanaman & bagian yang dipindai, lalu ambil foto asli dari kamera atau galeri.',
-                              style: TextStyle(fontSize: 13.8, color: p.inkSoft, height: 1.45),
+                              'Langsung foto buah, daun, atau batang dari kamera atau galeri. Cermo otomatis menyesuaikan hasil dari dataset agronomi.',
+                              style: TextStyle(fontSize: 13.5, color: p.inkSoft, height: 1.45),
                             ),
                           ],
                         ),
@@ -236,44 +245,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     ],
                     onChanged: (v) => setState(() => _selectedPlantId = v),
                   ),
-                  const SizedBox(height: 16),
-                  const Text('1. Pilih bagian tanaman', style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _PartTile(
-                          label: 'Buah',
-                          icon: Icons.auto_awesome_rounded,
-                          color: AppColors.tomatoBtn,
-                          selected: _part == PlantPart.buah,
-                          onTap: () => setState(() => _part = PlantPart.buah),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _PartTile(
-                          label: 'Daun',
-                          icon: Icons.eco_rounded,
-                          color: p.leaf600,
-                          selected: _part == PlantPart.daun,
-                          onTap: () => setState(() => _part = PlantPart.daun),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _PartTile(
-                          label: 'Batang',
-                          icon: Icons.park_outlined,
-                          color: p.leaf700,
-                          selected: _part == PlantPart.batang,
-                          onTap: () => setState(() => _part = PlantPart.batang),
-                        ),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 18),
-                  const Text('2. Ambil foto langsung atau pilih dari galeri', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text('Ambil foto langsung atau pilih dari galeri', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -300,17 +273,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Panduan foto nyata agar hasil AI maksimal
             CermatAccentCard(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Panduan foto agar hasil AI makin akurat', style: context.cardTitleStyle(size: 15.5)),
+                  Text('Panduan foto agar hasil lebih akurat', style: context.cardTitleStyle(size: 15.5)),
                   const SizedBox(height: 8),
-                  const _TipLine(icon: Icons.wb_sunny_outlined, text: 'Ambil foto di cahaya alami terang (hindari siluet gelap).'),
-                  const _TipLine(icon: Icons.center_focus_strong_outlined, text: 'Arahkan kamera 20–40 cm dari buah, daun, atau pangkal batang.'),
-                  const _TipLine(icon: Icons.verified_outlined, text: 'Semua hasil diproses langsung oleh Gemini AI tanpa foto contoh palsu.'),
+                  const _TipLine(icon: Icons.wb_sunny_outlined, text: 'Ambil foto di cahaya alami terang (hindari bayangan gelap).'),
+                  const _TipLine(icon: Icons.center_focus_strong_outlined, text: 'Arahkan kamera 20–40 cm ke buah, daun, atau batang yang ingin dicek.'),
+                  const _TipLine(icon: Icons.verified_outlined, text: 'Semua penjelasan dan penanganan bersumber dari Dataset Agronomi CermatTani.'),
                 ],
               ),
             ),
@@ -340,47 +312,6 @@ class _TipLine extends StatelessWidget {
             child: Text(text, style: TextStyle(fontSize: 13.2, color: p.inkSoft, height: 1.4)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PartTile extends StatelessWidget {
-  const _PartTile({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.ct;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? color.withAlpha(30) : p.surface2,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: selected ? color : p.line, width: selected ? 2.2 : 1),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: color),
-            const SizedBox(height: 6),
-            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.ink)),
-          ],
-        ),
       ),
     );
   }

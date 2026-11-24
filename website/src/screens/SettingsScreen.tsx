@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   BellRing,
   Clock,
@@ -23,12 +23,14 @@ import { CermoMascot } from '../components/CermoMascot';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
-import { cermatSupabaseRepo } from '@/lib/supabase/repository';
 
 /* Layar 10: Pengaturan (akun, Telegram, ambang, tema, ekspor, privasi & hapus data) */
 export const SettingsScreen: React.FC = () => {
   const {
     state,
+    authUser,
+    openLogin,
+    signOutAccount,
     updateUserProfile,
     updateSettings,
     updateSensor,
@@ -43,45 +45,11 @@ export const SettingsScreen: React.FC = () => {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
-  const [sbEmail, setSbEmail] = useState('');
-  const [sbPassword, setSbPassword] = useState('');
-  const [sbUserEmail, setSbUserEmail] = useState<string | null>(null);
   const [sbMsg, setSbMsg] = useState<string>('');
-  const [sbBusy, setSbBusy] = useState(false);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    cermatSupabaseRepo.getCurrentSession().then((session) => {
-      setSbUserEmail(session?.user?.email ?? null);
-    });
-  }, []);
-
-  const handleSupabaseAuth = async (mode: 'login' | 'signup') => {
-    if (!sbEmail.trim() || !sbPassword) return;
-    setSbBusy(true);
-    setSbMsg('');
-    try {
-      if (mode === 'login') {
-        const res = await cermatSupabaseRepo.signIn(sbEmail.trim(), sbPassword);
-        setSbUserEmail(res.user?.email ?? sbEmail.trim());
-        setSbMsg('Berhasil masuk ke akun Supabase.');
-      } else {
-        const res = await cermatSupabaseRepo.signUp(sbEmail.trim(), sbPassword, state.user.nama);
-        setSbUserEmail(res.user?.email ?? null);
-        setSbMsg('Akun dibuat! Cek email untuk verifikasi jika konfirmasi email aktif di Supabase.');
-      }
-      setSbPassword('');
-    } catch (err) {
-      setSbMsg(err instanceof Error ? err.message : 'Gagal terhubung ke Supabase.');
-    } finally {
-      setSbBusy(false);
-    }
-  };
 
   const handleSupabaseLogout = async () => {
-    await cermatSupabaseRepo.signOut();
-    setSbUserEmail(null);
-    setSbMsg('Berhasil keluar dari sesi Supabase.');
+    await signOutAccount();
+    setSbMsg('Berhasil keluar dari akun.');
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -165,13 +133,13 @@ export const SettingsScreen: React.FC = () => {
               <li>Restart <code>npm run dev</code> di folder <code>website/</code>.</li>
             </ol>
           </div>
-        ) : sbUserEmail ? (
+        ) : authUser ? (
           <div className="alert-card alert-card--ok">
             <Database size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
             <div style={{ flex: 1 }}>
-              <strong>Masuk sebagai {sbUserEmail}</strong>
+              <strong>Masuk sebagai {authUser.email}</strong>
               <p className="t-small" style={{ marginTop: 4 }}>
-                Akun Supabase aktif dengan Row Level Security (RLS) dan Storage foto scan terproteksi.
+                Seluruh tabel akun (profiles, farms, plants, scans, harvest_events, chat_messages) aktif tersinkron dengan RLS Supabase.
               </p>
             </div>
             <button type="button" className="btn-secondary" onClick={handleSupabaseLogout}>
@@ -179,41 +147,16 @@ export const SettingsScreen: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-              <input
-                type="email"
-                className="field-input"
-                placeholder="Email akun petani"
-                value={sbEmail}
-                onChange={(e) => setSbEmail(e.target.value)}
-              />
-              <input
-                type="password"
-                className="field-input"
-                placeholder="Kata sandi (min 6 karakter)"
-                value={sbPassword}
-                onChange={(e) => setSbPassword(e.target.value)}
-              />
+          <div className="card-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong className="t-small">Belum masuk ke akun CermatTani</strong>
+              <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+                Login atau daftar akun untuk menyinkronkan kebun, riwayat scan, dan obrolan Cermo ke database Supabase.
+              </p>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={sbBusy}
-                onClick={() => handleSupabaseAuth('login')}
-              >
-                Masuk Supabase
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={sbBusy}
-                onClick={() => handleSupabaseAuth('signup')}
-              >
-                Daftar akun baru
-              </button>
-            </div>
+            <button type="button" className="btn-primary" onClick={() => openLogin('pengaturan')}>
+              Buka Halaman Login
+            </button>
           </div>
         )}
 

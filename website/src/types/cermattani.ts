@@ -2,6 +2,7 @@
 
 export type ScreenId =
   | 'landing'
+  | 'login'
   | 'beranda'
   | 'scan'
   | 'tanaman'
@@ -13,6 +14,8 @@ export type ScreenId =
 
 export type PlantPart = 'buah' | 'daun' | 'batang';
 
+export type ScanOutputFocus = 'kematangan' | 'penyakit' | 'hara' | 'tidak_terdeteksi';
+
 export type RipenessStage = 'mentah' | 'setengah_matang' | 'matang';
 
 export type GrowthPhase = 'Bibit' | 'Vegetatif' | 'Berbunga' | 'Berbuah' | 'Panen';
@@ -22,6 +25,7 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export interface UserProfile {
   id: string;
   nama: string;
+  email?: string;
   peran: string;
   telegramChatId: string | null;
   telegramLinkCode: string;
@@ -75,11 +79,20 @@ export interface ScanRecord {
   boxes: DetectionBox[];
   tahapDominan: RipenessStage | null;
   jumlahBuah: number;
-  anjuranPanen: 'Panen sekarang' | 'Tunggu' | 'Perlu foto ulang' | 'Fokus daun/batang';
+  anjuranPanen:
+    | 'Panen sekarang'
+    | 'Tunggu'
+    | 'Perlu foto ulang'
+    | 'Fokus daun/batang'
+    | 'Fokus penyakit';
   estimasiHariMin: number | null;
   estimasiHariMax: number | null;
   estimasiDisesuaikanRiwayat: boolean;
   estimasiBobotGram: number;
+  // Routing konteks internal (tidak ditampilkan sebagai istilah teknis ke pengguna)
+  fokusOutput?: ScanOutputFocus;
+  penyakitRinganId?: string | null;
+  adaGejalaHara?: boolean;
   // Penyakit (F2)
   penyakitTop3: DiseasePrediction[];
   penyakitUtamaId: string;
@@ -245,7 +258,7 @@ export interface NotificationItem {
   dibaca: boolean;
   severity?: 'info' | 'warn' | 'bad' | 'ok';
   actionLabel?: string;
-  actionScreen?: Exclude<ScreenId, 'landing'>;
+  actionScreen?: Exclude<ScreenId, 'landing' | 'login'>;
 }
 
 export interface LiveAlertToast {
@@ -256,5 +269,5 @@ export interface LiveAlertToast {
   tipe: NotificationItem['tipe'];
   severity: 'info' | 'warn' | 'bad' | 'ok';
   actionLabel?: string;
-  actionScreen?: Exclude<ScreenId, 'landing'>;
+  actionScreen?: Exclude<ScreenId, 'landing' | 'login'>;
 }

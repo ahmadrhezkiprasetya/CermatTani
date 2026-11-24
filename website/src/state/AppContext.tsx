@@ -40,6 +40,10 @@ import {
   INITIAL_USER,
 } from '../data/initialData';
 import { runTomatoScanAnalysis } from '../utils/scanAnalyzer';
+import { KNOWLEDGE_DISEASES, KNOWLEDGE_NUTRIENTS, RIPENESS_REFERENCE } from '../data/knowledgeBase';
+import { estimateWeightForVariety, inferCommodityFromVariety } from '../data/plantVarieties';
+import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { cermatSupabaseRepo, isUuid } from '@/lib/supabase/repository';
 
 const STORAGE_KEY = 'cermattani_app_state_v1';
 const FIRED_REMINDERS_KEY = 'cermattani_fired_reminders_v1';
@@ -61,7 +65,7 @@ function getReminderAlertMeta(kategori: ReminderCategory): {
   tipe: NotificationItem['tipe'];
   severity: LiveAlertToast['severity'];
   actionLabel: string;
-  actionScreen: Exclude<ScreenId, 'landing'>;
+  actionScreen: Exclude<ScreenId, 'landing' | 'login'>;
 } {
   switch (kategori) {
     case 'siram':
@@ -98,6 +102,7 @@ function getReminderAlertMeta(kategori: ReminderCategory): {
 
 export const SCREEN_PATHS: Record<ScreenId, string> = {
   landing: '/',
+  login: '/login',
   beranda: '/dashboard',
   scan: '/scan',
   tanaman: '/tanaman',
@@ -222,13 +227,32 @@ function loadPersistedState(): PersistedState {
 interface AppContextValue {
   state: PersistedState;
   hydrated: boolean;
+  authUser: { id: string; email: string } | null;
+  authReady: boolean;
+  dbSyncStatus: { state: 'idle' | 'syncing' | 'ok' | 'error'; message: string };
+  refreshSupabaseSync: () => Promise<void>;
+  postLoginScreen: ScreenId | null;
+  openLogin: (targetAfterLogin?: ScreenId) => void;
+  signInAccount: (email: string, password: string) => Promise<void>;
+  registerAccount: (input: {
+    nama: string;
+    email: string;
+    password: string;
+    namaKebun?: string;
+    lokasiKebun?: string;
+  }) => Promise<{ needsEmailConfirmation: boolean }>;
+  signOutAccount: () => Promise<void>;
   activeScreen: ScreenId;
   setActiveScreen: (screen: ScreenId) => void;
   scanPreselectPart: PlantPart | null;
   scanPreselectPlantId: string | null;
   openScanWith: (part?: PlantPart, plantId?: string) => void;
   chatContextPlantId: string | null;
+  chatContextScan: ScanRecord | null;
+  pendingChatQuestion: string | null;
   openChatWithPlant: (plantId: string | null) => void;
+  openChatWithScan: (scan: ScanRecord, initialQuestion?: string) => void;
+  clearPendingChatQuestion: () => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   activeFarm: Farm;
@@ -284,10 +308,11 @@ interface AppContextValue {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSensor: (patch: Partial<SensorSnapshot>) => void;
   triggerManualPump: (turnOn: boolean) => { ok: boolean; message: string };
-  linkTelegram: (chatIdInput?: string) => void;
+  linkTelegram: (chatIdInput?: string) => Promise<{ ok: boolean; message: string; chatId?: string }>;
   unlinkTelegram: () => void;
   regenerateTelegramCode: () => void;
-  sendTestTelegramReminder: () => void;
+  sendTestTelegramReminder: () => Promise<{ ok: boolean; message: string }>;
+  shareScanToTelegram: (scan: ScanRecord) => Promise<{ ok: boolean; message: string }>;
   updateUserProfile: (patch: Partial<UserProfile>) => void;
   markAllNotificationsRead: () => void;
   resetDemoData: () => void;
@@ -302,9 +327,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [state, setState] = useState<PersistedState>(() => createDefaultState(false));
   const [hydrated, setHydrated] = useState(false);
+  const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [dbSyncStatus, setDbSyncStatus] = useState<{
+    state: 'idle' | 'syncing' | 'ok' | 'error';
+    message: string;
+  }>({ state: 'idle', message: '' });
+  const [postLoginScreen, setPostLoginScreen] = useState<ScreenId | null>(null);
+  const sensorSyncTimerRef = useRef<number | null>(null);
   const [scanPreselectPart, setScanPreselectPart] = useState<PlantPart | null>(null);
   const [scanPreselectPlantId, setScanPreselectPlantId] = useState<string | null>(null);
   const [chatContextPlantId, setChatContextPlantId] = useState<string | null>(INITIAL_PLANTS[0]?.id ?? null);
+  const [chatContextScan, setChatContextScan] = useState<ScanRecord | null>(null);
+  const [pendingChatQuestion, setPendingChatQuestion] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [browserOffline, setBrowserOffline] = useState(false);
   const [activeAlerts, setActiveAlerts] = useState<LiveAlertToast[]>([]);
@@ -380,26 +415,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       if (options?.saveToHistory !== false) {
+        const notifItem: NotificationItem = {
+          id: `notif-${id}`,
+          judul: input.judul,
+          isi: input.isi,
+          waktu,
+          tipe: input.tipe,
+          dibaca: false,
+          severity: input.severity,
+          actionLabel: input.actionLabel,
+          actionScreen: input.actionScreen,
+        };
         setState((prev) => ({
           ...prev,
-          notifications: [
-            {
-              id: `notif-${id}`,
-              judul: input.judul,
-              isi: input.isi,
-              waktu,
-              tipe: input.tipe,
-              dibaca: false,
-              severity: input.severity,
-              actionLabel: input.actionLabel,
-              actionScreen: input.actionScreen,
-            },
-            ...prev.notifications,
-          ].slice(0, 35),
+          notifications: [notifItem, ...prev.notifications].slice(0, 35),
         }));
+        if (authUser && isSupabaseConfigured) {
+          void cermatSupabaseRepo
+            .insertNotification({
+              judul: notifItem.judul,
+              isi: notifItem.isi,
+              waktu: notifItem.waktu,
+              tipe: notifItem.tipe,
+              dibaca: false,
+              severity: notifItem.severity,
+              actionLabel: notifItem.actionLabel,
+              actionScreen: notifItem.actionScreen,
+            })
+            .catch(() => {});
+        }
       }
     },
-    [state.settings.notifikasiBrowser]
+    [state.settings.notifikasiBrowser, authUser]
   );
 
   // Sinkronkan URL saat direct load atau tombol Back/Forward browser ditekan
@@ -423,6 +470,146 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBrowserOffline(!navigator.onLine);
     setHydrated(true);
   }, []);
+
+  // Muat seluruh 14 tabel Supabase berelasi milik akun yang login
+  const hydrateFromSupabaseAccount = useCallback(
+    async (starterOpts?: { nama?: string; namaKebun?: string; lokasiKebun?: string }) => {
+      if (!isSupabaseConfigured) return;
+      setDbSyncStatus({ state: 'syncing', message: 'Menyinkronkan 14 tabel akun Supabase...' });
+      try {
+        const starterRes = await cermatSupabaseRepo.ensureStarterWorkspace(starterOpts);
+        const bundle = await cermatSupabaseRepo.fetchAccountBundle();
+        if (!bundle || !bundle.profile) {
+          if (starterRes.error) {
+            setDbSyncStatus({ state: 'error', message: starterRes.error });
+          } else {
+            setDbSyncStatus({ state: 'idle', message: '' });
+          }
+          return;
+        }
+
+        const combinedError = starterRes.error || bundle.syncError;
+        setState((prev) => {
+          const nextFarms = bundle.farms.length > 0 ? bundle.farms : prev.farms;
+          const nextActiveFarmId =
+            nextFarms.find((f) => f.id === prev.activeFarmId)?.id || nextFarms[0]?.id || prev.activeFarmId;
+          const nextPlants = bundle.plants.length > 0 ? bundle.plants : prev.plants;
+          const nextDevices = bundle.devices.length > 0 ? bundle.devices : prev.devices;
+          const nextDeviceId = nextDevices[0]?.id || prev.sensor.deviceId;
+          const nextSensor: SensorSnapshot = {
+            ...prev.sensor,
+            deviceId: nextDeviceId,
+            ...(bundle.latestSensor || {}),
+          };
+
+          return {
+            ...prev,
+            onboarded: true,
+            user: bundle.profile!,
+            farms: nextFarms,
+            activeFarmId: nextActiveFarmId,
+            plants: nextPlants,
+            scans: bundle.scans,
+            harvestEvents: bundle.harvestEvents,
+            chatMessages: bundle.chatMessages,
+            devices: nextDevices,
+            sensor: nextSensor,
+            sensor24h: bundle.sensor24h.length >= 2 ? bundle.sensor24h : prev.sensor24h,
+            irrigationEvents:
+              bundle.irrigationEvents.length > 0 ? bundle.irrigationEvents : prev.irrigationEvents,
+            tasks: bundle.tasks.length > 0 ? bundle.tasks : prev.tasks,
+            notifications: bundle.notifications.length > 0 ? bundle.notifications : prev.notifications,
+            settings: {
+              ...prev.settings,
+              ...(bundle.profileSettings.tema ? { tema: bundle.profileSettings.tema } : {}),
+              ...(bundle.profileSettings.ambangKeyakinanRendah !== undefined
+                ? { ambangKeyakinanRendah: bundle.profileSettings.ambangKeyakinanRendah }
+                : {}),
+              ...(bundle.profileSettings.notifikasiBrowser !== undefined
+                ? { notifikasiBrowser: bundle.profileSettings.notifikasiBrowser }
+                : {}),
+              ...(bundle.profileSettings.peringatanOtomatisSensor !== undefined
+                ? { peringatanOtomatisSensor: bundle.profileSettings.peringatanOtomatisSensor }
+                : {}),
+              ...Object.fromEntries(
+                Object.entries(bundle.deviceSettings).filter(([, v]) => v !== undefined)
+              ),
+              ...(bundle.reminderSchedules.length > 0
+                ? { jadwalPengingat: bundle.reminderSchedules }
+                : {}),
+            },
+          };
+        });
+        if (bundle.plants[0]?.id) {
+          setChatContextPlantId(bundle.plants[0].id);
+        }
+
+        if (combinedError) {
+          setDbSyncStatus({ state: 'error', message: combinedError });
+        } else {
+          setDbSyncStatus({ state: 'ok', message: 'Tersinkron penuh ke 14 tabel Supabase' });
+        }
+      } catch (err) {
+        setDbSyncStatus({
+          state: 'error',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Gagal menyinkronkan akun ke Supabase. Periksa koneksi & file SQL 08.',
+        });
+      }
+    },
+    []
+  );
+
+  const refreshSupabaseSync = useCallback(async () => {
+    await hydrateFromSupabaseAccount();
+  }, [hydrateFromSupabaseAccount]);
+
+  // Sinkronkan sesi Auth Supabase saat pertama kali halaman dibuka & saat login/logout terjadi
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthReady(true);
+      return;
+    }
+    const sb = getSupabaseBrowserClient();
+    if (!sb) {
+      setAuthReady(true);
+      return;
+    }
+
+    let alive = true;
+    sb.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!alive) return;
+        const user = data.session?.user;
+        if (user) {
+          setAuthUser({ id: user.id, email: user.email || '' });
+          await hydrateFromSupabaseAccount();
+        } else {
+          setAuthUser(null);
+        }
+      })
+      .finally(() => {
+        if (alive) setAuthReady(true);
+      });
+
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      if (!alive) return;
+      const user = session?.user;
+      if (user) {
+        setAuthUser({ id: user.id, email: user.email || '' });
+      } else {
+        setAuthUser(null);
+      }
+    });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [hydrateFromSupabaseAccount]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -467,6 +654,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
   }, []);
+
+  const openLogin = useCallback(
+    (targetAfterLogin?: ScreenId) => {
+      if (targetAfterLogin && targetAfterLogin !== 'landing' && targetAfterLogin !== 'login') {
+        setPostLoginScreen(targetAfterLogin);
+      } else {
+        setPostLoginScreen('beranda');
+      }
+      setActiveScreen('login');
+    },
+    [setActiveScreen]
+  );
+
+  const signInAccount = useCallback(
+    async (email: string, password: string) => {
+      const res = await cermatSupabaseRepo.signIn(email, password);
+      if (res.user) {
+        setAuthUser({ id: res.user.id, email: res.user.email || email });
+        await hydrateFromSupabaseAccount();
+        const dest = postLoginScreen && postLoginScreen !== 'login' ? postLoginScreen : 'beranda';
+        setPostLoginScreen(null);
+        setActiveScreen(dest);
+      }
+    },
+    [hydrateFromSupabaseAccount, postLoginScreen, setActiveScreen]
+  );
+
+  const registerAccount: AppContextValue['registerAccount'] = useCallback(
+    async (input) => {
+      const res = await cermatSupabaseRepo.signUp(input.email, input.password, input.nama);
+      if (res.session && res.user) {
+        setAuthUser({ id: res.user.id, email: res.user.email || input.email });
+        await hydrateFromSupabaseAccount({
+          nama: input.nama,
+          namaKebun: input.namaKebun,
+          lokasiKebun: input.lokasiKebun,
+        });
+        const dest = postLoginScreen && postLoginScreen !== 'login' ? postLoginScreen : 'beranda';
+        setPostLoginScreen(null);
+        setActiveScreen(dest);
+        return { needsEmailConfirmation: false };
+      }
+      return { needsEmailConfirmation: true };
+    },
+    [hydrateFromSupabaseAccount, postLoginScreen, setActiveScreen]
+  );
+
+  const signOutAccount = useCallback(async () => {
+    await cermatSupabaseRepo.signOut();
+    setAuthUser(null);
+    setChatContextScan(null);
+    setPendingChatQuestion(null);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+    setState(createDefaultState(false));
+    setActiveScreen('landing');
+  }, [setActiveScreen]);
 
   // Evaluasi F10.1, F10.3 interlock tandon kritis, & F13.2 mode hemat baterai
   useEffect(() => {
@@ -576,6 +821,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isOffline, hydrated]);
 
+  const forwardToTelegram = useCallback(
+    (payload: {
+      chatId: string | null;
+      kind: 'test' | 'reminder' | 'alert' | 'scan';
+      title: string;
+      message: string;
+      lines?: string[];
+    }) => {
+      if (!payload.chatId || isOffline || typeof window === 'undefined') return;
+      void fetch('/api/telegram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => { });
+    },
+    [isOffline]
+  );
+
   // Mesin penjadwal notifikasi real-time sesuai jam yang ditentukan (HH:MM)
   useEffect(() => {
     if (!hydrated || typeof window === 'undefined') return;
@@ -620,13 +883,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updated = true;
 
         const meta = getReminderAlertMeta(item.kategori);
+        const remBody = item.catatan || `Jadwal pengingat pukul ${item.jam} WIB telah tiba.`;
         pushAlert({
           judul: `Waktunya ${item.label}`,
-          isi: item.catatan || `Jadwal pengingat pukul ${item.jam} WIB telah tiba.`,
+          isi: remBody,
           tipe: meta.tipe,
           severity: meta.severity,
           actionLabel: meta.actionLabel,
           actionScreen: meta.actionScreen,
+        });
+        forwardToTelegram({
+          chatId: state.user.telegramChatId,
+          kind: 'reminder',
+          title: `Pengingat Kebun · ${item.label} (${item.jam} WIB)`,
+          message: remBody,
+          lines: [`Kebun aktif: ${state.farms.find((f) => f.id === state.activeFarmId)?.nama || 'Kebun Utama'}`],
         });
       }
 
@@ -636,7 +907,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checkSchedules();
     const intervalId = window.setInterval(checkSchedules, 10000);
     return () => window.clearInterval(intervalId);
-  }, [hydrated, state.settings.jadwalPengingat, pushAlert]);
+  }, [hydrated, state.settings.jadwalPengingat, state.user.telegramChatId, state.farms, state.activeFarmId, pushAlert, forwardToTelegram]);
 
   // Pengawas alert otomatis sensor (hanya memicu saat kondisi baru masuk batas kritis/waspada)
   useEffect(() => {
@@ -661,47 +932,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (state.settings.peringatanOtomatisSensor) {
       if (soilDry && !prev.soilDry) {
+        const msg = `Kelembapan media turun di bawah batas ${state.settings.ambangTanahBawah}%. ${state.settings.irigasiOtomatis && !tankLow
+          ? 'Pompa irigasi otomatis sudah diaktifkan.'
+          : 'Segera cek irigasi di halaman Lahan.'
+          }`;
         pushAlert({
           judul: `Waktunya Siram! Tanah kering (${state.sensor.kelembapanTanah}%)`,
-          isi: `Kelembapan media turun di bawah batas ${state.settings.ambangTanahBawah}%. ${
-            state.settings.irigasiOtomatis && !tankLow
-              ? 'Pompa irigasi otomatis sudah diaktifkan.'
-              : 'Segera cek irigasi di halaman Lahan.'
-          }`,
+          isi: msg,
           tipe: 'siram',
           severity: 'warn',
           actionLabel: 'Buka Lahan',
           actionScreen: 'lahan',
         });
+        forwardToTelegram({
+          chatId: state.user.telegramChatId,
+          kind: 'alert',
+          title: `Tanah Kering (${state.sensor.kelembapanTanah}%)`,
+          message: msg,
+        });
       }
       if (tankLow && !prev.tankLow) {
+        const msg = `Air tandon di bawah ${state.settings.ambangTandonRendah}%. Pompa dikunci otomatis agar tidak kering—isi ulang tandon segera.`;
         pushAlert({
           judul: `Peringatan Tandon Kritis (${state.sensor.levelTandonPersen}%)`,
-          isi: `Air tandon di bawah ${state.settings.ambangTandonRendah}%. Pompa dikunci otomatis agar tidak kering—isi ulang tandon segera.`,
+          isi: msg,
           tipe: 'tandon',
           severity: 'bad',
           actionLabel: 'Cek Tandon',
           actionScreen: 'lahan',
         });
+        forwardToTelegram({
+          chatId: state.user.telegramChatId,
+          kind: 'alert',
+          title: `Tandon Air Kritis (${state.sensor.levelTandonPersen}%)`,
+          message: msg,
+        });
       }
       if (diseaseRisk && !prev.diseaseRisk) {
+        const msg = `Udara kebun sangat lembap (≥${state.settings.ambangKelembapanRisikoPenyakit}% RH). Periksa bercak daun bawah dan kurangi siram sore.`;
         pushAlert({
           judul: `Waspada Risiko Jamur (${state.sensor.kelembapanUdara}% RH)`,
-          isi: `Udara kebun sangat lembap (≥${state.settings.ambangKelembapanRisikoPenyakit}% RH). Periksa bercak daun bawah dan kurangi siram sore.`,
+          isi: msg,
           tipe: 'penyakit',
           severity: 'warn',
           actionLabel: 'Scan Daun',
           actionScreen: 'scan',
         });
+        forwardToTelegram({
+          chatId: state.user.telegramChatId,
+          kind: 'alert',
+          title: `Risiko Jamur Meningkat (${state.sensor.kelembapanUdara}% RH)`,
+          message: msg,
+        });
       }
       if (batteryLow && !prev.batteryLow) {
+        const msg = `Perangkat masuk mode hemat daya (≤${state.settings.ambangBateraiHemat}%). Pastikan panel surya tidak tertutup bayangan.`;
         pushAlert({
           judul: `Baterai Surya Rendah (${state.sensor.bateraiPersen}%)`,
-          isi: `Perangkat masuk mode hemat daya (≤${state.settings.ambangBateraiHemat}%). Pastikan panel surya tidak tertutup bayangan.`,
+          isi: msg,
           tipe: 'energi',
           severity: 'warn',
           actionLabel: 'Energi Surya',
           actionScreen: 'energi',
+        });
+        forwardToTelegram({
+          chatId: state.user.telegramChatId,
+          kind: 'alert',
+          title: `Baterai Surya Rendah (${state.sensor.bateraiPersen}%)`,
+          message: msg,
         });
       }
     }
@@ -725,7 +1023,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     state.sensor.levelTandonPersen,
     state.sensor.kelembapanUdara,
     state.sensor.bateraiPersen,
+    state.user.telegramChatId,
     pushAlert,
+    forwardToTelegram,
   ]);
 
   const activeFarm = useMemo(
@@ -751,8 +1051,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const openChatWithPlant = (plantId: string | null) => {
     setChatContextPlantId(plantId);
+    if (chatContextScan && chatContextScan.plantId !== plantId) {
+      setChatContextScan(null);
+    }
     setActiveScreen('cermo');
   };
+
+  const openChatWithScan = (scan: ScanRecord, initialQuestion?: string) => {
+    setChatContextPlantId(scan.plantId);
+    setChatContextScan(scan);
+    const trimmed = initialQuestion?.trim();
+    if (trimmed) {
+      setPendingChatQuestion(trimmed);
+    }
+    setActiveScreen('cermo');
+  };
+
+  const clearPendingChatQuestion = useCallback(() => {
+    setPendingChatQuestion(null);
+  }, []);
 
   const completeOnboarding: AppContextValue['completeOnboarding'] = (payload) => {
     setState((prev) => {
@@ -772,18 +1089,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: nextUser.id,
           nama: payload.farmName.trim(),
           lokasi: payload.farmLocation?.trim() || 'Lahan utama',
-          luasLabel: 'Kebun tomat',
+          luasLabel: 'Kebun hortikultura',
         };
         nextFarms = [newFarm, ...prev.farms];
         nextActiveFarmId = newFarmId;
 
         if (payload.plantName && payload.plantName.trim()) {
+          const cleanVar = payload.varietas?.trim() || 'Cabai Rawit';
           const newPlant: Plant = {
             id: `plant-${Date.now()}`,
             farmId: newFarmId,
             nama: payload.plantName.trim(),
-            varietas: payload.varietas?.trim() || 'Servo F1',
-            bobotRataBuahGram: payload.varietas?.toLowerCase().includes('ceri') ? 25 : 85,
+            varietas: cleanVar,
+            bobotRataBuahGram: estimateWeightForVariety(cleanVar),
             tanggalTanam: payload.tanggalTanam || new Date().toISOString().slice(0, 10),
             fase: 'Berbuah',
           };
@@ -813,56 +1131,101 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addFarm = (nama: string, lokasi: string, luasLabel: string): Farm => {
+    const tempId = `farm-${Date.now()}`;
     const farm: Farm = {
-      id: `farm-${Date.now()}`,
+      id: tempId,
       userId: state.user.id,
       nama: nama.trim(),
       lokasi: lokasi.trim() || 'Lokasi kebun',
-      luasLabel: luasLabel.trim() || 'Kebun tomat',
+      luasLabel: luasLabel.trim() || 'Kebun hortikultura',
     };
     setState((prev) => ({
       ...prev,
       farms: [...prev.farms, farm],
       activeFarmId: farm.id,
     }));
+
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo
+        .createFarm({ nama: farm.nama, lokasi: farm.lokasi, luasLabel: farm.luasLabel })
+        .then((created) => {
+          if (!created) return;
+          setState((prev) => ({
+            ...prev,
+            farms: prev.farms.map((f) => (f.id === tempId ? created : f)),
+            activeFarmId: prev.activeFarmId === tempId ? created.id : prev.activeFarmId,
+          }));
+        })
+        .catch(() => { });
+    }
     return farm;
   };
 
   const addPlant: AppContextValue['addPlant'] = (input) => {
+    const tempId = `plant-${Date.now()}`;
+    const cleanVar = input.varietas.trim() || 'Cabai Rawit';
     const plant: Plant = {
-      id: `plant-${Date.now()}`,
+      id: tempId,
       farmId: input.farmId,
       nama: input.nama.trim(),
-      varietas: input.varietas.trim() || 'Servo F1',
-      bobotRataBuahGram:
-        input.bobotRataBuahGram || (input.varietas.toLowerCase().includes('ceri') ? 25 : 85),
+      varietas: cleanVar,
+      bobotRataBuahGram: input.bobotRataBuahGram || estimateWeightForVariety(cleanVar),
       tanggalTanam: input.tanggalTanam,
       fase: input.fase,
     };
     setState((prev) => ({ ...prev, plants: [plant, ...prev.plants] }));
+
+    if (authUser && isSupabaseConfigured && isUuid(input.farmId)) {
+      void cermatSupabaseRepo
+        .createPlant({
+          farmId: input.farmId,
+          nama: plant.nama,
+          komoditas: inferCommodityFromVariety(cleanVar),
+          varietas: plant.varietas,
+          tanggalTanam: plant.tanggalTanam,
+          fase: plant.fase,
+          bobotRataBuahGram: plant.bobotRataBuahGram,
+        })
+        .then((created) => {
+          if (!created) return;
+          setState((prev) => ({
+            ...prev,
+            plants: prev.plants.map((p) => (p.id === tempId ? created : p)),
+          }));
+        })
+        .catch(() => { });
+    }
     return plant;
   };
 
   const saveScan = (scan: ScanRecord) => {
+    let createdHarvestPayload: Omit<HarvestEvent, 'id'> | null = null;
+    const isRipenessScan =
+      scan.fokusOutput === 'kematangan' || (!scan.fokusOutput && scan.bagian === 'buah');
+    if (isRipenessScan && scan.estimasiHariMin !== null && !scan.tanpaBuahTerdeteksi) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + scan.estimasiHariMin);
+      createdHarvestPayload = {
+        plantId: scan.plantId,
+        tanggal: targetDate.toISOString().slice(0, 10),
+        sumber: 'estimasi',
+        catatan:
+          scan.anjuranPanen === 'Panen sekarang'
+            ? `${scan.jumlahBuah} buah matang siap dipetik`
+            : `Estimasi tunggu ${scan.estimasiHariMin}–${scan.estimasiHariMax} hari (${scan.jumlahBuah} buah)`,
+        estimasiKg: Number((scan.estimasiBobotGram / 1000).toFixed(2)),
+      };
+    }
+
     setState((prev) => {
       const nextHarvests = [...prev.harvestEvents];
       const nextNotifs = [...prev.notifications];
       const plant = prev.plants.find((p) => p.id === scan.plantId);
 
-      if (scan.bagian === 'buah' && scan.estimasiHariMin !== null && !scan.tanpaBuahTerdeteksi) {
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + scan.estimasiHariMin);
-        const ymd = targetDate.toISOString().slice(0, 10);
+      if (createdHarvestPayload) {
         nextHarvests.unshift({
           id: `harv-${Date.now()}`,
-          plantId: scan.plantId,
-          tanggal: ymd,
-          sumber: 'estimasi',
-          catatan:
-            scan.anjuranPanen === 'Panen sekarang'
-              ? `${scan.jumlahBuah} buah matang siap dipetik`
-              : `Estimasi tunggu ${scan.estimasiHariMin}–${scan.estimasiHariMax} hari (${scan.jumlahBuah} buah)`,
-          estimasiKg: Number((scan.estimasiBobotGram / 1000).toFixed(2)),
+          ...createdHarvestPayload,
         });
       }
 
@@ -887,8 +1250,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notifications: nextNotifs.slice(0, 35),
       };
     });
+
+    // Simpan otomatis ke tabel `scans` (+ Storage `scan-photos`) & `harvest_events` di Supabase per akun!
+    if (authUser && isSupabaseConfigured && isUuid(scan.plantId)) {
+      void (async () => {
+        try {
+          const fotoPath = await cermatSupabaseRepo.uploadScanPhotoDataUrl(
+            scan.plantId,
+            scan.fotoUrl
+          );
+          const inserted = await cermatSupabaseRepo.insertScan(scan, fotoPath);
+          if (inserted?.id) {
+            setState((prev) => ({
+              ...prev,
+              scans: prev.scans.map((s) => (s.id === scan.id ? { ...s, id: inserted.id } : s)),
+            }));
+          }
+          if (createdHarvestPayload) {
+            await cermatSupabaseRepo.insertHarvestEvent(createdHarvestPayload);
+          }
+        } catch {
+          // Tetap tersimpan lokal
+        }
+      })();
+    }
+
     if (scan.penyakitUtamaId !== 'sehat') {
       const plant = state.plants.find((p) => p.id === scan.plantId);
+      const dis = KNOWLEDGE_DISEASES[scan.penyakitUtamaId];
       pushAlert(
         {
           judul: `Temuan Scan: ${scan.penyakitUtamaNama}`,
@@ -900,6 +1289,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
         { saveToHistory: false }
       );
+      forwardToTelegram({
+        chatId: state.user.telegramChatId,
+        kind: 'scan',
+        title: `Temuan Penyakit: ${dis?.penyakit || scan.penyakitUtamaNama}`,
+        message: `Tanaman ${plant?.nama || 'Kebun'} (${plant?.varietas || ''}) terdeteksi indikasi penyakit (keyakinan ${scan.keyakinan}%).`,
+        lines: [
+          ...(dis?.solusiOrganik.slice(0, 2).map((s) => `Solusi organik: ${s}`) || []),
+          'Buka CermatTani untuk diskusi lanjutan dengan Chatbot Cermo.',
+        ],
+      });
     }
     setChatContextPlantId(scan.plantId);
   };
@@ -919,10 +1318,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addHarvestEvent: AppContextValue['addHarvestEvent'] = (ev) => {
+    const tempId = `harv-${Date.now()}`;
     setState((prev) => ({
       ...prev,
-      harvestEvents: [{ ...ev, id: `harv-${Date.now()}` }, ...prev.harvestEvents],
+      harvestEvents: [{ ...ev, id: tempId }, ...prev.harvestEvents],
     }));
+    if (authUser && isSupabaseConfigured && isUuid(ev.plantId)) {
+      void cermatSupabaseRepo
+        .insertHarvestEvent(ev)
+        .then((inserted) => {
+          if (!inserted?.id) return;
+          setState((prev) => ({
+            ...prev,
+            harvestEvents: prev.harvestEvents.map((h) =>
+              h.id === tempId ? { ...h, id: inserted.id } : h
+            ),
+          }));
+        })
+        .catch(() => { });
+    }
   };
 
   const markHarvestActual = (id: string) => {
@@ -932,23 +1346,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         h.id === id ? { ...h, sumber: 'aktual' } : h
       ),
     }));
+    if (authUser && isSupabaseConfigured && isUuid(id)) {
+      void cermatSupabaseRepo.markHarvestActual(id).catch(() => { });
+    }
   };
 
   const toggleTask = (id: string) => {
+    let nextDone: boolean | null = null;
     setState((prev) => ({
       ...prev,
-      tasks: prev.tasks.map((t) => (t.id === id ? { ...t, selesai: !t.selesai } : t)),
+      tasks: prev.tasks.map((t) => {
+        if (t.id !== id) return t;
+        nextDone = !t.selesai;
+        return { ...t, selesai: !t.selesai };
+      }),
     }));
+    if (authUser && isSupabaseConfigured && isUuid(id) && nextDone !== null) {
+      void cermatSupabaseRepo.toggleFarmTask(id, nextDone).catch(() => {});
+    }
   };
 
   const addTask = (judul: string, kategori: FarmTask['kategori'], waktuLabel: string) => {
+    const cleanJudul = judul.trim();
+    if (!cleanJudul) return;
+    const tempId = `task-${Date.now()}`;
+    const farmId = state.activeFarmId;
     setState((prev) => ({
       ...prev,
       tasks: [
         {
-          id: `task-${Date.now()}`,
+          id: tempId,
           farmId: prev.activeFarmId,
-          judul: judul.trim(),
+          judul: cleanJudul,
           kategori,
           waktuLabel,
           selesai: false,
@@ -956,31 +1385,105 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev.tasks,
       ],
     }));
+    if (authUser && isSupabaseConfigured && isUuid(farmId)) {
+      void cermatSupabaseRepo
+        .createFarmTask(farmId, { judul: cleanJudul, kategori, waktuLabel })
+        .then((created) => {
+          if (!created) return;
+          setState((prev) => ({
+            ...prev,
+            tasks: prev.tasks.map((t) => (t.id === tempId ? created : t)),
+          }));
+        })
+        .catch(() => {});
+    }
   };
 
   const addChatMessage: AppContextValue['addChatMessage'] = (msg) => {
+    const tempId = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setState((prev) => ({
       ...prev,
       chatMessages: [
         ...prev.chatMessages,
         {
           ...msg,
-          id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: tempId,
           waktu: new Date().toISOString(),
         },
       ],
     }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo
+        .insertChatMessage(msg.plantId, msg.peran, msg.isi)
+        .then((inserted) => {
+          if (!inserted?.id) return;
+          setState((prev) => ({
+            ...prev,
+            chatMessages: prev.chatMessages.map((m) =>
+              m.id === tempId ? { ...m, id: inserted.id } : m
+            ),
+          }));
+        })
+        .catch(() => { });
+    }
   };
 
   const clearChatMessages = () => {
     setState((prev) => ({ ...prev, chatMessages: [] }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo.clearUserChats().catch(() => { });
+    }
   };
 
   const updateSettings = (patch: Partial<AppSettings>) => {
     setState((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
+    if (authUser && isSupabaseConfigured) {
+      if (
+        patch.tema !== undefined ||
+        patch.ambangKeyakinanRendah !== undefined ||
+        patch.notifikasiBrowser !== undefined ||
+        patch.peringatanOtomatisSensor !== undefined
+      ) {
+        void cermatSupabaseRepo
+          .updateProfile({
+            tema: patch.tema,
+            ambangKeyakinanRendah: patch.ambangKeyakinanRendah,
+            notifikasiBrowser: patch.notifikasiBrowser,
+            peringatanOtomatisSensor: patch.peringatanOtomatisSensor,
+          })
+          .catch(() => {});
+      }
+
+      const activeDeviceId = state.devices[0]?.id || state.sensor.deviceId;
+      if (
+        isUuid(activeDeviceId) &&
+        (patch.irigasiOtomatis !== undefined ||
+          patch.pompaMenyala !== undefined ||
+          patch.ambangTanahBawah !== undefined ||
+          patch.ambangTanahAtas !== undefined ||
+          patch.durasiMaksPompaMenit !== undefined ||
+          patch.ambangKelembapanRisikoPenyakit !== undefined ||
+          patch.ambangTandonRendah !== undefined ||
+          patch.ambangBateraiHemat !== undefined)
+      ) {
+        void cermatSupabaseRepo
+          .updateDeviceSettings(activeDeviceId, {
+            irigasiOtomatis: patch.irigasiOtomatis,
+            pompaMenyala: patch.pompaMenyala,
+            ambangTanahBawah: patch.ambangTanahBawah,
+            ambangTanahAtas: patch.ambangTanahAtas,
+            durasiMaksPompaMenit: patch.durasiMaksPompaMenit,
+            ambangKelembapanRisikoPenyakit: patch.ambangKelembapanRisikoPenyakit,
+            ambangTandonRendah: patch.ambangTandonRendah,
+            ambangBateraiHemat: patch.ambangBateraiHemat,
+          })
+          .catch(() => {});
+      }
+    }
   };
 
   const updateSensor = (patch: Partial<SensorSnapshot>) => {
+    let snapshotToSync: SensorSnapshot | null = null;
     setState((prev) => {
       const merged = { ...prev.sensor, ...patch, waktu: new Date().toISOString() };
       if (patch.jarakUltrasonikCm !== undefined) {
@@ -999,8 +1502,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (patch.teganganVolt !== undefined || patch.arusMa !== undefined) {
         merged.dayaWatt = Number(((merged.teganganVolt * merged.arusMa) / 1000).toFixed(2));
       }
+      snapshotToSync = merged;
       return { ...prev, sensor: merged };
     });
+
+    if (authUser && isSupabaseConfigured && typeof window !== 'undefined') {
+      const deviceId = state.devices[0]?.id || state.sensor.deviceId;
+      if (isUuid(deviceId)) {
+        if (sensorSyncTimerRef.current !== null) {
+          window.clearTimeout(sensorSyncTimerRef.current);
+        }
+        sensorSyncTimerRef.current = window.setTimeout(() => {
+          sensorSyncTimerRef.current = null;
+          if (snapshotToSync) {
+            void cermatSupabaseRepo.insertSensorReading(deviceId, snapshotToSync).catch(() => {});
+          }
+        }, 1200);
+      }
+    }
   };
 
   const triggerManualPump = (turnOn: boolean): { ok: boolean; message: string } => {
@@ -1020,19 +1539,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    const now = new Date().toISOString();
+    const nextMoisture = turnOn
+      ? Math.min(state.settings.ambangTanahAtas, state.sensor.kelembapanTanah + 12)
+      : state.sensor.kelembapanTanah;
+    const durasiMenit = Math.min(5, state.settings.durasiMaksPompaMenit);
+    const activeDeviceId = state.devices[0]?.id || state.sensor.deviceId;
+
     setState((prev) => {
-      const now = new Date().toISOString();
-      const nextMoisture = turnOn
-        ? Math.min(prev.settings.ambangTanahAtas, prev.sensor.kelembapanTanah + 12)
-        : prev.sensor.kelembapanTanah;
       const nextEvents = turnOn
         ? [
           {
             id: `irr-${Date.now()}`,
-            deviceId: prev.sensor.deviceId,
+            deviceId: activeDeviceId,
             mulai: now,
             selesai: now,
-            durasiMenit: Math.min(5, prev.settings.durasiMaksPompaMenit),
+            durasiMenit,
             kelembapanAwal: prev.sensor.kelembapanTanah,
             kelembapanAkhir: nextMoisture,
             mode: 'Manual' as const,
@@ -1048,6 +1570,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     });
 
+    if (authUser && isSupabaseConfigured && isUuid(activeDeviceId)) {
+      void cermatSupabaseRepo.updateDeviceSettings(activeDeviceId, { pompaMenyala: turnOn }).catch(() => {});
+      if (turnOn) {
+        void cermatSupabaseRepo
+          .insertIrrigationEvent(activeDeviceId, {
+            mulai: now,
+            selesai: now,
+            durasiMenit,
+            kelembapanAwal: state.sensor.kelembapanTanah,
+            kelembapanAkhir: nextMoisture,
+            mode: 'Manual',
+            simulasi: state.sensor.simulasi,
+          })
+          .catch(() => {});
+      }
+    }
+
     return {
       ok: true,
       message: turnOn
@@ -1056,82 +1595,216 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  const linkTelegram = (chatIdInput?: string) => {
-    void (async () => {
-      try {
-        const code = state.user.telegramLinkCode;
-        const response = await fetch('/api/telegram/link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, chatId: chatIdInput?.trim() || undefined }),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Gagal menghubungkan Telegram.');
-
-        setState((prev) => ({
-          ...prev,
-          user: { ...prev.user, telegramChatId: result.chatId },
-          notifications: [
-            {
-              id: `notif-tg-${Date.now()}`,
-              judul: 'Bot Telegram tertaut',
-              isi: `Pengingat panen aktif pukul ${prev.user.telegramReminderTime} WIB.`,
-              waktu: 'Baru saja',
-              tipe: 'telegram',
-              dibaca: false,
-            },
-            ...prev.notifications,
-          ],
-        }));
-      } catch {
+  const linkTelegram = async (
+    chatIdInput?: string
+  ): Promise<{ ok: boolean; message: string; chatId?: string }> => {
+    try {
+      const code = state.user.telegramLinkCode;
+      const cleanId = chatIdInput?.trim() || '';
+      const response = await fetch('/api/telegram/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          userName: state.user.nama,
+          mode: cleanId ? 'manual' : 'auto',
+          chatId: cleanId || undefined,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.chatId) {
+        const errText = result?.error || 'Gagal menghubungkan bot Telegram.';
         setState((prev) => ({
           ...prev,
           notifications: [
             {
               id: `notif-tg-error-${Date.now()}`,
               judul: 'Telegram belum tertaut',
-              isi: 'Gagal menghubungkan bot. Periksa Chat ID dan konfigurasi bot Telegram.',
-              waktu: 'Baru saja',
+              isi: errText,
+              waktu: `${getLocalClockHHMM()} WIB`,
               tipe: 'telegram',
               dibaca: false,
             },
             ...prev.notifications,
           ],
         }));
+        return { ok: false, message: errText };
       }
-    })();
+
+      const linkedChatId = String(result.chatId);
+      setState((prev) => ({
+        ...prev,
+        user: { ...prev.user, telegramChatId: linkedChatId },
+        notifications: [
+          {
+            id: `notif-tg-${Date.now()}`,
+            judul: 'Bot Telegram tersambung',
+            isi: `Pesan konfirmasi terkirim ke ${result.displayName || linkedChatId}. Pengingat harian aktif pukul ${prev.user.telegramReminderTime} WIB.`,
+            waktu: `${getLocalClockHHMM()} WIB`,
+            tipe: 'telegram',
+            dibaca: false,
+          },
+          ...prev.notifications,
+        ],
+      }));
+
+      if (authUser && isSupabaseConfigured) {
+        void cermatSupabaseRepo.updateProfile({ telegramChatId: linkedChatId }).catch(() => { });
+      }
+
+      return {
+        ok: true,
+        chatId: linkedChatId,
+        message: `Tersambung ke ${result.displayName || linkedChatId}! Pesan konfirmasi sudah masuk di Telegram kamu.`,
+      };
+    } catch {
+      return {
+        ok: false,
+        message: 'Gagal menghubungi server Telegram. Periksa koneksi internet kamu.',
+      };
+    }
   };
 
   const unlinkTelegram = () => {
     setState((prev) => ({ ...prev, user: { ...prev.user, telegramChatId: null } }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo.updateProfile({ telegramChatId: null }).catch(() => { });
+    }
   };
 
   const regenerateTelegramCode = () => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     setState((prev) => ({ ...prev, user: { ...prev.user, telegramLinkCode: code } }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo.updateProfile({ telegramLinkCode: code }).catch(() => { });
+    }
   };
 
-  const sendTestTelegramReminder = () => {
-    const upcoming = state.harvestEvents[0];
-    const plant = state.plants.find((p) => p.id === upcoming?.plantId);
-    setState((prev) => ({
-      ...prev,
-      notifications: [
-        {
-          id: `notif-tg-test-${Date.now()}`,
-          judul: 'Pesan Telegram terkirim (Uji)',
-          isi: `Halo ${prev.user.nama}! Pengingat CermatTani (${prev.user.telegramReminderTime} WIB): ${plant?.nama || 'Tomat Servo #01'} dijadwalkan panen ${upcoming?.tanggal || 'hari ini'}.`,
-          waktu: 'Baru saja',
-          tipe: 'telegram',
-          dibaca: false,
-        },
-        ...prev.notifications,
-      ],
-    }));
+  const sendTestTelegramReminder = async (): Promise<{ ok: boolean; message: string }> => {
+    const chatId = state.user.telegramChatId;
+    if (!chatId) {
+      return { ok: false, message: 'Tautkan akun Telegram terlebih dulu sebelum uji kirim.' };
+    }
+    const upcoming = state.harvestEvents.find((e) => e.sumber === 'estimasi') || state.harvestEvents[0];
+    const plant = state.plants.find((p) => p.id === upcoming?.plantId) || state.plants[0];
+    const title = 'Uji Pengingat CermatTani';
+    const msg = `Halo ${state.user.nama}! Koneksi Bot Telegram CermatTani aktif. Pengingat harian dijadwalkan pukul ${state.user.telegramReminderTime} WIB.`;
+    const lines = [
+      `Kebun aktif: ${activeFarm?.nama || 'Kebun Utama'}`,
+      upcoming
+        ? `Jadwal panen terdekat: ${plant?.nama || 'Tanaman'} (${upcoming.tanggal}) — ${upcoming.catatan}`
+        : `Tanaman terpantau: ${plant?.nama || 'Tanaman Kebun'}`,
+      `Kondisi lahan: Tanah ${state.sensor.kelembapanTanah}% · Tandon ${state.sensor.levelTandonPersen}% · Baterai ${state.sensor.bateraiPersen}%`,
+    ];
+
+    try {
+      const res = await fetch('/api/telegram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, kind: 'test', title, message: msg, lines }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        return { ok: false, message: data?.error || 'Gagal mengirim pesan uji ke Telegram.' };
+      }
+      setState((prev) => ({
+        ...prev,
+        notifications: [
+          {
+            id: `notif-tg-test-${Date.now()}`,
+            judul: 'Pesan uji Telegram terkirim',
+            isi: `Pesan nyata sudah dikirim ke Chat ID ${chatId}. Cek aplikasi Telegram kamu.`,
+            waktu: `${getLocalClockHHMM()} WIB`,
+            tipe: 'telegram',
+            dibaca: false,
+          },
+          ...prev.notifications,
+        ],
+      }));
+      return { ok: true, message: 'Pesan uji berhasil dikirim! Cek chat Bot Telegram kamu sekarang.' };
+    } catch {
+      return { ok: false, message: 'Koneksi ke server Telegram terputus.' };
+    }
+  };
+
+  const shareScanToTelegram = async (
+    scan: ScanRecord
+  ): Promise<{ ok: boolean; message: string }> => {
+    const chatId = state.user.telegramChatId;
+    if (!chatId) {
+      return {
+        ok: false,
+        message: 'Akun Telegram belum tertaut. Buka menu Kalender → tab Telegram untuk menyambungkan dulu ya.',
+      };
+    }
+
+    const plant = state.plants.find((p) => p.id === scan.plantId);
+    const plantLabel = plant ? `${plant.nama} (${plant.varietas})` : 'Tanaman Kebun';
+    const fokus = scan.fokusOutput || (scan.tahapDominan ? 'kematangan' : 'penyakit');
+    let title = `Laporan Scan · ${plantLabel}`;
+    let message = '';
+    const lines: string[] = [];
+
+    if (fokus === 'penyakit') {
+      const dis = KNOWLEDGE_DISEASES[scan.penyakitUtamaId] || KNOWLEDGE_DISEASES.sehat;
+      title = `Hasil Scan Penyakit · ${dis.penyakit}`;
+      message = `Tanaman: ${plantLabel} (Keyakinan ${scan.keyakinan}%). Penyebab: ${dis.penyebab}`;
+      dis.solusiOrganik.slice(0, 2).forEach((s) => lines.push(`Organik dulu: ${s}`));
+      if (dis.pencegahan[0]) lines.push(`Pencegahan: ${dis.pencegahan[0]}`);
+    } else if (fokus === 'kematangan' && scan.tahapDominan) {
+      const rip = RIPENESS_REFERENCE[scan.tahapDominan];
+      title = `Hasil Scan Panen · ${rip.label} (${scan.anjuranPanen})`;
+      message = `Tanaman: ${plantLabel} · ${scan.jumlahBuah} buah (perkiraan ~${scan.estimasiBobotGram} g, keyakinan ${scan.keyakinan}%).`;
+      lines.push(
+        scan.anjuranPanen === 'Panen sekarang'
+          ? 'Anjuran: Panen sekarang (pagi atau sore hari).'
+          : `Estimasi siap petik: ${scan.estimasiHariMin}–${scan.estimasiHariMax} hari lagi.`
+      );
+      lines.push(`Pasca panen: ${rip.penangananPascaPanen}`);
+      if (scan.penyakitRinganId && KNOWLEDGE_DISEASES[scan.penyakitRinganId]) {
+        lines.push(`Catatan ringan: ${KNOWLEDGE_DISEASES[scan.penyakitRinganId].penyakit}`);
+      }
+    } else if (fokus === 'hara') {
+      const nut = KNOWLEDGE_NUTRIENTS[scan.dugaanHaraId] || KNOWLEDGE_NUTRIENTS.cukup;
+      title = `Hasil Scan Hara · ${nut.dugaan}`;
+      message = `Tanaman: ${plantLabel} (Keyakinan ${scan.keyakinan}%). ${nut.gejala}`;
+      lines.push(`Organik dulu: ${nut.rekomendasiOrganik}`);
+      lines.push(`Dosis fase ${plant?.fase || 'Berbuah'}: ${nut.dosisPerFase[plant?.fase || 'Berbuah']}`);
+      lines.push('Catatan: Bukan pengganti uji tanah.');
+    } else {
+      title = `Hasil Scan · ${plantLabel}`;
+      message = scan.ringkasanAi || 'Objek tanaman belum terdeteksi jelas — coba foto ulang di tempat terang.';
+    }
+
+    try {
+      const res = await fetch('/api/telegram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, kind: 'scan', title, message, lines }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        return { ok: false, message: data?.error || 'Gagal mengirim hasil scan ke Telegram.' };
+      }
+      return { ok: true, message: 'Ringkasan hasil scan berhasil dikirim ke Telegram kamu!' };
+    } catch {
+      return { ok: false, message: 'Gagal terhubung ke server Telegram.' };
+    }
   };
 
   const updateUserProfile = (patch: Partial<UserProfile>) => {
     setState((prev) => ({ ...prev, user: { ...prev.user, ...patch } }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo
+        .updateProfile({
+          nama: patch.nama,
+          peran: patch.peran,
+          telegramChatId: patch.telegramChatId,
+          telegramLinkCode: patch.telegramLinkCode,
+          telegramReminderTime: patch.telegramReminderTime,
+        })
+        .catch(() => { });
+    }
   };
 
   const markAllNotificationsRead = () => {
@@ -1139,6 +1812,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...prev,
       notifications: prev.notifications.map((n) => ({ ...n, dibaca: true })),
     }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo.markAllNotificationsRead().catch(() => {});
+    }
   };
 
   const clearAllNotifications = () => {
@@ -1146,6 +1822,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...prev,
       notifications: [],
     }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo.clearUserNotifications().catch(() => {});
+    }
   };
 
   const updateReminderSchedule = (id: string, patch: Partial<ReminderSchedule>) => {
@@ -1158,13 +1837,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ),
       },
     }));
+    if (authUser && isSupabaseConfigured && isUuid(id)) {
+      void cermatSupabaseRepo.updateReminderSchedule(id, patch).catch(() => {});
+    }
   };
 
   const addReminderSchedule: AppContextValue['addReminderSchedule'] = (input) => {
     const cleanLabel = input.label.trim();
     if (!cleanLabel) return;
+    const tempId = `rem-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
     const newItem: ReminderSchedule = {
-      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      id: tempId,
       label: cleanLabel,
       kategori: input.kategori,
       jam: input.jam || '07:00',
@@ -1180,6 +1863,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ),
       },
     }));
+    if (authUser && isSupabaseConfigured) {
+      void cermatSupabaseRepo
+        .createReminderSchedule({
+          label: newItem.label,
+          kategori: newItem.kategori,
+          jam: newItem.jam,
+          aktif: true,
+          catatan: newItem.catatan,
+        })
+        .then((created) => {
+          if (!created) return;
+          setState((prev) => ({
+            ...prev,
+            settings: {
+              ...prev.settings,
+              jadwalPengingat: prev.settings.jadwalPengingat.map((item) =>
+                item.id === tempId ? created : item
+              ),
+            },
+          }));
+        })
+        .catch(() => {});
+    }
   };
 
   const deleteReminderSchedule = (id: string) => {
@@ -1190,6 +1896,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         jadwalPengingat: prev.settings.jadwalPengingat.filter((item) => item.id !== id),
       },
     }));
+    if (authUser && isSupabaseConfigured && isUuid(id)) {
+      void cermatSupabaseRepo.deleteReminderSchedule(id).catch(() => {});
+    }
   };
 
   const triggerTestReminderAlert = (scheduleId?: string) => {
@@ -1257,7 +1966,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: 'usr-1',
           nama: 'Kebun Baru',
           lokasi: 'Belum diisi',
-          luasLabel: 'Kebun tomat',
+          luasLabel: 'Kebun hortikultura',
         },
       ],
       activeFarmId: 'farm-empty',
@@ -1276,13 +1985,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         state,
         hydrated,
+        authUser,
+        authReady,
+        dbSyncStatus,
+        refreshSupabaseSync,
+        postLoginScreen,
+        openLogin,
+        signInAccount,
+        registerAccount,
+        signOutAccount,
         activeScreen,
         setActiveScreen,
         scanPreselectPart,
         scanPreselectPlantId,
         openScanWith,
         chatContextPlantId,
+        chatContextScan,
+        pendingChatQuestion,
         openChatWithPlant,
+        openChatWithScan,
+        clearPendingChatQuestion,
         searchQuery,
         setSearchQuery,
         activeFarm,
@@ -1319,6 +2041,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unlinkTelegram,
         regenerateTelegramCode,
         sendTestTelegramReminder,
+        shareScanToTelegram,
         updateUserProfile,
         markAllNotificationsRead,
         resetDemoData,

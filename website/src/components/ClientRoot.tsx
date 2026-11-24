@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { AppProvider, useApp } from '@/state/AppContext';
 import { AppShell } from '@/components/AppShell';
 import { LandingScreen } from '@/screens/LandingScreen';
+import { LoginScreen } from '@/screens/LoginScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { ScanScreen } from '@/screens/ScanScreen';
@@ -14,8 +15,9 @@ import { SolarScreen } from '@/screens/SolarScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { ScreenId } from '@/types/cermattani';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 
-const APP_SCREEN_MAP: Record<Exclude<ScreenId, 'landing'>, React.ComponentType> = {
+const APP_SCREEN_MAP: Record<Exclude<ScreenId, 'landing' | 'login'>, React.ComponentType> = {
   beranda: DashboardScreen,
   scan: ScanScreen,
   tanaman: PlantsScreen,
@@ -27,7 +29,7 @@ const APP_SCREEN_MAP: Record<Exclude<ScreenId, 'landing'>, React.ComponentType> 
 };
 
 const InnerShell: React.FC = () => {
-  const { state, hydrated, activeScreen } = useApp();
+  const { state, hydrated, activeScreen, authUser, authReady } = useApp();
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -45,7 +47,7 @@ const InnerShell: React.FC = () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }, []);
 
-  if (!hydrated) {
+  if (!hydrated || !authReady) {
     return (
       <div
         style={{
@@ -69,6 +71,15 @@ const InnerShell: React.FC = () => {
     return (
       <div key="landing" className="screen-transition">
         <LandingScreen />
+      </div>
+    );
+  }
+
+  // Halaman Login / Register (atau redirect otomatis bila Supabase aktif & belum login)
+  if (activeScreen === 'login' || (isSupabaseConfigured && !authUser)) {
+    return (
+      <div key="login" className="screen-transition">
+        <LoginScreen />
       </div>
     );
   }

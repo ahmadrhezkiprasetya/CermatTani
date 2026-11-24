@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Droplets,
   Leaf,
+  LogIn,
   MessageCircle,
   Moon,
   ShieldCheck,
@@ -111,7 +112,15 @@ const STACKED_DEMO = [
 
 /* Halaman Publik Terpadu — Palet Botanical Forest & Soft Mint selaras 100% dengan Dasbor Pengguna */
 export const LandingScreen: React.FC = () => {
-  const { setActiveScreen, openScanWith, state, completeOnboarding, updateSettings } = useApp();
+  const {
+    setActiveScreen,
+    openScanWith,
+    openLogin,
+    authUser,
+    state,
+    completeOnboarding,
+    updateSettings,
+  } = useApp();
   const [valueOffset, setValueOffset] = useState(0);
   const [selectedPoseIdx, setSelectedPoseIdx] = useState(0);
   const [activeNavId, setActiveNavId] = useState<string>('jalan-kami');
@@ -148,6 +157,10 @@ export const LandingScreen: React.FC = () => {
   };
 
   const enterDashboard = () => {
+    if (!authUser) {
+      openLogin('beranda');
+      return;
+    }
     if (!state.onboarded) {
       completeOnboarding({ goToScan: false });
     } else {
@@ -156,11 +169,26 @@ export const LandingScreen: React.FC = () => {
   };
 
   const enterScan = () => {
+    if (!authUser) {
+      openLogin('scan');
+      return;
+    }
     if (!state.onboarded) {
       completeOnboarding({ goToScan: true });
     } else {
       openScanWith('buah');
     }
+  };
+
+  const enterFeature = (target: ScreenId) => {
+    if (!authUser) {
+      openLogin(target);
+      return;
+    }
+    if (!state.onboarded) {
+      completeOnboarding({ goToScan: target === 'scan' });
+    }
+    setActiveScreen(target);
   };
 
   const visibleValues = [
@@ -186,7 +214,7 @@ export const LandingScreen: React.FC = () => {
               <div className="font-display" style={{ fontSize: '1.28rem', fontWeight: 600, lineHeight: 1.05, color: 'var(--ink)' }}>
                 CermatTani
               </div>
-              <div className="t-micro t-soft">
+              <div className="t-micro t-soft landing-brand-tagline">
                 Cermat memeriksa, tepat memutuskan
               </div>
             </div>
@@ -220,9 +248,9 @@ export const LandingScreen: React.FC = () => {
               )}
             </button>
             <button type="button" className="ct-btn-dark" onClick={enterDashboard}>
-              <span>Buka Dasbor</span>
+              <span>{authUser ? 'Buka Dasbor' : 'Login'}</span>
               <span className="ct-btn-dark-circle">
-                <ArrowUpRight size={18} />
+                {authUser ? <ArrowUpRight size={18} /> : <LogIn size={16} />}
               </span>
             </button>
           </div>
@@ -270,9 +298,9 @@ export const LandingScreen: React.FC = () => {
 
                 <div className="hero-stagger-4" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
                   <button type="button" className="ct-btn-dark" onClick={enterDashboard}>
-                    <span>Masuk ke Dasbor Kebun</span>
+                    <span>{authUser ? 'Masuk ke Dasbor Kebun' : 'Login / Daftar Akun'}</span>
                     <span className="ct-btn-dark-circle">
-                      <ArrowUpRight size={18} />
+                      {authUser ? <ArrowUpRight size={18} /> : <LogIn size={16} />}
                     </span>
                   </button>
                   <button type="button" className="btn-tomato" onClick={enterScan}>
@@ -837,9 +865,9 @@ export const LandingScreen: React.FC = () => {
                   </h2>
                 </div>
                 <button type="button" className="ct-btn-dark" onClick={enterDashboard}>
-                  <span>Jelajahi di Dasbor</span>
+                  <span>{authUser ? 'Jelajahi di Dasbor' : 'Login untuk Mulai'}</span>
                   <span className="ct-btn-dark-circle">
-                    <ArrowUpRight size={18} />
+                    {authUser ? <ArrowUpRight size={18} /> : <LogIn size={16} />}
                   </span>
                 </button>
               </div>
@@ -858,10 +886,7 @@ export const LandingScreen: React.FC = () => {
                       <button
                         key={f.code}
                         type="button"
-                        onClick={() => {
-                          if (!state.onboarded) completeOnboarding({ goToScan: f.target === 'scan' });
-                          setActiveScreen(f.target);
-                        }}
+                        onClick={() => enterFeature(f.target)}
                         className="card card-interactive"
                         style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}
                       >
@@ -894,10 +919,7 @@ export const LandingScreen: React.FC = () => {
                       <button
                         key={f.code}
                         type="button"
-                        onClick={() => {
-                          if (!state.onboarded) completeOnboarding({ goToScan: false });
-                          setActiveScreen(f.target);
-                        }}
+                        onClick={() => enterFeature(f.target)}
                         className="card card-interactive"
                         style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}
                       >
@@ -943,15 +965,12 @@ export const LandingScreen: React.FC = () => {
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn-primary" onClick={enterDashboard}>
-                Buka Dasbor
+                {authUser ? 'Buka Dasbor' : 'Login / Daftar'}
               </button>
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  if (!state.onboarded) completeOnboarding({ goToScan: false });
-                  setActiveScreen('kalender');
-                }}
+                onClick={() => enterFeature('kalender')}
               >
                 Tautkan Telegram
               </button>

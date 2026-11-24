@@ -124,7 +124,7 @@ function adjustHarvestRangeFromHistory(
 
 export async function runTomatoScanAnalysis(params: {
   plant: Plant;
-  bagian: PlantPart;
+  bagian?: PlantPart | 'auto';
   fotoUrl: string;
   originalKb?: number;
   compressedKb?: number;
@@ -136,10 +136,10 @@ export async function runTomatoScanAnalysis(params: {
   return out.record;
 }
 
-/* Analisis Vision 100% nyata lewat /api/scan (Gemini AI + Dataset Agronomi CermatTani, tanpa data dummy) */
+/* Analisis Vision 100% nyata lewat /api/scan (Gemini AI + Dataset Agronomi v2.1, auto-deteksi konteks) */
 export async function runSmartPlantScan(params: {
   plant: Plant;
-  bagian: PlantPart;
+  bagian?: PlantPart | 'auto';
   fotoUrl: string;
   originalKb?: number;
   compressedKb?: number;
@@ -149,7 +149,7 @@ export async function runSmartPlantScan(params: {
 }): Promise<ScanAnalysisOutput> {
   const {
     plant,
-    bagian,
+    bagian = 'auto',
     fotoUrl,
     originalKb,
     compressedKb,
@@ -184,10 +184,12 @@ export async function runSmartPlantScan(params: {
   }
 
   const s = data.scan;
+  const detectedPart: PlantPart =
+    s.bagian === 'buah' || s.bagian === 'daun' || s.bagian === 'batang' ? s.bagian : 'buah';
   let minDays = s.estimasiHariMin as number | null;
   let maxDays = s.estimasiHariMax as number | null;
   let adjusted = false;
-  if (s.tahapDominan && minDays !== null && maxDays !== null) {
+  if (s.fokusOutput === 'kematangan' && s.tahapDominan && minDays !== null && maxDays !== null) {
     const adj = adjustHarvestRangeFromHistory(minDays, maxDays, s.tahapDominan, previousPlantScans);
     minDays = adj.min;
     maxDays = adj.max;
@@ -207,7 +209,10 @@ export async function runSmartPlantScan(params: {
       id,
       plantId: plant.id,
       waktu,
-      bagian,
+      bagian: detectedPart,
+      fokusOutput: s.fokusOutput,
+      penyakitRinganId: s.penyakitRinganId ?? null,
+      adaGejalaHara: Boolean(s.adaGejalaHara),
       fotoUrl,
       fotoUkuranAsliKb: originalKb,
       fotoUkuranKompresKb: compressedKb,

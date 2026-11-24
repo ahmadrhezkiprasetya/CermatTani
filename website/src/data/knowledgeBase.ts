@@ -5,7 +5,7 @@ import {
   DATASET_RIPENESS,
 } from './agronomyDataset';
 
-/* Re-ekspor dataset agronomi resmi CermatTani (tanpa preset foto dummy SVG) */
+/* Re-ekspor dataset agronomi resmi CermatTani v2.1 (sumber tunggal output scan & chat) */
 export const RIPENESS_REFERENCE: Record<
   RipenessStage,
   {
@@ -14,7 +14,9 @@ export const RIPENESS_REFERENCE: Record<
     minDays: number;
     maxDays: number;
     anjuran: 'Panen sekarang' | 'Tunggu';
+    ciriVisual: string;
     ringkasan: string;
+    penangananPascaPanen: string;
     sumber: string;
   }
 > = DATASET_RIPENESS;

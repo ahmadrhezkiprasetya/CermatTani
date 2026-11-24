@@ -428,34 +428,93 @@ export const WaterTankVisual: React.FC<{ levelPercent: number; isLow: boolean }>
   );
 };
 
-/* Indikator Baterai Surya Presisi (bukan matahari kartun) */
+/* Indikator Baterai Surya Bentuk Baterai Solid (bukan garis-garis tersegmentasi) */
 export const SolarBatteryVisual: React.FC<{ batteryPercent: number; powerSave: boolean }> = ({
   batteryPercent,
   powerSave,
 }) => {
   const clamped = Math.max(0, Math.min(100, batteryPercent));
-  const segments = 10;
-  const activeSegments = Math.max(1, Math.round((clamped / 100) * segments));
-  const activeColor = powerSave ? '#F59E0B' : '#D8F36A';
+  const innerMaxWidth = 148;
+  const fillWidth = Math.max(10, Math.round((clamped / 100) * innerMaxWidth));
+  const fillStart = powerSave ? '#F59E0B' : clamped <= 40 ? '#EAB308' : '#2EB66B';
+  const fillEnd = powerSave ? '#D97706' : clamped <= 40 ? '#CA8A04' : '#17803F';
+  const frameStroke = powerSave ? '#B45309' : '#1E4635';
 
   return (
-    <svg viewBox="0 0 184 72" width="176" height="68" fill="none" aria-hidden="true">
-      <rect x="4" y="8" width="164" height="56" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" strokeWidth="2" />
-      <rect x="171" y="24" width="9" height="24" rx="4" fill="rgba(255,255,255,0.38)" />
-      {Array.from({ length: segments }).map((_, idx) => {
-        const filled = idx < activeSegments;
-        return (
-          <rect
-            key={idx}
-            x={13 + idx * 14.8}
-            y="16"
-            width="11"
-            height="40"
-            rx="3.5"
-            fill={filled ? activeColor : 'rgba(255,255,255,0.1)'}
-          />
-        );
-      })}
+    <svg
+      viewBox="0 0 186 78"
+      width="178"
+      height="74"
+      fill="none"
+      role="img"
+      aria-label={`Level baterai surya ${clamped} persen`}
+    >
+      <defs>
+        <linearGradient id="cermatBattFill" x1="12" y1="14" x2="160" y2="64" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={fillStart} />
+          <stop offset="100%" stopColor={fillEnd} />
+        </linearGradient>
+        <clipPath id="cermatBattClip">
+          <rect x="11" y="14" width={innerMaxWidth} height="50" rx="10" />
+        </clipPath>
+      </defs>
+
+      {/* Kepala kutub positif baterai (+) */}
+      <rect x="169" y="26" width="11" height="26" rx="5" fill={frameStroke} />
+
+      {/* Badan baterai solid */}
+      <rect
+        x="5"
+        y="8"
+        width="160"
+        height="62"
+        rx="15"
+        fill="var(--surface-2)"
+        stroke={frameStroke}
+        strokeWidth="3"
+      />
+
+      {/* Isi baterai utuh (solid fill mulus tanpa garis-garis) */}
+      <g clipPath="url(#cermatBattClip)">
+        <rect
+          x="11"
+          y="14"
+          width={fillWidth}
+          height="50"
+          rx="9"
+          fill="url(#cermatBattFill)"
+          style={{ transition: 'width 280ms cubic-bezier(.2,.8,.2,1)' }}
+        />
+        {/* Kilau halus di sisi atas agar tampak seperti baterai sungguhan */}
+        <rect
+          x="14"
+          y="17"
+          width={Math.max(0, fillWidth - 6)}
+          height="13"
+          rx="6"
+          fill="rgba(255,255,255,0.22)"
+          style={{ transition: 'width 280ms cubic-bezier(.2,.8,.2,1)' }}
+        />
+      </g>
+
+      {/* Ikon petir pengisian & persentase bersih di tengah baterai */}
+      <g>
+        <path
+          d="M54 27L44 41H52L50 52L61 37H53L54 27Z"
+          fill={clamped >= 42 ? '#FFFFFF' : frameStroke}
+        />
+        <text
+          x="100"
+          y="46"
+          textAnchor="middle"
+          fontSize="21"
+          fontWeight="800"
+          fontFamily="var(--font-display), system-ui, sans-serif"
+          fill={clamped >= 52 ? '#FFFFFF' : frameStroke}
+        >
+          {clamped}%
+        </text>
+      </g>
     </svg>
   );
 };

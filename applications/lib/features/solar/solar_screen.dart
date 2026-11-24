@@ -87,11 +87,9 @@ class _SolarScreenState extends ConsumerState<SolarScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    StripedBarWidget(
-                      label: 'Kapasitas baterai surya',
-                      valueLabel: '${state.bateraiPersen}%',
-                      percent: state.bateraiPersen.toDouble(),
-                      color: state.isPowerSave ? AppColors.warn : p.leaf600,
+                    _SolidBatteryCard(
+                      percent: state.bateraiPersen,
+                      powerSave: state.isPowerSave,
                     ),
                     if (state.isPowerSave) ...[
                       const SizedBox(height: 12),
@@ -184,6 +182,123 @@ class _SolarScreenState extends ConsumerState<SolarScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SolidBatteryCard extends StatelessWidget {
+  const _SolidBatteryCard({required this.percent, required this.powerSave});
+
+  final int percent;
+  final bool powerSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.ct;
+    final clamped = percent.clamp(0, 100);
+    final fillColor = powerSave
+        ? AppColors.warn
+        : clamped <= 40
+            ? const Color(0xFFCA8A04)
+            : p.leaf600;
+    final borderColor = powerSave ? const Color(0xFFB45309) : p.forest900;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.line),
+      ),
+      child: Row(
+        children: [
+          // Ikon bentuk baterai solid mulus (tanpa garis-garis)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 118,
+                height: 48,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: p.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor, width: 2.5),
+                ),
+                child: Stack(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedFractionallySizedBox(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        widthFactor: (clamped / 100).clamp(0.08, 1.0),
+                        heightFactor: 1,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(7),
+                            gradient: LinearGradient(
+                              colors: [fillColor.withAlpha(220), fillColor],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.bolt_rounded,
+                            size: 16,
+                            color: clamped >= 48 ? Colors.white : borderColor,
+                          ),
+                          Text(
+                            '$clamped%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: clamped >= 48 ? Colors.white : borderColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 7,
+                height: 20,
+                margin: const EdgeInsets.only(left: 2),
+                decoration: BoxDecoration(
+                  color: borderColor,
+                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kapasitas baterai surya',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.ink),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  powerSave
+                      ? 'Mode hemat aktif — kurangi beban sementara.'
+                      : 'Pasokan daya stabil untuk ESP32 & sensor.',
+                  style: TextStyle(fontSize: 12.2, color: p.inkSoft, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -5,7 +5,6 @@ import { BatteryCharging, Calculator, Moon, RotateCcw, Sun, Zap } from 'lucide-r
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { SolarBatteryVisual } from '../components/Illustrations';
-import { StripedProgressBar } from '../components/Charts';
 
 const STANDARD_PANEL_WP = [10, 20, 30, 50, 80, 100, 150, 200];
 
@@ -130,23 +129,23 @@ export const SolarScreen: React.FC = () => {
               background: 'var(--surface)',
               border: '1px solid var(--line)',
               borderRadius: 16,
-              padding: 16,
+              padding: '18px 20px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-around',
-              gap: 14,
+              justifyContent: 'space-between',
+              gap: 18,
               flexWrap: 'wrap',
             }}
           >
             <SolarBatteryVisual batteryPercent={sensor.bateraiPersen} powerSave={isPowerSave} />
-            <div style={{ flex: '1 1 150px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <StripedProgressBar
-                label="Kapasitas tersimpan"
-                valueLabel={`${sensor.bateraiPersen}%`}
-                percent={sensor.bateraiPersen}
-                color={isPowerSave ? 'var(--warn)' : 'var(--leaf-500)'}
-              />
-              <p className="t-micro t-soft" style={{ lineHeight: 1.5 }}>
+            <div style={{ flex: '1 1 180px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong className="t-small" style={{ color: 'var(--ink)' }}>Kapasitas baterai surya</strong>
+                <span className={`pill ${isPowerSave ? 'pill-warn' : 'pill-ok'}`}>
+                  {isPowerSave ? 'Mode hemat aktif' : `Daya penuh · ±${estBackupHours} jam`}
+                </span>
+              </div>
+              <p className="t-micro t-soft" style={{ lineHeight: 1.55, margin: 0 }}>
                 {isPowerSave
                   ? 'Mode hemat aktif: jeda scan sementara & gunakan pompa hanya saat tanah sangat kering.'
                   : 'Pasokan daya stabil. Pastikan permukaan panel bebas bayangan daun atau debu.'}

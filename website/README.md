@@ -16,10 +16,31 @@ Buka peramban di **http://localhost:3000**.
 
 ## Konfigurasi Supabase dan Telegram
 
-Salin `.env.example` menjadi `.env.local`, lalu isi URL dan kunci publishable Supabase.
-Jangan pernah menaruh `SUPABASE_SERVICE_ROLE_KEY` di variabel publik atau di kode sisi klien.
+1. Salin `.env.example` menjadi `.env.local`, lalu isi URL, anon key, dan service role key Supabase. Jangan pernah memakai awalan `NEXT_PUBLIC_` untuk service role key atau token Telegram.
+2. Jalankan `supabase/migrations/20261125000000_telegram_linking.sql` di Supabase SQL Editor.
+3. Di Telegram, buka **@BotFather**, jalankan `/newbot`, isi nama tampilan dan username yang berakhiran `bot`, lalu simpan token yang diberikan sebagai `TELEGRAM_BOT_TOKEN`. Set username bot di `TELEGRAM_BOT_USERNAME` (tanpa `@`).
+4. Opsional, atur profil bot melalui `/setdescription`, `/setabouttext`, dan `/setuserpic`.
+5. Di BotFather, kirim `/setcommands` dan pilih bot, lalu masukkan:
 
-Untuk Telegram server-side, isi `TELEGRAM_BOT_TOKEN` dan mulai percakapan dengan bot untuk memperoleh Chat ID numerik.
+   ```text
+   start - Mulai dan hubungkan akun CermatTani
+   help - Bantuan penggunaan bot
+   status - Cek status koneksi akun
+   unlink - Putuskan koneksi akun
+   ```
+
+6. Isi `TELEGRAM_WEBHOOK_SECRET` dengan rahasia acak. Buat nilai aman, misalnya dengan `node -p "require('node:crypto').randomBytes(32).toString('base64url')"`.
+7. Deploy aplikasi ke URL HTTPS publik. Telegram tidak dapat mengirim webhook ke `localhost`. Jalankan skrip berikut di PowerShell dari root project. Skrip membaca token dan secret dari environment atau `.env.local` tanpa menampilkannya:
+
+   ```powershell
+   .\scripts\setup-telegram-webhook.ps1 -PublicUrl "https://DOMAIN_KAMU"
+   ```
+
+   Jika konfigurasi disimpan di file lain, tambahkan `-EnvFile ".env"`. Verifikasi status dari kartu Telegram di **Kalender → Telegram**; jika webhook belum terdaftar atau Telegram gagal menghubunginya, halaman akan menampilkan status/error webhook.
+
+8. Login ke CermatTani, buka **Kalender → Telegram**, buat kode tautan, lalu tekan **Start** dari tautan bot. Kode berlaku 10 menit, hanya bisa digunakan sekali, dan status koneksi diperbarui otomatis.
+
+Koneksi Telegram disimpan di tabel Supabase yang hanya dapat diakses server. API pengiriman memverifikasi sesi pengguna dan mengambil Chat ID dari akun tersebut; klien tidak dapat memilih Chat ID tujuan. Pengingat jadwal yang sudah ada dikirim ketika aplikasi berjalan. Pengiriman terjadwal saat browser tertutup memerlukan job terjadwal/cron di deployment.
 
 Untuk build produksi:
 ```bash

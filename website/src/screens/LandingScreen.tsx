@@ -23,6 +23,7 @@ import { PakCermatMascot, PakCermatPose } from '../components/PakCermatMascot';
 import { StackedBarChart, StripedProgressBar } from '../components/Charts';
 import { GardenLandscapeIllustration } from '../components/Illustrations';
 import { Reveal } from '../components/Reveal';
+import { SiteFooter } from '../components/SiteFooter';
 import { ScreenId } from '../types/cermattani';
 
 const NAV_SECTIONS = [
@@ -941,53 +942,7 @@ export const LandingScreen: React.FC = () => {
         </section>
       </main>
 
-      {/* SEKSI 8: KAKI HALAMAN (Footer Hijau Susu Lembut Terpadu) */}
-      <footer
-        style={{
-          background: 'var(--surface-milk)',
-          color: 'var(--ink)',
-          borderTop: '1px solid var(--line)',
-          padding: '44px 0 36px',
-          marginTop: 28,
-        }}
-      >
-        <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
-            <div style={{ maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="font-display" style={{ fontSize: '1.5rem', color: 'var(--leaf-600)' }}>
-                CermatTani
-              </div>
-              <p className="t-small t-soft">
-                Cermat memeriksa, tepat memutuskan. Sistem pemantauan kematangan, penyakit daun,
-                kebutuhan pupuk, serta irigasi surya yang ramah bagi petani Indonesia.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn-primary" onClick={enterDashboard}>
-                {authUser ? 'Buka Dasbor' : 'Login / Daftar'}
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => enterFeature('kalender')}
-              >
-                Tautkan Telegram
-              </button>
-            </div>
-          </div>
-
-          <hr style={{ border: 'none', height: 1, background: 'var(--line)' }} />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <span className="t-micro t-soft">
-              Catatan kejujuran: Hasil AI dan rekomendasi pupuk bersifat alat bantu, bukan pengganti
-              uji tanah maupun arahan penyuluh pertanian. Data sensor virtual selalu diberi lencana Simulasi.
-            </span>
-            <span className="t-micro t-soft">© 2026 Tim CermatTani · InSaintek</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter authenticated={Boolean(authUser)} onStart={enterDashboard} />
     </div>
   );
 };

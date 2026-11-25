@@ -16,6 +16,13 @@ export interface TelegramBotInfo {
   error?: string;
 }
 
+export interface TelegramWebhookStatus {
+  configured: boolean;
+  endpointValid: boolean;
+  pendingUpdates: number;
+  lastError?: string;
+}
+
 interface TelegramApiResponse<T = unknown> {
   ok: boolean;
   result?: T;
@@ -95,12 +102,13 @@ async function callTelegramApi<T>(
 export async function getTelegramBotInfo(): Promise<TelegramBotInfo> {
   const token = getTelegramBotToken();
   if (!token) {
+    const username = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim();
     return {
       configured: false,
       ok: false,
-      username: 'CermatTaniBot',
+      username,
       firstName: 'CermatTani Bot',
-      botUrl: 'https://t.me/CermatTaniBot',
+      botUrl: username ? `https://t.me/${username}` : '',
       error: 'TELEGRAM_BOT_TOKEN belum diatur.',
     };
   }
@@ -137,6 +145,47 @@ export async function getTelegramBotInfo(): Promise<TelegramBotInfo> {
   };
 }
 
+export async function getTelegramWebhookStatus(): Promise<TelegramWebhookStatus> {
+  if (!getTelegramBotToken()) {
+    return { configured: false, endpointValid: false, pendingUpdates: 0 };
+  }
+
+  const res = await callTelegramApi<{
+    url?: string;
+    pending_update_count?: number;
+    last_error_message?: string;
+  }>('getWebhookInfo');
+
+  if (!res.ok || !res.result) {
+    return {
+      configured: false,
+      endpointValid: false,
+      pendingUpdates: 0,
+      lastError: translateTelegramError(res.description),
+    };
+  }
+
+  const url = res.result.url || '';
+  let endpointValid = false;
+  try {
+    const parsedUrl = new URL(url);
+    endpointValid =
+      parsedUrl.protocol === 'https:' &&
+      parsedUrl.pathname.replace(/\/+$/, '') === '/api/telegram/webhook' &&
+      !parsedUrl.search &&
+      !parsedUrl.hash;
+  } catch {
+    endpointValid = false;
+  }
+
+  return {
+    configured: Boolean(url),
+    endpointValid,
+    pendingUpdates: Number(res.result.pending_update_count || 0),
+    lastError: res.result.last_error_message,
+  };
+}
+
 export async function sendTelegramMessage(params: {
   chatId: string;
   text: string;
@@ -153,84 +202,4 @@ export async function sendTelegramMessage(params: {
     return { ok: false, error: translateTelegramError(res.description) };
   }
   return { ok: true };
-}
-
-interface TelegramUpdate {
-  update_id: number;
-  message?: {
-    date?: number;
-    text?: string;
-    chat?: {
-      id: number;
-      type?: string;
-      username?: string;
-      first_name?: string;
-      last_name?: string;
-    };
-  };
-}
-
-/**
- * Deteksi otomatis Chat ID pengguna setelah menekan Start (`/start KODE` atau `/link KODE` atau `/start`)
- * pada Bot Telegram melalui `getUpdates`.
- */
-export async function detectTelegramChatByCode(code: string): Promise<{
-  ok: boolean;
-  chatId?: string;
-  displayName?: string;
-  error?: string;
-}> {
-  const res = await callTelegramApi<TelegramUpdate[]>('getUpdates', {
-    limit: 50,
-    allowed_updates: ['message'],
-  });
-
-  if (!res.ok || !Array.isArray(res.result)) {
-    return { ok: false, error: translateTelegramError(res.description) };
-  }
-
-  const updates = [...res.result].reverse(); // terbaru lebih dulu
-  const cleanCode = code.trim();
-
-  // Prioritas 1: pesan mengandung kode tautan 6 digit (/start 123456, /link 123456, atau 123456)
-  let matched = updates.find((u) => {
-    const txt = (u.message?.text || '').trim();
-    return Boolean(u.message?.chat?.id && cleanCode && txt.includes(cleanCode));
-  });
-
-  // Prioritas 2: pesan /start terbaru dalam 15 menit terakhir dari chat pribadi
-  if (!matched) {
-    const cutoffSec = Math.floor(Date.now() / 1000) - 15 * 60;
-    matched = updates.find((u) => {
-      const m = u.message;
-      if (!m?.chat?.id || m.chat.type !== 'private') return false;
-      const txt = (m.text || '').trim().toLowerCase();
-      return (txt.startsWith('/start') || txt.startsWith('/link')) && (m.date || 0) >= cutoffSec;
-    });
-  }
-
-  // Prioritas 3: pesan chat pribadi paling baru apa pun yang masuk ke bot (jika baru saja mulai chat)
-  if (!matched) {
-    matched = updates.find((u) => Boolean(u.message?.chat?.id && u.message?.chat?.type === 'private'));
-  }
-
-  if (!matched?.message?.chat?.id) {
-    return {
-      ok: false,
-      error:
-        'Belum ada pesan masuk di bot. Klik "Buka Bot di Telegram" lalu tekan Start (atau kirim /link ' +
-        cleanCode +
-        '), kemudian klik tombol cek lagi.',
-    };
-  }
-
-  const chat = matched.message.chat;
-  const fullName = [chat.first_name, chat.last_name].filter(Boolean).join(' ').trim();
-  const displayName = chat.username ? `@${chat.username}` : fullName || `Chat ${chat.id}`;
-
-  return {
-    ok: true,
-    chatId: String(chat.id),
-    displayName,
-  };
 }

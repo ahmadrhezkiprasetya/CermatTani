@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
+import '@/styles/auth.css';
 import { ClientRoot } from '@/components/ClientRoot';
 
 export const metadata: Metadata = {

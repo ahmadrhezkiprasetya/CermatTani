@@ -1,11 +1,54 @@
+import { randomInt } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import {
-  detectTelegramChatByCode,
-  escapeTelegramHtml,
-  getTelegramBotInfo,
-  getTelegramBotToken,
-  sendTelegramMessage,
-} from '@/lib/telegram';
+import { authenticateSupabaseRequest } from '@/lib/supabase/api-auth';
+import { getTelegramBotInfo } from '@/lib/telegram';
+
+const CODE_TTL_MS = 10 * 60 * 1000;
+
+export async function GET(request: Request) {
+  const auth = await authenticateSupabaseRequest(request);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const [connection, linkCode, botInfo] = await Promise.all([
+    auth.admin
+      .from('telegram_connections')
+      .select('telegram_chat_id, telegram_username, connected_at')
+      .eq('user_id', auth.user.id)
+      .maybeSingle(),
+    auth.admin
+      .from('telegram_link_codes')
+      .select('code, expires_at')
+      .eq('user_id', auth.user.id)
+      .maybeSingle(),
+    getTelegramBotInfo(),
+  ]);
+
+  if (connection.error || linkCode.error) {
+    console.error('Gagal membaca status Telegram:', connection.error || linkCode.error);
+    return NextResponse.json(
+      { error: 'Tabel Telegram belum siap. Jalankan migrasi Supabase Telegram terlebih dahulu.' },
+      { status: 503 }
+    );
+  }
+
+  const codeIsValid = linkCode.data
+    ? new Date(linkCode.data.expires_at).getTime() > Date.now()
+    : false;
+
+  return NextResponse.json({
+    configured: botInfo.configured && botInfo.ok,
+    botUsername: botInfo.username,
+    botUrl: botInfo.botUrl,
+    connected: Boolean(connection.data),
+    chatId: connection.data ? String(connection.data.telegram_chat_id) : null,
+    username: connection.data?.telegram_username || null,
+    connectedAt: connection.data?.connected_at || null,
+    code: codeIsValid ? linkCode.data?.code : null,
+    expiresAt: codeIsValid ? linkCode.data?.expires_at : null,
+  });
+}
 
 /**
  * POST /api/telegram/link
@@ -14,79 +57,86 @@ import {
  * - mode: 'manual' (dengan chatId): memverifikasi Chat ID numerik & mengirim pesan konfirmasi nyata
  */
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const code = String(body.code || '').trim();
-    const userName = String(body.userName || 'Petani').trim();
-    const rawChatId = String(body.chatId || '').trim();
-    const mode = body.mode === 'auto' || !rawChatId ? 'auto' : 'manual';
-
-    if (!/^\d{6}$/.test(code)) {
-      return NextResponse.json({ error: 'Kode tautan harus 6 digit angka.' }, { status: 400 });
-    }
-
-    const botToken = getTelegramBotToken();
-    if (!botToken) {
-      return NextResponse.json(
-        { error: 'TELEGRAM_BOT_TOKEN belum terkonfigurasi di server.' },
-        { status: 500 }
-      );
-    }
-
-    let resolvedChatId = rawChatId;
-    let displayName = rawChatId;
-
-    if (mode === 'auto') {
-      const detected = await detectTelegramChatByCode(code);
-      if (!detected.ok || !detected.chatId) {
-        return NextResponse.json(
-          { error: detected.error || 'Chat ID belum terdeteksi dari Telegram.' },
-          { status: 404 }
-        );
-      }
-      resolvedChatId = detected.chatId;
-      displayName = detected.displayName || detected.chatId;
-    } else if (!/^-?\d+$/.test(resolvedChatId)) {
-      return NextResponse.json(
-        {
-          error:
-            'Chat ID manual harus berupa angka numerik (contoh: 123456789). Untuk lebih mudah, klik "Buka Bot" lalu pakai tombol "Deteksi Otomatis".',
-        },
-        { status: 400 }
-      );
-    }
-
-    const botInfo = await getTelegramBotInfo();
-    const confirmText =
-      `🌱 <b>CermatTani Berhasil Tersambung!</b>\n\n` +
-      `Halo <b>${escapeTelegramHtml(userName)}</b>, akun kebunmu kini terhubung ke bot ini (kode <code>${code}</code>).\n\n` +
-      `Mulai sekarang kamu akan menerima:\n` +
-      `• Jadwal pengingat panen & perawatan harian\n` +
-      `• Peringatan sensor kritis (tandon, tanah kering, risiko jamur, baterai)\n` +
-      `• Notifikasi penyakit & ringkasan hasil Scan AI`;
-
-    const sendRes = await sendTelegramMessage({
-      chatId: resolvedChatId,
-      text: confirmText,
-      parseMode: 'HTML',
-    });
-
-    if (!sendRes.ok) {
-      return NextResponse.json(
-        { error: sendRes.error || 'Gagal mengirim pesan konfirmasi ke Telegram.' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      linked: true,
-      code,
-      chatId: resolvedChatId,
-      displayName,
-      botUsername: botInfo.username || undefined,
-      status: 'Bot Telegram aktif dan pesan konfirmasi sudah dikirim.',
-    });
-  } catch {
-    return NextResponse.json({ error: 'Permintaan tautan Telegram tidak valid.' }, { status: 400 });
+  const auth = await authenticateSupabaseRequest(request);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const botInfo = await getTelegramBotInfo();
+  if (!botInfo.configured || !botInfo.ok || !botInfo.username) {
+    return NextResponse.json(
+      { error: botInfo.error || 'Bot Telegram belum dikonfigurasi di server.' },
+      { status: 503 }
+    );
+  }
+
+  const { data: existingConnection, error: connectionError } = await auth.admin
+    .from('telegram_connections')
+    .select('user_id')
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error('Gagal memeriksa koneksi Telegram:', connectionError);
+    return NextResponse.json(
+      { error: 'Tabel Telegram belum siap. Jalankan migrasi Supabase Telegram terlebih dahulu.' },
+      { status: 503 }
+    );
+  }
+  if (existingConnection) {
+    return NextResponse.json({ error: 'Akun Telegram sudah terhubung.' }, { status: 409 });
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = String(randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
+    const { error } = await auth.admin.rpc('create_telegram_link_code', {
+      p_user_id: auth.user.id,
+      p_code: code,
+      p_expires_at: expiresAt,
+    });
+
+    if (!error) {
+      return NextResponse.json({
+        code,
+        expiresAt,
+        botUsername: botInfo.username,
+        botUrl: botInfo.botUrl,
+      });
+    }
+
+    if (error.code !== '23505') {
+      console.error('Gagal membuat kode tautan Telegram:', error);
+      return NextResponse.json(
+        { error: 'Gagal membuat kode Telegram. Pastikan migrasi Supabase Telegram sudah dijalankan.' },
+        { status: 503 }
+      );
+    }
+  }
+
+  return NextResponse.json(
+    { error: 'Tidak berhasil membuat kode unik. Coba lagi sebentar.' },
+    { status: 503 }
+  );
+}
+
+export async function DELETE(request: Request) {
+  const auth = await authenticateSupabaseRequest(request);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const { data, error } = await auth.admin.rpc('unlink_telegram_account', {
+    p_user_id: auth.user.id,
+  });
+
+  if (error) {
+    console.error('Gagal memutus koneksi Telegram:', error);
+    return NextResponse.json(
+      { error: 'Gagal memutus koneksi Telegram. Pastikan migrasi Supabase Telegram sudah dijalankan.' },
+      { status: 503 }
+    );
+  }
+
+  return NextResponse.json({ unlinked: data !== null });
 }

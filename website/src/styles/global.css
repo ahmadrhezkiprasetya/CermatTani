@@ -894,7 +894,6 @@ textarea {
     transform: translateX(0) scale(1);
   }
 }
-
 @keyframes popoverFadeIn {
   from {
     opacity: 0;

@@ -106,13 +106,70 @@ export const cermatSupabaseRepo = {
     const sb = getSupabaseBrowserClient();
     if (!sb) throw new Error('Supabase belum dikonfigurasi pada file .env website.');
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      if ((error.message || '').toLowerCase().includes('email not confirmed')) {
+        try {
+          const confirmRes = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, confirmOnly: true }),
+          });
+          const confirmJson = (await confirmRes.json().catch(() => null)) as {
+            ok?: boolean;
+          } | null;
+          if (confirmJson?.ok) {
+            const retry = await sb.auth.signInWithPassword({ email, password });
+            if (!retry.error) return retry.data;
+          }
+        } catch {
+          // Lanjut lempar error asli bila fallback gagal
+        }
+      }
+      throw error;
+    }
     return data;
   },
 
   async signUp(email: string, password: string, nama: string) {
     const sb = getSupabaseBrowserClient();
     if (!sb) throw new Error('Supabase belum dikonfigurasi pada file .env website.');
+
+    // Gunakan endpoint server-side (Service Role) terlebih dahulu agar bebas dari
+    // limit pengiriman email Supabase (HTTP 429) dan akun langsung aktif tanpa verifikasi email.
+    try {
+      const serverRes = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, nama }),
+      });
+      const serverJson = (await serverRes.json().catch(() => null)) as {
+        ok?: boolean;
+        fallbackToClient?: boolean;
+        error?: string;
+      } | null;
+
+      if (!serverRes.ok && serverJson?.error) {
+        throw new Error(serverJson.error);
+      }
+
+      if (serverJson?.ok) {
+        const { data: signInData, error: signInErr } = await sb.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInErr) {
+          throw new Error(
+            'Email ini sudah terdaftar dengan kata sandi berbeda. Silakan masuk melalui tab Login.'
+          );
+        }
+        return signInData;
+      }
+    } catch (err) {
+      if (err instanceof Error && !err.message.toLowerCase().includes('fetch')) {
+        throw err;
+      }
+    }
+
     const { data, error } = await sb.auth.signUp({
       email,
       password,
@@ -209,7 +266,6 @@ export const cermatSupabaseRepo = {
           id: user.id,
           nama: fallbackName,
           peran: 'Petani',
-          telegram_link_code: String(Math.floor(100000 + Math.random() * 900000)),
         });
         captureErr(upsertErr);
       } else if (input?.nama?.trim()) {
@@ -661,7 +717,7 @@ export const cermatSupabaseRepo = {
       email: user.email || undefined,
       peran: pRow?.peran || 'Petani',
       telegramChatId: pRow?.telegram_chat_id ?? null,
-      telegramLinkCode: pRow?.telegram_link_code || String(Math.floor(100000 + Math.random() * 900000)),
+      telegramLinkCode: pRow?.telegram_link_code || '',
       telegramReminderTime: pRow?.telegram_reminder_time || '07:00',
       bahasa: 'id',
     };

@@ -4,21 +4,19 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  Check,
   CheckCircle2,
-  Database,
   Eye,
   EyeOff,
   Lock,
-  LogIn,
   Mail,
   MapPin,
   ShieldCheck,
   Sprout,
   User,
-  UserPlus,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
-import { PakCermatMascot } from '../components/PakCermatMascot';
+import { PakCermatMascot, type PakCermatPose } from '../components/PakCermatMascot';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 
 function translateAuthError(raw: string): string {
@@ -30,7 +28,7 @@ function translateAuthError(raw: string): string {
     return 'Email akun ini belum dikonfirmasi. Buka kotak masuk/spam emailmu lalu klik tautan verifikasi.';
   }
   if (lower.includes('user already registered') || lower.includes('already been registered')) {
-    return 'Email ini sudah terdaftar. Silakan pindah ke tab Masuk (Login).';
+    return 'Email ini sudah terdaftar. Silakan masuk dengan akun yang sudah ada.';
   }
   if (lower.includes('password should be at least')) {
     return 'Kata sandi minimal 6 karakter agar akunmu aman.';
@@ -41,7 +39,8 @@ function translateAuthError(raw: string): string {
   return raw || 'Terjadi kendala saat menghubungkan akun. Coba lagi beberapa saat.';
 }
 
-/* Halaman Resmi Login & Register CermatTani — Terhubung langsung ke seluruh tabel Supabase */
+const BOKEH_BUBBLES = Array.from({ length: 14 }, (_, index) => index);
+
 export const LoginScreen: React.FC = () => {
   const {
     setActiveScreen,
@@ -56,35 +55,71 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [namaKebun, setNamaKebun] = useState('Kebun Utama');
+  const [namaKebun, setNamaKebun] = useState('');
   const [lokasiKebun, setLokasiKebun] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [focusedField, setFocusedField] = useState<'nama' | 'email' | 'password' | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
 
-  // Jika sudah login, arahkan langsung ke dasbor
+  const passwordStrength = [
+    password.length >= 8,
+    /[a-z]/i.test(password) && /\d/.test(password),
+    /[A-Z]/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+  const mascotPose: PakCermatPose = busy
+    ? 'bibit'
+    : errorMsg
+      ? 'analisis'
+      : focusedField === 'password'
+        ? 'inspeksi'
+        : focusedField
+          ? 'analisis'
+          : mode === 'register'
+            ? 'catat'
+            : 'jempol';
+  const mascotMessage = busy
+    ? 'Sebentar ya, Juragan. Sedang menyiapkan kebunmu.'
+    : errorMsg
+      ? 'Waduh, coba kita periksa sekali lagi ya.'
+      : mode === 'register'
+        ? 'Daftar dulu, nanti saya bantu pantau tanamanmu.'
+        : focusedField === 'password'
+          ? 'Tenang, saya nggak ngintip kok.'
+          : 'Sugeng rawuh, Juragan!';
+
   React.useEffect(() => {
     if (authUser) {
       setActiveScreen(postLoginScreen || 'beranda');
     }
   }, [authUser, postLoginScreen, setActiveScreen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const switchMode = (nextMode: 'login' | 'register') => {
+    setMode(nextMode);
+    setErrorMsg('');
+    setInfoMsg('');
+    setTermsAccepted(false);
+    setFocusedField(null);
+    setShowPassword(false);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setErrorMsg('');
     setInfoMsg('');
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      setErrorMsg('Masukkan alamat email yang valid (contoh: petani@gmail.com).');
+      setErrorMsg('Masukkan alamat email yang valid, misalnya petani@gmail.com.');
       return;
     }
     if (password.length < 6) {
       setErrorMsg('Kata sandi minimal 6 karakter.');
       return;
     }
-
     if (mode === 'register') {
       if (nama.trim().length < 2) {
         setErrorMsg('Masukkan nama lengkap atau nama panggilanmu (minimal 2 huruf).');
@@ -94,6 +129,10 @@ export const LoginScreen: React.FC = () => {
         setErrorMsg('Konfirmasi kata sandi tidak sama. Periksa kembali ya.');
         return;
       }
+      if (!termsAccepted) {
+        setErrorMsg('Setujui syarat dan kebijakan privasi sebelum membuat akun.');
+        return;
+      }
     }
 
     setBusy(true);
@@ -101,523 +140,354 @@ export const LoginScreen: React.FC = () => {
       if (mode === 'login') {
         await signInAccount(cleanEmail, password);
       } else {
-        const res = await registerAccount({
+        const result = await registerAccount({
           nama: nama.trim(),
           email: cleanEmail,
           password,
           namaKebun: namaKebun.trim() || 'Kebun Utama',
           lokasiKebun: lokasiKebun.trim() || 'Lahan Budidaya',
         });
-        if (res.needsEmailConfirmation) {
-          setInfoMsg(
-            'Akun berhasil dibuat! Klik tautan konfirmasi di kotak masuk/spam emailmu lalu login — atau matikan "Confirm email" di Supabase → Authentication → Providers → Email agar bisa langsung masuk tanpa verifikasi email.'
-          );
-          setMode('login');
+        if (result.needsEmailConfirmation) {
+          switchMode('login');
           setPassword('');
           setConfirmPassword('');
+          setInfoMsg(
+            'Akun berhasil dibuat. Buka kotak masuk atau spam emailmu, lalu klik tautan konfirmasi sebelum masuk.'
+          );
         }
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(translateAuthError(msg));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setErrorMsg(translateAuthError(message));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        background:
-          'radial-gradient(circle at 12% 10%, rgba(190, 232, 185, 0.34), transparent 44%), radial-gradient(circle at 88% 88%, rgba(250, 240, 212, 0.55), transparent 48%), var(--bg)',
-        padding: '20px 16px 40px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Bar atas: kembali ke Halaman Utama */}
-      <div
-        style={{
-          maxWidth: 1020,
-          width: '100%',
-          margin: '0 auto 18px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-        }}
-      >
-        <button
-          type="button"
-          className="btn-ghost"
-          onClick={() => setActiveScreen('landing')}
-          style={{ padding: '6px 12px' }}
-        >
-          <ArrowLeft size={17} /> Kembali ke Beranda Publik
-        </button>
-        <span className={`pill ${isSupabaseConfigured ? 'pill-ok' : 'pill-warn'}`}>
-          <Database size={12} /> {isSupabaseConfigured ? 'Database Akun Terhubung' : 'Supabase .env belum diisi'}
-        </span>
+    <main className="ct-auth-page">
+      <div className="ct-auth-bokeh" aria-hidden="true">
+        {BOKEH_BUBBLES.map((bubble) => <span key={bubble} />)}
       </div>
 
-      {/* Kontainer Kartu 2 Kolom Responsif */}
-      <div
-        className="login-split-grid"
-        style={{
-          maxWidth: 1020,
-          width: '100%',
-          margin: 'auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
-          gap: 22,
-          alignItems: 'stretch',
-        }}
+      <section
+        className={`ct-auth-card ct-auth-card--${mode}`}
+        aria-label={mode === 'login' ? 'Masuk ke CermatTani' : 'Daftar akun CermatTani'}
       >
-        {/* Header Ringkas Mobile — Identik dengan Login Screen Flutter App */}
-        <div className="login-mobile-brand">
-          <PakCermatMascot pose={mode === 'login' ? 'jempol' : 'bibit'} height={78} />
-          <div className="font-display" style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--ink)' }}>
-            CermatTani
-          </div>
-          <div className="t-small t-soft">Cermat memeriksa, tepat memutuskan</div>
-        </div>
-
-        {/* Panel Kiri: Identitas CermatTani & Relasi Tabel Database */}
-        <section
-          className="card-forest login-info-panel"
-          style={{
-            padding: '28px 26px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: 20,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <PakCermatMascot pose={mode === 'login' ? 'jempol' : 'bibit'} height={72} />
-              <div>
-                <div className="font-display" style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--ink)' }}>
-                  CermatTani
-                </div>
-                <div className="t-small t-soft">Cermat memeriksa, tepat memutuskan</div>
-              </div>
-            </div>
-
-            <h1 className="t-h2" style={{ fontSize: '1.55rem', lineHeight: 1.25 }}>
-              {mode === 'login'
-                ? 'Masuk ke akun kebunmu untuk lanjut memantau tanaman.'
-                : 'Daftar akun petani gratis — seluruh riwayat kebun tersimpan rapi.'}
-            </h1>
-
-            <p className="t-small t-soft" style={{ lineHeight: 1.6 }}>
-              Satu akun CermatTani otomatis terhubung ke seluruh tabel database kebunmu secara aman (RLS per akun):
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {[
-                { label: 'Profil & Pengaturan Akun', sub: 'Tabel profiles · nama, tema, ambang batas & Telegram' },
-                { label: 'Multi-Kebun & Tanaman', sub: 'Tabel farms & plants · daftar lahan dan petak budidaya' },
-                { label: 'Riwayat Foto & Hasil Scan AI', sub: 'Tabel scans & Storage · kematangan, penyakit & hara' },
-                { label: 'Kalender Panen & Chat Cermo', sub: 'Tabel harvest_events & chat_messages · tersimpan per akun' },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    padding: '9px 12px',
-                    borderRadius: 12,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--line)',
-                  }}
-                >
-                  <CheckCircle2 size={17} color="var(--leaf-600)" style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--ink)' }}>{item.label}</div>
-                    <div className="t-micro t-soft">{item.sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 12px',
-              borderRadius: 12,
-              background: 'rgba(23, 128, 63, 0.08)',
-              fontSize: '0.78rem',
-              color: 'var(--leaf-700)',
-              fontWeight: 600,
+        <section className="ct-auth-art" aria-label="Pak Cermat menyambut petani">
+          <a
+            href="/"
+            className="ct-auth-brand"
+            onClick={(event) => {
+              event.preventDefault();
+              setActiveScreen('landing');
             }}
           >
-            <ShieldCheck size={16} style={{ flexShrink: 0 }} />
-            Data tiap petani terisolasi otomatis dengan Row Level Security (RLS) Supabase.
+            <span className="ct-auth-brand-mark"><Sprout size={19} /></span>
+            <span>
+              <strong>CermatTani</strong>
+              <small>Cermat memeriksa, tepat memutuskan</small>
+            </span>
+          </a>
+
+          <div className="ct-auth-art-heading">
+            <span>SAHABAT DI SETIAP MUSIM</span>
+            <p>{mode === 'login' ? 'Rawat dengan cermat.' : 'Mulai tumbuh bersama.'}</p>
           </div>
+
+          <div className="ct-auth-scene" aria-hidden="true">
+            <div className="ct-auth-blob ct-auth-blob--large" />
+            <div className="ct-auth-blob ct-auth-blob--small" />
+            <svg className="ct-auth-farm" viewBox="0 0 540 360" fill="none">
+              <circle cx="402" cy="72" r="31" fill="#F8C55D" />
+              <circle cx="402" cy="72" r="46" fill="#F8C55D" fillOpacity=".16" />
+              <path d="M0 206C77 158 136 175 202 198c82 28 136-9 204-29 59-18 96-5 134 16v175H0V206Z" fill="#B9DDA9" />
+              <path d="M0 238c80-38 145-27 218 2 75 29 147 1 209-19 47-15 80-11 113 3v136H0V238Z" fill="#72B987" />
+              <path d="M0 267c82-29 154-17 230 13 74 29 141 10 205-8 43-12 75-8 105 3v82H0v-90Z" fill="#4C9D70" />
+              <path d="M9 255c71-23 134-12 199 12m-165 4c70-21 124-9 182 12m-107-49c70-20 129-8 188 13m-89 41c67-18 122-8 177 9" stroke="#D8F3C8" strokeOpacity=".8" strokeWidth="5" strokeLinecap="round" />
+              <path d="M375 351c-10-47 10-82 40-111 24-23 52-41 73-64-7 41-20 66-44 94-22 26-41 49-41 81h-28Z" fill="#6BC4CC" />
+              <path d="M377 351c-6-40 12-73 37-99m-25 88c7-41 31-73 62-102" stroke="#E4FAF7" strokeWidth="4" strokeLinecap="round" />
+              <path d="M91 233v-38l26-22 26 22v38H91Z" fill="#9E704A" />
+              <path d="M83 198 117 168l34 30H83Z" fill="#6B4A2E" />
+              <path d="M103 233v-23h15v23" fill="#F2D9A6" />
+              <g className="ct-auth-rice">
+                <path d="M68 285c0-23-8-39-21-51m22 51c3-29 13-45 30-58m-28 58c-9-24-20-35-36-42" stroke="#276B49" strokeWidth="4" strokeLinecap="round" />
+                <path d="M46 233c-8-1-12-7-10-13 8 0 13 4 14 11m26 5c1-8 7-12 14-10-1 8-5 12-13 12m-31 13c-8-2-12-8-10-15 8 1 13 6 14 13" fill="#D9B84F" />
+              </g>
+              <g className="ct-auth-rice ct-auth-rice--second">
+                <path d="M187 278c-1-24-8-39-21-51m23 51c3-27 13-43 29-56m-29 56c-9-23-20-35-36-42" stroke="#276B49" strokeWidth="4" strokeLinecap="round" />
+                <path d="M166 227c-8-1-12-7-10-13 8 0 13 4 14 11m25 5c1-8 7-12 14-10-1 8-5 12-13 12m-31 13c-8-2-12-8-10-15 8 1 13 6 14 13" fill="#D9B84F" />
+              </g>
+            </svg>
+            <span className="ct-auth-dew ct-auth-dew--one" />
+            <span className="ct-auth-dew ct-auth-dew--two" />
+            <span className="ct-auth-dew ct-auth-dew--three" />
+            <div key={mascotPose} className="ct-auth-mascot">
+              <div className="ct-auth-speech">{mascotMessage}</div>
+              <PakCermatMascot pose={mascotPose} height={250} />
+            </div>
+          </div>
+
+          <p className="ct-auth-art-caption">Langkah cermat hari ini, panen lebih baik esok hari.</p>
+          <svg className="ct-auth-wave" viewBox="0 0 390 48" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 27c54-21 90 14 147 6 55-8 88-26 141-14 40 9 67 15 102 2v27H0V27Z" fill="#0E4F43" />
+          </svg>
         </section>
 
-        {/* Panel Kanan: Form Login & Register */}
-        <section
-          className="card"
-          style={{
-            padding: '28px 26px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 18,
-          }}
-        >
-          {/* Tab Switcher Login / Daftar */}
-          <div
-            role="tablist"
-            aria-label="Pilih masuk atau daftar akun"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 6,
-              padding: 5,
-              borderRadius: 14,
-              background: 'var(--surface-2)',
-              border: '1px solid var(--line)',
-            }}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'login'}
-              onClick={() => {
-                setMode('login');
-                setErrorMsg('');
-                setInfoMsg('');
-              }}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                padding: '10px 12px',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 7,
-                background: mode === 'login' ? 'var(--surface)' : 'transparent',
-                color: mode === 'login' ? 'var(--leaf-700)' : 'var(--ink-soft)',
-                boxShadow: mode === 'login' ? 'var(--shadow-card)' : 'none',
-              }}
-            >
-              <LogIn size={16} /> Login
+        <section className="ct-auth-form-panel">
+          <div className="ct-auth-form-scroll">
+            <button type="button" className="ct-auth-home-link" onClick={() => setActiveScreen('landing')}>
+              <ArrowLeft size={15} /> Beranda
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'register'}
-              onClick={() => {
-                setMode('register');
-                setErrorMsg('');
-                setInfoMsg('');
-              }}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                padding: '10px 12px',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 7,
-                background: mode === 'register' ? 'var(--surface)' : 'transparent',
-                color: mode === 'register' ? 'var(--leaf-700)' : 'var(--ink-soft)',
-                boxShadow: mode === 'register' ? 'var(--shadow-card)' : 'none',
-              }}
-            >
-              <UserPlus size={16} /> Daftar Akun
-            </button>
-          </div>
 
-          <div>
-            <h2 className="t-h2" style={{ fontSize: '1.3rem' }}>
-              {mode === 'login' ? 'Masuk ke CermatTani' : 'Buat Akun Baru'}
-            </h2>
-            <p className="t-small t-soft" style={{ marginTop: 3 }}>
-              {mode === 'login'
-                ? 'Gunakan email dan kata sandi akun CermatTani milikmu.'
-                : 'Isi data di bawah — profil, kebun awal, dan tanaman pertamamu langsung disiapkan di database.'}
-            </p>
-          </div>
+            <header className="ct-auth-form-heading">
+              <span>{mode === 'login' ? 'SENANG MELIHATMU LAGI' : 'RUANG BARU UNTUK KEBUNMU'}</span>
+              <h1>{mode === 'login' ? 'Masuk' : 'Daftar'}</h1>
+              <p>
+                {mode === 'login'
+                  ? 'Masuk untuk melanjutkan cerita kebunmu.'
+                  : 'Buat akun dan mulai mencatat perjalanan kebunmu.'}
+              </p>
+            </header>
 
-          {!isSupabaseConfigured && (
-            <div className="alert-card alert-card--warn" role="alert">
-              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-              <div className="t-micro">
-                Konfigurasi <code>NEXT_PUBLIC_SUPABASE_URL</code> dan{' '}
-                <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> belum aktif di file <code>website/.env</code>.
-              </div>
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="alert-card alert-card--bad" role="alert">
-              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-              <div className="t-small">{errorMsg}</div>
-            </div>
-          )}
-
-          {infoMsg && (
-            <div className="alert-card alert-card--ok" role="status">
-              <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-              <div className="t-small">{infoMsg}</div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {mode === 'register' && (
-              <div className="field-group">
-                <label htmlFor="auth-nama" className="field-label">
-                  Nama Lengkap
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <User
-                    size={16}
-                    color="var(--ink-soft)"
-                    style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}
-                  />
-                  <input
-                    id="auth-nama"
-                    type="text"
-                    required
-                    className="field-input"
-                    style={{ paddingLeft: 38, width: '100%' }}
-                    placeholder="Contoh: Pak Budi Santoso"
-                    value={nama}
-                    onChange={(e) => setNama(e.target.value)}
-                    autoComplete="name"
-                  />
-                </div>
+            {!isSupabaseConfigured && (
+              <div className="ct-auth-alert ct-auth-alert--warning" role="alert">
+                <AlertTriangle size={17} />
+                <span>Layanan akun belum siap. Silakan hubungi pengelola CermatTani.</span>
               </div>
             )}
 
-            <div className="field-group">
-              <label htmlFor="auth-email" className="field-label">
-                Alamat Email
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail
-                  size={16}
-                  color="var(--ink-soft)"
-                  style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="auth-email"
-                  type="email"
-                  required
-                  className="field-input"
-                  style={{ paddingLeft: 38, width: '100%' }}
-                  placeholder="nama@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                />
+            {errorMsg && (
+              <div className="ct-auth-alert ct-auth-alert--error" role="alert" aria-live="polite">
+                <AlertTriangle size={17} />
+                <span>{errorMsg}</span>
               </div>
-            </div>
+            )}
 
-            <div className="field-group">
-              <label htmlFor="auth-password" className="field-label">
-                Kata Sandi
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock
-                  size={16}
-                  color="var(--ink-soft)"
-                  style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="auth-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  className="field-input"
-                  style={{ paddingLeft: 38, paddingRight: 42, width: '100%' }}
-                  placeholder="Minimal 6 karakter"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'var(--ink-soft)',
-                    padding: 4,
-                  }}
-                >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
+            {infoMsg && (
+              <div className="ct-auth-alert ct-auth-alert--success" role="status" aria-live="polite">
+                <CheckCircle2 size={17} />
+                <span>{infoMsg}</span>
               </div>
-            </div>
+            )}
 
-            {mode === 'register' && (
-              <>
+            <form key={mode} id="auth-form" className="ct-auth-form" onSubmit={handleSubmit}>
+              {mode === 'register' && (
                 <div className="field-group">
-                  <label htmlFor="auth-confirm" className="field-label">
-                    Konfirmasi Kata Sandi
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Lock
-                      size={16}
-                      color="var(--ink-soft)"
-                      style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)' }}
-                    />
+                  <label htmlFor="auth-nama" className="field-label">Nama lengkap</label>
+                  <div className="ct-auth-input-wrap">
+                    <User size={17} aria-hidden="true" />
                     <input
-                      id="auth-confirm"
-                      type={showPassword ? 'text' : 'password'}
+                      id="auth-nama"
+                      type="text"
                       required
-                      minLength={6}
+                      minLength={2}
                       className="field-input"
-                      style={{ paddingLeft: 38, width: '100%' }}
-                      placeholder="Ulangi kata sandi"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      autoComplete="new-password"
+                      placeholder="Nama yang ingin kami gunakan"
+                      value={nama}
+                      onFocus={() => setFocusedField('nama')}
+                      onBlur={() => setFocusedField(null)}
+                      onChange={(event) => setNama(event.target.value)}
+                      autoComplete="name"
                     />
                   </div>
                 </div>
+              )}
 
-                <div className="form-grid-2">
+              <div className="field-group">
+                <label htmlFor="auth-email" className="field-label">Email</label>
+                <div className="ct-auth-input-wrap">
+                  <Mail size={17} aria-hidden="true" />
+                  <input
+                    id="auth-email"
+                    type="email"
+                    required
+                    className="field-input"
+                    placeholder="nama@email.com"
+                    value={email}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              {mode === 'register' && (
+                <>
                   <div className="field-group">
-                    <label htmlFor="auth-farm" className="field-label">
-                      Nama Kebun Awal
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Sprout
-                        size={15}
-                        color="var(--ink-soft)"
-                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-                      />
+                    <label htmlFor="auth-farm" className="field-label">Kelompok tani / nama kebun (opsional)</label>
+                    <div className="ct-auth-input-wrap">
+                      <Sprout size={17} aria-hidden="true" />
                       <input
                         id="auth-farm"
                         type="text"
                         className="field-input"
-                        style={{ paddingLeft: 34, width: '100%' }}
-                        placeholder="Kebun Sayur Lembang"
+                        placeholder="Contoh: Kebun Sayur Lembang"
                         value={namaKebun}
-                        onChange={(e) => setNamaKebun(e.target.value)}
+                        onFocus={() => setFocusedField('nama')}
+                        onBlur={() => setFocusedField(null)}
+                        onChange={(event) => setNamaKebun(event.target.value)}
                       />
                     </div>
                   </div>
                   <div className="field-group">
-                    <label htmlFor="auth-loc" className="field-label">
-                      Lokasi Kebun (opsional)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <MapPin
-                        size={15}
-                        color="var(--ink-soft)"
-                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-                      />
+                    <label htmlFor="auth-location" className="field-label">Desa atau lokasi kebun (opsional)</label>
+                    <div className="ct-auth-input-wrap">
+                      <MapPin size={17} aria-hidden="true" />
                       <input
-                        id="auth-loc"
+                        id="auth-location"
                         type="text"
                         className="field-input"
-                        style={{ paddingLeft: 34, width: '100%' }}
-                        placeholder="Bandung Barat"
+                        placeholder="Contoh: Lembang, Bandung Barat"
                         value={lokasiKebun}
-                        onChange={(e) => setLokasiKebun(e.target.value)}
+                        onFocus={() => setFocusedField('nama')}
+                        onBlur={() => setFocusedField(null)}
+                        onChange={(event) => setLokasiKebun(event.target.value)}
+                        autoComplete="address-level2"
                       />
                     </div>
                   </div>
+                </>
+              )}
+
+              <div className="field-group">
+                <label htmlFor="auth-password" className="field-label">Kata sandi</label>
+                <div className="ct-auth-input-wrap">
+                  <Lock size={17} aria-hidden="true" />
+                  <input
+                    id="auth-password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    className="field-input"
+                    placeholder="Minimal 6 karakter"
+                    value={password}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  />
+                  <button
+                    type="button"
+                    className="ct-auth-visibility"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                  >
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
                 </div>
-              </>
-            )}
+                {mode === 'register' && password.length > 0 && (
+                  <div className="ct-auth-strength" aria-live="polite">
+                    <div className="ct-auth-strength-leaves" aria-hidden="true">
+                      {[1, 2, 3, 4].map((leaf) => (
+                        <span key={leaf} className={passwordStrength >= leaf ? 'is-lit' : ''} />
+                      ))}
+                    </div>
+                    <span>{['Panjang kata sandi minimal 8 karakter', 'Mulai kuat', 'Cukup kuat', 'Kuat', 'Sangat kuat'][passwordStrength]}</span>
+                  </div>
+                )}
+              </div>
 
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={busy || !isSupabaseConfigured}
-              style={{ width: '100%', minHeight: 48, marginTop: 4, fontSize: '0.96rem' }}
-            >
-              {busy
-                ? mode === 'login'
-                  ? 'Memeriksa akun & memuat data kebun...'
-                  : 'Mendaftarkan akun & menyiapkan kebun...'
-                : mode === 'login'
-                  ? 'Masuk ke Dasbor Kebun'
-                  : 'Daftar & Mulai Kelola Kebun'}
-            </button>
-          </form>
+              {mode === 'login' ? (
+                <div className="ct-auth-forgot">
+                  <a href="mailto:bantuan@cermattani.id?subject=Bantuan%20Kata%20Sandi">Lupa kata sandi?</a>
+                </div>
+              ) : (
+                <>
+                  <div className="field-group">
+                    <label htmlFor="auth-confirm" className="field-label">Konfirmasi kata sandi</label>
+                    <div className="ct-auth-input-wrap">
+                      <Lock size={17} aria-hidden="true" />
+                      <input
+                        id="auth-confirm"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        className="field-input"
+                        placeholder="Ulangi kata sandi"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        autoComplete="new-password"
+                        aria-invalid={Boolean(confirmPassword && password !== confirmPassword)}
+                        aria-describedby={confirmPassword ? 'auth-confirm-feedback' : undefined}
+                      />
+                    </div>
+                    {confirmPassword && (
+                      <span
+                        id="auth-confirm-feedback"
+                        className={`ct-auth-confirm ${password === confirmPassword ? 'is-match' : 'is-mismatch'}`}
+                        aria-live="polite"
+                      >
+                        {password === confirmPassword ? 'Kata sandi cocok' : 'Kata sandi belum sama'}
+                      </span>
+                    )}
+                  </div>
 
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: 'var(--ink-soft)',
-              paddingTop: 6,
-              borderTop: '1px solid var(--line)',
-            }}
-          >
-            {mode === 'login' ? (
-              <>
-                Belum punya akun petani?{' '}
+                  <label className="ct-auth-terms">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={termsAccepted}
+                      onChange={(event) => setTermsAccepted(event.target.checked)}
+                    />
+                    <span className="ct-auth-checkbox" aria-hidden="true"><Check size={13} /></span>
+                    <span>
+                      Saya menyetujui{' '}
+                      <a href="mailto:bantuan@cermattani.id?subject=Syarat%20dan%20Ketentuan">Syarat &amp; Ketentuan</a>
+                      {' '}serta{' '}
+                      <a href="mailto:bantuan@cermattani.id?subject=Kebijakan%20Privasi">Kebijakan Privasi</a>.
+                    </span>
+                  </label>
+                </>
+              )}
+
+              <button
+                type="submit"
+                className="ct-auth-submit"
+                disabled={busy || !isSupabaseConfigured}
+                aria-busy={busy}
+              >
+                {busy ? (
+                  <>
+                    <Sprout size={18} className="ct-auth-loading-sprout" />
+                    {mode === 'login' ? 'Memeriksa akun...' : 'Menyiapkan kebunmu...'}
+                  </>
+                ) : (
+                  <>
+                    {mode === 'login' ? 'Masuk ke kebun' : 'Daftar sekarang'}
+                    <ArrowLeft size={17} className="ct-auth-submit-arrow" />
+                  </>
+                )}
+              </button>
+
+              <p className="ct-auth-switch">
+                {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}{' '}
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('register');
-                    setErrorMsg('');
-                    setInfoMsg('');
-                  }}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--leaf-700)',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
+                  onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
                 >
-                  Daftar di sini
+                  {mode === 'login' ? 'Daftar sekarang' : 'Masuk'}
                 </button>
-              </>
-            ) : (
-              <>
-                Sudah punya akun?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setErrorMsg('');
-                    setInfoMsg('');
-                  }}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--leaf-700)',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  Masuk sekarang
-                </button>
-              </>
-            )}
+              </p>
+            </form>
+
+            <div className="ct-auth-security">
+              <ShieldCheck size={15} />
+              <span>Data kebunmu tetap privat dan terlindungi.</span>
+            </div>
           </div>
         </section>
-      </div>
-    </div>
+
+        <svg className="ct-auth-divider" viewBox="0 0 100 620" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 0h8c25 46 72 69 61 124-7 38-42 61-28 111 15 52 58 68 43 123-12 44-49 61-34 111 10 34 39 55 31 88-5 22-24 47-36 63H0V0Z" fill="#EEF7F1" />
+        </svg>
+
+        <div className="ct-auth-card-footer">
+          <span>© 2026 Cermat Tani</span>
+          <a href="mailto:bantuan@cermattani.id">Butuh bantuan? Hubungi kami</a>
+        </div>
+      </section>
+    </main>
   );
 };

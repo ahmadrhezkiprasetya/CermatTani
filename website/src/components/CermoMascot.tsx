@@ -101,7 +101,7 @@ export const CermoMascot: React.FC<CermoMascotProps> = ({
 
   return (
     <div
-      className={className}
+      className={`cermo-mascot-root ${className}`.trim()}
       style={{
         position: 'relative',
         display: 'inline-flex',

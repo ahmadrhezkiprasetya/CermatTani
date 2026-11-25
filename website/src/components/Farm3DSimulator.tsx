@@ -380,20 +380,21 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
       }}
     >
       {/* Header Simulasi 3D */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h3 className="t-h3" style={{ fontSize: '1.125rem' }}>
-              Simulasi Kebun 3D Interaktif
-            </h3>
+      <div className="sim3d-header">
+        <div className="sim3d-title-block">
+          <div className="sim3d-title-row">
+            <h3 className="t-h3 sim3d-heading">Simulasi Kebun 3D</h3>
+            <button
+              type="button"
+              className="icon-btn sim3d-fs-btn sim3d-fs-btn--mobile"
+              onClick={() => setFullscreen((v) => !v)}
+              title={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
+              aria-label={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
+            >
+              {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
+          </div>
+          <div className="sim3d-badges">
             <span className="pill pill-sim">WebGL 3D · Simulasi</span>
             {isFlowing && (
               <span className="pill pill-water">
@@ -406,13 +407,13 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
               </span>
             )}
           </div>
-          <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+          <p className="t-micro t-soft sim3d-subtitle">
             Geser bebas 360° untuk mengelilingi kebun · Scroll untuk zoom · Klik objek 3D atau sudut kamera di bawah.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <div className="seg-tabs" role="tablist" aria-label="Lapisan visual 3D">
+        <div className="sim3d-tabs-wrap">
+          <div className="seg-tabs sim3d-seg-tabs" role="tablist" aria-label="Lapisan visual 3D">
             {(
               [
                 { id: 'normal', label: '3D Nyata' },
@@ -436,8 +437,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
 
           <button
             type="button"
-            className="icon-btn"
-            style={{ width: 36, height: 36 }}
+            className="icon-btn sim3d-fs-btn sim3d-fs-btn--desktop"
             onClick={() => setFullscreen((v) => !v)}
             title={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
             aria-label={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
@@ -447,52 +447,38 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
         </div>
       </div>
 
-      {/* Bar Sudut Kamera 3D 1-Klik (di luar kanvas agar bebas tabrakan di HP maupun desktop) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span className="t-micro t-soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {/* Bar Sudut Kamera 3D 1-Klik */}
+      <div className="sim3d-toolbar">
+        <div className="sim3d-cam-group">
+          <span className="t-micro t-soft sim3d-cam-label">
             <Compass size={13} color="var(--leaf-600)" /> Sudut kamera:
           </span>
-          {(
-            [
-              { id: 'overview', label: 'Udara' },
-              { id: 'tanaman', label: 'Tanaman' },
-              { id: 'irigasi', label: 'Irigasi' },
-              { id: 'surya', label: 'Surya' },
-            ] as const
-          ).map((camBtn) => (
-            <button
-              key={camBtn.id}
-              type="button"
-              onClick={() => flyTo(camBtn.id)}
-              className={cameraPreset.id === camBtn.id ? 'btn-primary' : 'btn-secondary'}
-              style={{
-                minHeight: 32,
-                padding: '4px 12px',
-                fontSize: '0.76rem',
-                borderRadius: 999,
-                boxShadow: 'none',
-              }}
-            >
-              {camBtn.label}
-            </button>
-          ))}
+          <div className="sim3d-cam-pills">
+            {(
+              [
+                { id: 'overview', label: 'Udara' },
+                { id: 'tanaman', label: 'Tanaman' },
+                { id: 'irigasi', label: 'Irigasi' },
+                { id: 'surya', label: 'Surya' },
+              ] as const
+            ).map((camBtn) => (
+              <button
+                key={camBtn.id}
+                type="button"
+                onClick={() => flyTo(camBtn.id)}
+                className={`sim3d-cam-btn ${cameraPreset.id === camBtn.id ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                {camBtn.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="sim3d-play-group">
           <button
             type="button"
             onClick={() => setSimRunning((v) => !v)}
-            className="btn-secondary"
-            style={{ minHeight: 32, padding: '4px 11px', fontSize: '0.76rem', borderRadius: 999 }}
+            className="btn-secondary sim3d-ctrl-btn"
           >
             {simRunning ? <Pause size={13} /> : <Play size={13} />}
             {simRunning ? 'Jalan' : 'Jeda'}
@@ -500,8 +486,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
           <button
             type="button"
             onClick={() => setSimSpeed((s) => (s === 1 ? 3 : 1))}
-            className="btn-secondary"
-            style={{ minHeight: 32, padding: '4px 10px', fontSize: '0.75rem', borderRadius: 999 }}
+            className="btn-secondary sim3d-ctrl-btn"
             title="Kecepatan waktu simulasi"
           >
             {simSpeed}×

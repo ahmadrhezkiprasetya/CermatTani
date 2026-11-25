@@ -75,26 +75,30 @@ export const LandScreen: React.FC = () => {
     downloadCsv('cermattani-sensor-24jam.csv', headers, rows);
   };
 
+  const rawDeviceId = state.devices[0]?.id || 'ESP32-SIM';
+  const shortDeviceId =
+    rawDeviceId.length > 14 ? `ESP32-${rawDeviceId.slice(0, 8).toUpperCase()}` : rawDeviceId;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header Bar Ringkas */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div className="land-header-bar">
+        <div className="land-device-meta">
           <span className="pill pill-sim">Simulasi ESP32</span>
-          <span className="t-small t-soft">
-            Perangkat aktif: <strong style={{ color: 'var(--ink)' }}>{state.devices[0]?.id}</strong>
+          <span className="t-small t-soft land-device-label" title={rawDeviceId}>
+            Perangkat: <strong style={{ color: 'var(--ink)' }}>{shortDeviceId}</strong>
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="land-header-actions">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary land-action-btn"
             onClick={() => setShowSimPanel((v) => !v)}
           >
-            <Sliders size={16} /> Uji sensor {showSimPanel ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            <Sliders size={15} /> Uji sensor {showSimPanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          <button type="button" className="btn-secondary" onClick={handleExportSensorCsv}>
-            <Download size={16} /> Ekspor CSV
+          <button type="button" className="btn-secondary land-action-btn" onClick={handleExportSensorCsv}>
+            <Download size={15} /> Ekspor CSV
           </button>
         </div>
       </div>
@@ -170,7 +174,7 @@ export const LandScreen: React.FC = () => {
       {isDiseaseRisk && (
         <div className="alert-card alert-card--warn" role="alert">
           <CermoMascot pose="worried" size={50} interactive={false} />
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
             <strong className="t-small">Risiko jamur busuk daun meningkat ({sensor.kelembapanUdara}% RH)</strong>
             <p className="t-small t-soft" style={{ marginTop: 2 }}>
               Kelembapan udara melewati batas {settings.ambangKelembapanRisikoPenyakit}% pada suhu {sensor.suhuUdara} °C. Cek bagian bawah daun hari ini.

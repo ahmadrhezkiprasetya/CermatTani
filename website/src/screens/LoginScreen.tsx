@@ -222,8 +222,8 @@ export const LoginScreen: React.FC = () => {
             <span className="ct-auth-dew ct-auth-dew--one" />
             <span className="ct-auth-dew ct-auth-dew--two" />
             <span className="ct-auth-dew ct-auth-dew--three" />
-            <div className="ct-auth-mascot">
-              <div key={mascotMessage} className="ct-auth-speech">{mascotMessage}</div>
+            <div key={mascotPose} className="ct-auth-mascot">
+              <div className="ct-auth-speech">{mascotMessage}</div>
               <PakCermatMascot pose={mascotPose} height={250} />
             </div>
           </div>
@@ -240,7 +240,7 @@ export const LoginScreen: React.FC = () => {
               <ArrowLeft size={15} /> Beranda
             </button>
 
-            <header key={mode} className="ct-auth-form-heading">
+            <header className="ct-auth-form-heading">
               <span>{mode === 'login' ? 'SENANG MELIHATMU LAGI' : 'RUANG BARU UNTUK KEBUNMU'}</span>
               <h1>{mode === 'login' ? 'Masuk' : 'Daftar'}</h1>
               <p>
@@ -271,34 +271,28 @@ export const LoginScreen: React.FC = () => {
               </div>
             )}
 
-            <form id="auth-form" className="ct-auth-form" onSubmit={handleSubmit}>
-              <div
-                className={`ct-auth-collapse ${mode === 'register' ? 'is-open' : ''}`}
-                aria-hidden={mode !== 'register'}
-              >
-                <div className="ct-auth-collapse-inner">
-                  <div className="field-group">
-                    <label htmlFor="auth-nama" className="field-label">Nama lengkap</label>
-                    <div className="ct-auth-input-wrap">
-                      <User size={17} aria-hidden="true" />
-                      <input
-                        id="auth-nama"
-                        type="text"
-                        required={mode === 'register'}
-                        disabled={mode !== 'register'}
-                        minLength={2}
-                        className="field-input"
-                        placeholder="Nama yang ingin kami gunakan"
-                        value={nama}
-                        onFocus={() => setFocusedField('nama')}
-                        onBlur={() => setFocusedField(null)}
-                        onChange={(event) => setNama(event.target.value)}
-                        autoComplete="name"
-                      />
-                    </div>
+            <form key={mode} id="auth-form" className="ct-auth-form" onSubmit={handleSubmit}>
+              {mode === 'register' && (
+                <div className="field-group">
+                  <label htmlFor="auth-nama" className="field-label">Nama lengkap</label>
+                  <div className="ct-auth-input-wrap">
+                    <User size={17} aria-hidden="true" />
+                    <input
+                      id="auth-nama"
+                      type="text"
+                      required
+                      minLength={2}
+                      className="field-input"
+                      placeholder="Nama yang ingin kami gunakan"
+                      value={nama}
+                      onFocus={() => setFocusedField('nama')}
+                      onBlur={() => setFocusedField(null)}
+                      onChange={(event) => setNama(event.target.value)}
+                      autoComplete="name"
+                    />
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="field-group">
                 <label htmlFor="auth-email" className="field-label">Email</label>
@@ -319,11 +313,8 @@ export const LoginScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div
-                className={`ct-auth-collapse ${mode === 'register' ? 'is-open' : ''}`}
-                aria-hidden={mode !== 'register'}
-              >
-                <div className="ct-auth-collapse-inner ct-auth-collapse-stack">
+              {mode === 'register' && (
+                <>
                   <div className="field-group">
                     <label htmlFor="auth-farm" className="field-label">Kelompok tani / nama kebun (opsional)</label>
                     <div className="ct-auth-input-wrap">
@@ -331,7 +322,6 @@ export const LoginScreen: React.FC = () => {
                       <input
                         id="auth-farm"
                         type="text"
-                        disabled={mode !== 'register'}
                         className="field-input"
                         placeholder="Contoh: Kebun Sayur Lembang"
                         value={namaKebun}
@@ -348,7 +338,6 @@ export const LoginScreen: React.FC = () => {
                       <input
                         id="auth-location"
                         type="text"
-                        disabled={mode !== 'register'}
                         className="field-input"
                         placeholder="Contoh: Lembang, Bandung Barat"
                         value={lokasiKebun}
@@ -359,8 +348,8 @@ export const LoginScreen: React.FC = () => {
                       />
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
               <div className="field-group">
                 <label htmlFor="auth-password" className="field-label">Kata sandi</label>
@@ -400,27 +389,12 @@ export const LoginScreen: React.FC = () => {
                 )}
               </div>
 
-              <div
-                className={`ct-auth-collapse ${mode === 'login' ? 'is-open' : ''}`}
-                aria-hidden={mode !== 'login'}
-              >
-                <div className="ct-auth-collapse-inner">
-                  <div className="ct-auth-forgot">
-                    <a
-                      href="mailto:bantuan@cermattani.id?subject=Bantuan%20Kata%20Sandi"
-                      tabIndex={mode === 'login' ? 0 : -1}
-                    >
-                      Lupa kata sandi?
-                    </a>
-                  </div>
+              {mode === 'login' ? (
+                <div className="ct-auth-forgot">
+                  <a href="mailto:bantuan@cermattani.id?subject=Bantuan%20Kata%20Sandi">Lupa kata sandi?</a>
                 </div>
-              </div>
-
-              <div
-                className={`ct-auth-collapse ${mode === 'register' ? 'is-open' : ''}`}
-                aria-hidden={mode !== 'register'}
-              >
-                <div className="ct-auth-collapse-inner ct-auth-collapse-stack">
+              ) : (
+                <>
                   <div className="field-group">
                     <label htmlFor="auth-confirm" className="field-label">Konfirmasi kata sandi</label>
                     <div className="ct-auth-input-wrap">
@@ -428,8 +402,7 @@ export const LoginScreen: React.FC = () => {
                       <input
                         id="auth-confirm"
                         type={showPassword ? 'text' : 'password'}
-                        required={mode === 'register'}
-                        disabled={mode !== 'register'}
+                        required
                         minLength={6}
                         className="field-input"
                         placeholder="Ulangi kata sandi"
@@ -454,31 +427,20 @@ export const LoginScreen: React.FC = () => {
                   <label className="ct-auth-terms">
                     <input
                       type="checkbox"
-                      required={mode === 'register'}
-                      disabled={mode !== 'register'}
+                      required
                       checked={termsAccepted}
                       onChange={(event) => setTermsAccepted(event.target.checked)}
                     />
                     <span className="ct-auth-checkbox" aria-hidden="true"><Check size={13} /></span>
                     <span>
                       Saya menyetujui{' '}
-                      <a
-                        href="mailto:bantuan@cermattani.id?subject=Syarat%20dan%20Ketentuan"
-                        tabIndex={mode === 'register' ? 0 : -1}
-                      >
-                        Syarat &amp; Ketentuan
-                      </a>
+                      <a href="mailto:bantuan@cermattani.id?subject=Syarat%20dan%20Ketentuan">Syarat &amp; Ketentuan</a>
                       {' '}serta{' '}
-                      <a
-                        href="mailto:bantuan@cermattani.id?subject=Kebijakan%20Privasi"
-                        tabIndex={mode === 'register' ? 0 : -1}
-                      >
-                        Kebijakan Privasi
-                      </a>.
+                      <a href="mailto:bantuan@cermattani.id?subject=Kebijakan%20Privasi">Kebijakan Privasi</a>.
                     </span>
                   </label>
-                </div>
-              </div>
+                </>
+              )}
 
               <button
                 type="submit"

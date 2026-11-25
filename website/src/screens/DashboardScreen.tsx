@@ -9,6 +9,7 @@ import {
   Circle,
   Droplets,
   Leaf,
+  MapPin,
   MessageCircle,
   Plus,
   Sparkles,
@@ -465,90 +466,161 @@ export const DashboardScreen: React.FC = () => {
         </button>
       </section>
 
-      {/* 2B. Baris KPI 4 Kartu Seragam Desktop (>= 769px) */}
-      <section className="kpi-grid-4 dash-kpi-desktop" aria-label="Ringkasan utama kebun">
-        <button
-          type="button"
-          className="kpi-card stagger-card stagger-1"
-          onClick={() => setActiveScreen('tanaman')}
-          style={{ textAlign: 'left', cursor: 'pointer' }}
-        >
-          <div className="kpi-card-top">
-            <span className="kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--leaf-600)' }}>
-              <Sprout size={18} />
-            </span>
-            <span className="pill pill-ok">{healthyPercent}% sehat</span>
-          </div>
-          <div>
-            <div className="kpi-value">
-              <AnimatedCounter value={activeFarmPlants.length} />
-            </div>
-            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Tanaman dipantau</div>
-          </div>
-        </button>
+      {/* 2B. Kartu Ringkasan Terpadu Desktop (>= 769px) — Lokasi, Suhu, 4 Metrik Sejajar & Busur Matahari */}
+      {(() => {
+        const now = new Date();
+        const mins = now.getHours() * 60 + now.getMinutes();
+        const sunriseMins = 5 * 60 + 45; // 05:45
+        const sunsetMins = 17 * 60 + 55; // 17:55
+        const sunT = Math.max(0.08, Math.min(0.92, (mins - sunriseMins) / (sunsetMins - sunriseMins)));
+        const sunX = (1 - sunT) * (1 - sunT) * 14 + 2 * (1 - sunT) * sunT * 180 + sunT * sunT * 346;
+        const sunY = (1 - sunT) * (1 - sunT) * 48 + 2 * (1 - sunT) * sunT * -6 + sunT * sunT * 48;
+        const tempRounded = Math.round(state.sensor.suhuUdara);
 
-        <button
-          type="button"
-          className="kpi-card stagger-card stagger-2"
-          onClick={() => setActiveScreen('kalender')}
-          style={{ textAlign: 'left', cursor: 'pointer' }}
-        >
-          <div className="kpi-card-top">
-            <span className="kpi-icon" style={{ background: 'rgba(239,91,47,0.12)', color: 'var(--tomato-btn)' }}>
-              <Sparkles size={18} />
-            </span>
-            <span className="t-micro t-soft tabular-nums">± {estimatedTotalKg} kg</span>
-          </div>
-          <div>
-            <div className="kpi-value">
-              <AnimatedCounter value={readyToHarvestCount} />
-            </div>
-            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Buah siap dipetik</div>
-          </div>
-        </button>
+        return (
+          <section className="dash-climate-card dash-kpi-desktop stagger-card stagger-1" aria-label="Ringkasan utama kebun">
+            {/* Baris Atas: Lokasi kebun di kiri, ikon awan lembut + suhu udara di kanan */}
+            <div className="dash-climate-top">
+              <div className="dash-climate-loc">
+                <MapPin size={18} strokeWidth={1.85} className="dash-climate-pin" />
+                <span>{activeFarm?.lokasi || activeFarm?.nama || 'Lahan Aktif'}</span>
+              </div>
 
-        <button
-          type="button"
-          className="kpi-card stagger-card stagger-3"
-          onClick={() => openScanWith('buah')}
-          style={{ textAlign: 'left', cursor: 'pointer' }}
-        >
-          <div className="kpi-card-top">
-            <span className="kpi-icon" style={{ background: 'var(--surface-2)', color: 'var(--forest-900)' }}>
-              <Camera size={18} />
-            </span>
-            <span className="t-micro t-soft">
-              {attentionCount > 0 ? `${attentionCount} perhatian` : 'Gemini AI'}
-            </span>
-          </div>
-          <div>
-            <div className="kpi-value">
-              <AnimatedCounter value={state.scans.length} />
+              <div className="dash-climate-temp-wrap">
+                <svg
+                  className="dash-climate-cloud"
+                  viewBox="0 0 88 54"
+                  width="68"
+                  height="42"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="ctCloudGrad" x1="16" y1="8" x2="66" y2="50" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#F5FAFF" />
+                      <stop offset="55%" stopColor="#DCEEFF" />
+                      <stop offset="100%" stopColor="#C2DFFA" />
+                    </linearGradient>
+                    <radialGradient id="ctSunPeek" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#FFE17D" />
+                      <stop offset="100%" stopColor="#F5B82E" stopOpacity="0.85" />
+                    </radialGradient>
+                    <filter id="ctCloudShadow" x="-15%" y="-15%" width="130%" height="140%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#7AA7D4" floodOpacity="0.24" />
+                    </filter>
+                  </defs>
+                  {state.sensor.cahayaLux >= 18000 && (
+                    <circle cx="58" cy="18" r="11" fill="url(#ctSunPeek)" />
+                  )}
+                  <path
+                    d="M25 46H64C72.284 46 79 39.508 79 31.5C79 24.06 73.22 17.93 65.87 17.1C63.61 9.54 56.6 4 48.3 4C38.68 4 30.78 11.45 30.06 20.88C28.51 20.31 26.82 20 25 20C17.268 20 11 25.82 11 33C11 40.18 17.268 46 25 46Z"
+                    fill="url(#ctCloudGrad)"
+                    filter="url(#ctCloudShadow)"
+                  />
+                </svg>
+                <span className="dash-climate-temp tabular-nums">
+                  {tempRounded > 0 ? `+${tempRounded}` : tempRounded}°C
+                </span>
+              </div>
             </div>
-            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Riwayat scan AI</div>
-          </div>
-        </button>
 
-        <button
-          type="button"
-          className="kpi-card stagger-card stagger-4"
-          onClick={() => setActiveScreen('lahan')}
-          style={{ textAlign: 'left', cursor: 'pointer' }}
-        >
-          <div className="kpi-card-top">
-            <span className="kpi-icon" style={{ background: 'var(--water-bg)', color: 'var(--water-700)' }}>
-              <Droplets size={18} />
-            </span>
-            <span className="pill pill-sim">Simulasi</span>
-          </div>
-          <div>
-            <div className="kpi-value">
-              <AnimatedCounter value={state.sensor.kelembapanTanah} suffix="%" />
+            {/* Baris Tengah: 4 Metrik Utama Sejajar (ikon garis tipis, angka tebal, label lembut) */}
+            <div className="dash-climate-metrics">
+              <button
+                type="button"
+                className="dash-climate-metric"
+                onClick={() => setActiveScreen('tanaman')}
+              >
+                <Sprout size={22} strokeWidth={1.65} className="dash-climate-icon" />
+                <div className="dash-climate-val tabular-nums">
+                  <AnimatedCounter value={activeFarmPlants.length} />
+                  <span className="dash-climate-subval"> · {healthyPercent}% sehat</span>
+                </div>
+                <div className="dash-climate-label">Tanaman dipantau</div>
+              </button>
+
+              <button
+                type="button"
+                className="dash-climate-metric"
+                onClick={() => setActiveScreen('kalender')}
+              >
+                <Sparkles size={22} strokeWidth={1.65} className="dash-climate-icon" />
+                <div className="dash-climate-val tabular-nums">
+                  <AnimatedCounter value={readyToHarvestCount} />
+                  <span className="dash-climate-subval"> · ±{estimatedTotalKg} kg</span>
+                </div>
+                <div className="dash-climate-label">Buah siap dipetik</div>
+              </button>
+
+              <button
+                type="button"
+                className="dash-climate-metric"
+                onClick={() => openScanWith('buah')}
+              >
+                <Camera size={22} strokeWidth={1.65} className="dash-climate-icon" />
+                <div className="dash-climate-val tabular-nums">
+                  <AnimatedCounter value={state.scans.length} />
+                  <span className="dash-climate-subval">
+                    {attentionCount > 0 ? ` · ${attentionCount} cek` : ' · AI'}
+                  </span>
+                </div>
+                <div className="dash-climate-label">Riwayat scan AI</div>
+              </button>
+
+              <button
+                type="button"
+                className="dash-climate-metric"
+                onClick={() => setActiveScreen('lahan')}
+              >
+                <Droplets size={22} strokeWidth={1.65} className="dash-climate-icon" />
+                <div className="dash-climate-val tabular-nums">
+                  <AnimatedCounter value={state.sensor.kelembapanTanah} suffix="%" />
+                </div>
+                <div className="dash-climate-label">Kelembapan tanah</div>
+              </button>
             </div>
-            <div className="t-micro t-soft" style={{ marginTop: 2 }}>Kelembapan tanah</div>
-          </div>
-        </button>
-      </section>
+
+            {/* Baris Bawah: Busur Matahari Terbit — Terbenam */}
+            <div className="dash-climate-sunrow">
+              <div className="dash-climate-suntime">
+                <strong className="tabular-nums">05:45</strong>
+                <span>Terbit</span>
+              </div>
+
+              <svg
+                className="dash-climate-arc"
+                viewBox="0 0 360 56"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <defs>
+                  <radialGradient id="ctArcSunGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#F5B82E" stopOpacity="1" />
+                    <stop offset="55%" stopColor="#F7C948" stopOpacity="0.45" />
+                    <stop offset="100%" stopColor="#F7C948" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <path
+                  d="M 14 48 Q 180 -6 346 48"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeOpacity="0.28"
+                  strokeWidth="1.6"
+                  strokeDasharray="3.5 4.5"
+                  strokeLinecap="round"
+                />
+                <circle cx={sunX} cy={sunY} r="11" fill="url(#ctArcSunGlow)" />
+                <circle cx={sunX} cy={sunY} r="4.2" fill="#F5B82E" />
+              </svg>
+
+              <div className="dash-climate-suntime dash-climate-suntime--right">
+                <strong className="tabular-nums">17:55</strong>
+                <span>Terbenam</span>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 3. Baris Bento Tengah Seimbang: Kondisi Lahan (+ Pintu Simulasi 3D) | Jadwal Panen Dekat */}
       <div className="dashboard-bento-row">
@@ -927,9 +999,8 @@ export const DashboardScreen: React.FC = () => {
                   </div>
                 </div>
                 <span
-                  className={`pill ${
-                    latestLeafScan && latestLeafScan.penyakitUtamaId !== 'sehat' ? 'pill-warn' : 'pill-ok'
-                  }`}
+                  className={`pill ${latestLeafScan && latestLeafScan.penyakitUtamaId !== 'sehat' ? 'pill-warn' : 'pill-ok'
+                    }`}
                 >
                   {latestLeafScan
                     ? latestLeafScan.penyakitUtamaId === 'sehat'

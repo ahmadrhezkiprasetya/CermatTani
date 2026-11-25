@@ -1343,9 +1343,9 @@ textarea {
 }
 
 .floating-pin-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -1590,15 +1590,6 @@ textarea {
   color: var(--sim-600);
 }
 
-.pill-sim::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--sim-600);
-  flex-shrink: 0;
-}
-
 .pill-ok {
   background: var(--ok-bg);
   color: var(--ok-fg);
@@ -1625,9 +1616,9 @@ textarea {
 }
 
 .ripeness-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 

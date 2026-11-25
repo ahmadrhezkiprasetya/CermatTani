@@ -336,20 +336,12 @@ export const IrrigationSoilVisual: React.FC<{ pumpOn: boolean; moisture: number 
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: pumpOn ? '#0284C7' : '#94A3B8',
-              boxShadow: pumpOn ? '0 0 0 4px rgba(2, 132, 199, 0.2)' : 'none',
-            }}
-          />
-          <span className="t-small" style={{ fontWeight: 700, color: 'var(--ink)' }}>
-            {pumpOn ? 'Aliran Tetes Aktif' : 'Saluran Siaga (Standby)'}
-          </span>
-        </div>
+        <span
+          className="t-small"
+          style={{ fontWeight: 700, color: pumpOn ? 'var(--water-700)' : 'var(--ink)' }}
+        >
+          {pumpOn ? 'Aliran Tetes Aktif' : 'Saluran Siaga (Standby)'}
+        </span>
         <span className="t-micro tabular-nums" style={{ color: 'var(--water)', fontWeight: 700 }}>
           Tanah {clamped}%
         </span>

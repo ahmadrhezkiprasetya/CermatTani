@@ -636,33 +636,75 @@ textarea {
 }
 
 /* ============================================================
-   ALERT TOAST & PANEL NOTIFIKASI KANAN ATAS
+   ALERT SNACKBAR RINGKAS (KOMPATIBEL SEMUA PERANGKAT, ANTI TUMPANG TINDIH)
    ============================================================ */
 
 .alert-toast-stack {
   position: fixed;
-  top: 76px;
-  right: 22px;
-  width: min(388px, calc(100vw - 24px));
-  z-index: 98;
+  bottom: 20px;
+  right: 20px;
+  width: min(370px, calc(100vw - 32px));
+  z-index: 85;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   pointer-events: none;
 }
 
 .alert-toast {
   pointer-events: auto;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--line);
-  border-left-width: 4px;
-  border-radius: 16px;
-  box-shadow: var(--shadow-2);
-  padding: 13px 14px;
+  border-left-width: 3.5px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(15, 35, 29, 0.14);
+  padding: 9px 11px;
   display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  animation: toastSlideIn 240ms var(--ease-out);
+  align-items: center;
+  gap: 9px;
+  animation: toastSlideUp 220ms var(--ease-out);
+}
+
+.alert-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-toast-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.alert-toast-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-toast-time {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.alert-toast-desc {
+  margin-top: 1px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .alert-toast--info {
@@ -682,9 +724,9 @@ textarea {
 }
 
 .alert-toast-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -715,13 +757,15 @@ textarea {
   background: var(--surface-2);
   color: var(--ink);
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.74rem;
+  padding: 4px 9px;
+  font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 
@@ -747,6 +791,43 @@ textarea {
 .alert-toast-close:hover {
   background: var(--surface-2);
   color: var(--ink);
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .alert-toast-stack {
+    left: 12px;
+    right: 12px;
+    bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .alert-toast {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 13px;
+  }
+
+  .alert-toast-time {
+    display: none;
+  }
+
+  .alert-toast-desc {
+    -webkit-line-clamp: 1;
+  }
 }
 
 .notif-popover-backdrop {
@@ -889,16 +970,19 @@ textarea {
     opacity: 0;
     transform: translateX(22px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
 }
+
 @keyframes popoverFadeIn {
   from {
     opacity: 0;
     transform: translateY(-6px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -957,6 +1041,151 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+/* Kartu Ringkasan Kebun & Cuaca Terpadu (Pengganti 4 KPI Terpisah di Desktop) */
+.dash-climate-card {
+  background: var(--surface);
+  border: 1px solid var(--card-hairline);
+  border-radius: 26px;
+  padding: 24px 28px 20px;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.dash-climate-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dash-climate-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.dash-climate-pin {
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.dash-climate-temp-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dash-climate-cloud {
+  display: block;
+  flex-shrink: 0;
+}
+
+.dash-climate-temp {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 2.6vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.dash-climate-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dash-climate-metric {
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+
+.dash-climate-metric:hover {
+  background: var(--surface-2);
+  transform: translateY(-2px);
+}
+
+.dash-climate-metric:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.dash-climate-icon {
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+
+.dash-climate-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.dash-climate-subval {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.dash-climate-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.dash-climate-sunrow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding-top: 4px;
+}
+
+.dash-climate-suntime {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-climate-suntime strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.dash-climate-suntime span {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.dash-climate-suntime--right {
+  text-align: right;
+}
+
+.dash-climate-arc {
+  width: 100%;
+  height: 52px;
+  color: var(--ink-soft);
+  overflow: visible;
 }
 
 .kpi-card {
@@ -1232,13 +1461,11 @@ textarea {
   height: 100%;
   border-radius: var(--r-pill);
   transition: width 500ms var(--ease-out);
-  background-image: repeating-linear-gradient(
-    -45deg,
-    rgba(255, 255, 255, 0.22) 0px,
-    rgba(255, 255, 255, 0.22) 6px,
-    transparent 6px,
-    transparent 12px
-  );
+  background-image: repeating-linear-gradient(-45deg,
+      rgba(255, 255, 255, 0.22) 0px,
+      rgba(255, 255, 255, 0.22) 6px,
+      transparent 6px,
+      transparent 12px);
 }
 
 /* Kartu Foto Tugas Agrova (§6.3: foto penuh r20, gradasi bawah, judul putih kiri bawah, chip status kiri atas) */
@@ -1668,10 +1895,29 @@ textarea {
 /* Alert Cards */
 .alert-card {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  padding: 15px 17px;
   border-radius: var(--r-md);
+}
+
+.alert-card > div:not(.cermo-mascot-root) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .alert-card {
+    padding: 13px 14px;
+    gap: 10px 12px;
+  }
+
+  .alert-card>button {
+    width: 100%;
+    min-height: 40px;
+    font-size: 0.84rem;
+  }
 }
 
 .alert-card--warn {
@@ -2108,12 +2354,10 @@ textarea {
 .landing-hero-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    115deg,
-    rgba(45, 112, 74, 0.88) 0%,
-    rgba(66, 138, 96, 0.62) 52%,
-    rgba(214, 234, 217, 0.18) 100%
-  );
+  background: linear-gradient(115deg,
+      rgba(45, 112, 74, 0.88) 0%,
+      rgba(66, 138, 96, 0.62) 52%,
+      rgba(214, 234, 217, 0.18) 100%);
 }
 
 .landing-hero-bottom {
@@ -2370,17 +2614,45 @@ textarea {
   animation: cardSoftIn 360ms var(--ease-out) both;
 }
 
-.stagger-1 { animation-delay: 40ms; }
-.stagger-2 { animation-delay: 85ms; }
-.stagger-3 { animation-delay: 130ms; }
-.stagger-4 { animation-delay: 175ms; }
-.stagger-5 { animation-delay: 220ms; }
-.stagger-6 { animation-delay: 265ms; }
+.stagger-1 {
+  animation-delay: 40ms;
+}
 
-.hero-stagger-1 { animation: heroRiseIn 520ms var(--ease-out) 40ms both; }
-.hero-stagger-2 { animation: heroRiseIn 540ms var(--ease-out) 120ms both; }
-.hero-stagger-3 { animation: heroRiseIn 560ms var(--ease-out) 200ms both; }
-.hero-stagger-4 { animation: heroRiseIn 580ms var(--ease-out) 280ms both; }
+.stagger-2 {
+  animation-delay: 85ms;
+}
+
+.stagger-3 {
+  animation-delay: 130ms;
+}
+
+.stagger-4 {
+  animation-delay: 175ms;
+}
+
+.stagger-5 {
+  animation-delay: 220ms;
+}
+
+.stagger-6 {
+  animation-delay: 265ms;
+}
+
+.hero-stagger-1 {
+  animation: heroRiseIn 520ms var(--ease-out) 40ms both;
+}
+
+.hero-stagger-2 {
+  animation: heroRiseIn 540ms var(--ease-out) 120ms both;
+}
+
+.hero-stagger-3 {
+  animation: heroRiseIn 560ms var(--ease-out) 200ms both;
+}
+
+.hero-stagger-4 {
+  animation: heroRiseIn 580ms var(--ease-out) 280ms both;
+}
 
 .reveal-block {
   opacity: 0;
@@ -2434,6 +2706,7 @@ textarea {
     opacity: 0;
     transform: translateY(10px) scale(0.996);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2445,6 +2718,7 @@ textarea {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2456,6 +2730,7 @@ textarea {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2467,6 +2742,7 @@ textarea {
     opacity: 0;
     transform: translateY(18px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2478,6 +2754,7 @@ textarea {
     opacity: 0;
     transform: translateY(8px) scale(0.94);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2485,8 +2762,13 @@ textarea {
 }
 
 @keyframes backdropFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes modalPopIn {
@@ -2494,6 +2776,7 @@ textarea {
     opacity: 0;
     transform: translateY(14px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2505,6 +2788,7 @@ textarea {
     opacity: 0.4;
     transform: translateY(36px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2512,13 +2796,27 @@ textarea {
 }
 
 @keyframes ambientFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 @keyframes softPulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes tipBubblePop {
@@ -2526,6 +2824,7 @@ textarea {
     opacity: 0;
     transform: translate(-50%, 6px) scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, 0) scale(1);
@@ -2534,66 +2833,147 @@ textarea {
 
 /* Animasi Bermakna (§4.9) */
 @keyframes fabPulse {
-  0%, 74%, 100% {
+
+  0%,
+  74%,
+  100% {
     box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 0 rgba(214, 61, 18, 0.32);
   }
+
   88% {
     box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 12px rgba(214, 61, 18, 0);
   }
 }
 
 @keyframes cermoBreathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.03);
+  }
 }
 
 @keyframes cermoLeafSway {
-  0%, 100% { transform: rotate(-4deg); }
-  50% { transform: rotate(4deg); }
+
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
 }
 
 @keyframes cermoJump {
-  0% { transform: scale(1, 1) translateY(0); }
-  20% { transform: scale(1.1, 0.88) translateY(4px); }
-  50% { transform: scale(0.94, 1.08) translateY(-14px); }
-  100% { transform: scale(1, 1) translateY(0); }
+  0% {
+    transform: scale(1, 1) translateY(0);
+  }
+
+  20% {
+    transform: scale(1.1, 0.88) translateY(4px);
+  }
+
+  50% {
+    transform: scale(0.94, 1.08) translateY(-14px);
+  }
+
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
 }
 
 @keyframes cermoWave {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-20deg); }
-  60% { transform: rotate(12deg); }
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-20deg);
+  }
+
+  60% {
+    transform: rotate(12deg);
+  }
 }
 
 @keyframes cermoScanGlass {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  50% { transform: translate(-6px, -4px) rotate(-10deg); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-6px, -4px) rotate(-10deg);
+  }
 }
 
 @keyframes scanBeam {
-  0% { top: 4%; opacity: 0.95; }
-  50% { top: 90%; opacity: 1; }
-  100% { top: 4%; opacity: 0.95; }
+  0% {
+    top: 4%;
+    opacity: 0.95;
+  }
+
+  50% {
+    top: 90%;
+    opacity: 1;
+  }
+
+  100% {
+    top: 4%;
+    opacity: 0.95;
+  }
 }
 
 @keyframes boxPopIn {
-  from { opacity: 0; transform: scale(0.88); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes confettiDrop {
-  0% { transform: translateY(-8px) rotate(0deg) scale(0.75); opacity: 1; }
-  100% { transform: translateY(100px) rotate(180deg) scale(1.1); opacity: 0; }
+  0% {
+    transform: translateY(-8px) rotate(0deg) scale(0.75);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100px) rotate(180deg) scale(1.1);
+    opacity: 0;
+  }
 }
 
 @keyframes barGrowUp {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
 }
 
 @keyframes drawPath {
-  from { stroke-dashoffset: 1000; }
-  to { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: 1000;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 @keyframes floatZzz {
@@ -2687,6 +3067,145 @@ textarea {
 }
 
 /* Tata Letak Master-Detail Halaman Tanaman (Nyaman di Desktop, Tablet, & HP) */
+/* Filter & Dropdown Responsif Halaman Tanaman */
+.plants-filter-bar {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.plants-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plants-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  min-height: 36px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.plants-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.82rem;
+  width: 135px;
+  color: var(--ink);
+}
+
+.plants-filter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plants-filter-btn {
+  min-height: 38px;
+  padding: 6px 13px;
+  font-size: 0.84rem;
+}
+
+.plants-mobile-dropdown {
+  display: none;
+}
+
+.plants-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .plants-filter-bar {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .plants-filter-left {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .plants-seg-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .plants-seg-tabs .seg-tab {
+    padding: 6px 6px;
+    font-size: 0.76rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .plants-search-box {
+    width: 100%;
+    min-height: 38px;
+  }
+
+  .plants-search-input {
+    width: 100%;
+  }
+
+  .plants-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .plants-filter-btn {
+    width: 100%;
+    padding: 6px 8px;
+    gap: 5px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .plants-mobile-dropdown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+  }
+
+  .plants-list-col {
+    display: none !important;
+  }
+
+  .plants-detail-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .plants-detail-btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 8px;
+    gap: 5px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
 .plants-layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -2829,6 +3348,257 @@ textarea {
   gap: 10px;
 }
 
+/* Header Lahan & Kontrol Simulasi 3D Responsif */
+.land-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.land-device-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.land-device-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.land-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.land-action-btn {
+  min-height: 38px;
+  padding: 6px 13px;
+  font-size: 0.84rem;
+}
+
+.sim3d-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sim3d-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.sim3d-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sim3d-heading {
+  font-size: 1.125rem;
+}
+
+.sim3d-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-subtitle {
+  margin-top: 1px;
+}
+
+.sim3d-tabs-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sim3d-fs-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.sim3d-fs-btn--mobile {
+  display: none;
+}
+
+.sim3d-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim3d-cam-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 0.76rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.sim3d-play-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim3d-ctrl-btn {
+  min-height: 32px;
+  padding: 4px 11px;
+  font-size: 0.76rem;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .land-header-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .land-device-meta {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+
+  .land-device-label {
+    font-size: 0.78rem;
+  }
+
+  .land-header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .land-action-btn {
+    width: 100%;
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .sim3d-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sim3d-title-block {
+    flex: none;
+  }
+
+  .sim3d-heading {
+    font-size: 1.02rem;
+  }
+
+  .sim3d-subtitle {
+    display: none;
+  }
+
+  .sim3d-fs-btn--mobile {
+    display: grid;
+  }
+
+  .sim3d-fs-btn--desktop {
+    display: none;
+  }
+
+  .sim3d-tabs-wrap {
+    width: 100%;
+  }
+
+  .sim3d-seg-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sim3d-seg-tabs .seg-tab {
+    padding: 6px 4px;
+    font-size: 0.74rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .sim3d-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sim3d-cam-label {
+    display: none;
+  }
+
+  .sim3d-cam-group {
+    width: 100%;
+  }
+
+  .sim3d-cam-pills {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .sim3d-cam-btn {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 0.74rem;
+  }
+
+  .sim3d-play-group {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .sim3d-ctrl-btn {
+    min-height: 32px;
+    font-size: 0.74rem;
+  }
+}
+
 .sim3d-viewport {
   position: relative;
   border-radius: 18px;
@@ -2844,6 +3614,7 @@ textarea {
 }
 
 @media (max-width: 960px) {
+
   .sim3d-grid,
   .plants-layout,
   .calendar-layout {
@@ -2869,7 +3640,23 @@ textarea {
   }
 }
 
+@media (max-width: 960px) and (min-width: 769px) {
+  .topbar {
+    padding: 10px 18px;
+    gap: 10px;
+  }
+
+  .search-box {
+    width: 165px;
+  }
+
+  .search-box:focus-within {
+    width: 195px;
+  }
+}
+
 @media (max-width: 900px) {
+
   .onboarding-split,
   .dashboard-bento-row,
   .dashboard-two-col,
@@ -2990,7 +3777,7 @@ textarea {
   }
 
   .mobile-appbar-title {
-    font-size: 1.28rem;
+    font-size: clamp(1.06rem, 4.6vw, 1.28rem);
     font-weight: 600;
     line-height: 1.15;
     color: var(--ink);
@@ -3114,9 +3901,9 @@ textarea {
     border-color: var(--cream-border) !important;
   }
 
-  /* Ruang konten mobile identik dengan AppScaffold padding (16px + ruang bottom nav) */
+  /* Ruang konten mobile identik dengan AppScaffold padding (16px + ruang bottom nav & FAB Scan) */
   .main-content-pad {
-    padding: 6px 16px calc(98px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 16px calc(120px + env(safe-area-inset-bottom, 0px));
     gap: 14px;
     max-width: 840px;
   }
@@ -3208,13 +3995,6 @@ textarea {
     border-radius: 24px 24px 0 0;
     padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
     animation: sheetSlideUp 300ms var(--ease-out);
-  }
-
-  .alert-toast-stack {
-    top: 62px;
-    right: 12px;
-    left: 12px;
-    width: auto;
   }
 
   .notif-popover {
@@ -3333,6 +4113,7 @@ textarea {
 }
 
 @media (max-width: 520px) {
+
   .landing-shell,
   .app-shell {
     overflow-x: clip;
@@ -3405,6 +4186,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

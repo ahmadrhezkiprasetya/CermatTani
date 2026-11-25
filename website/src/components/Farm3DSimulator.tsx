@@ -14,6 +14,7 @@ import {
   Pause,
   Play,
   Power,
+  RefreshCw,
   RotateCcw,
   ShieldAlert,
   Sun,
@@ -79,6 +80,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
   const [weather, setWeather] = useState<WeatherMode3D>('cerah');
   const [simRunning, setSimRunning] = useState(true);
   const [simSpeed, setSimSpeed] = useState<1 | 3>(1);
+  const [autoOrbit, setAutoOrbit] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotId3D>(null);
   const [statusToast, setStatusToast] = useState<string>('');
@@ -108,6 +110,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
     layer: 'normal',
     weather: 'cerah',
     selectedHotspot: null,
+    autoOrbit: false,
   });
 
   // Sinkronkan state live ke mesin WebGL tanpa restart canvas
@@ -137,8 +140,9 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
       layer,
       weather: derivedWeather,
       selectedHotspot,
+      autoOrbit,
     };
-  }, [state.sensor, state.settings, activeFarmPlants.length, layer, weather, selectedHotspot]);
+  }, [state.sensor, state.settings, activeFarmPlants.length, layer, weather, selectedHotspot, autoOrbit]);
 
   // IntersectionObserver untuk jeda loop fisika saat di luar viewport
   useEffect(() => {
@@ -325,23 +329,23 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
     },
   };
 
-  const labelContent = (id: Exclude<HotspotId3D, null>): { text: string; dot: string } => {
+  const labelContent = (id: Exclude<HotspotId3D, null>): { text: string; accent?: string } => {
     if (id === 'tandon') {
       return {
         text: `Tandon ${state.sensor.levelTandonPersen}%`,
-        dot: isTankCrit ? '#EF4444' : '#38BDF8',
+        accent: isTankCrit ? '#EF4444' : undefined,
       };
     }
     if (id === 'pompa') {
       return {
         text: isFlowing ? 'Pompa ON' : isTankCrit ? 'Interlock' : 'Pompa Siaga',
-        dot: isTankCrit ? '#EF4444' : isFlowing ? '#38BDF8' : '#94A3B8',
+        accent: isTankCrit ? '#EF4444' : isFlowing ? '#38BDF8' : undefined,
       };
     }
     if (id === 'surya') {
       return {
         text: `Surya ${state.sensor.bateraiPersen}%`,
-        dot: isPowerSave ? '#F59E0B' : '#D8F36A',
+        accent: isPowerSave ? '#F59E0B' : undefined,
       };
     }
     return {
@@ -351,7 +355,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
           : layer === 'kesehatan'
             ? `RH ${state.sensor.kelembapanUdara}%`
             : `Tanah ${state.sensor.kelembapanTanah}%`,
-      dot: state.sensor.kelembapanTanah < state.settings.ambangTanahBawah ? '#F59E0B' : '#38BDF8',
+      accent: state.sensor.kelembapanTanah < state.settings.ambangTanahBawah ? '#F59E0B' : undefined,
     };
   };
 
@@ -549,10 +553,14 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '4px 10px',
+                  padding: '4px 11px',
                   borderRadius: 999,
-                  border: active ? '1.5px solid #14302A' : '1px solid rgba(255,255,255,0.28)',
-                  background: active ? 'rgba(216,243,106,0.96)' : 'rgba(12,32,27,0.76)',
+                  border: active
+                    ? '1.5px solid #14302A'
+                    : info.accent
+                      ? `1.5px solid ${info.accent}`
+                      : '1px solid rgba(255,255,255,0.28)',
+                  background: active ? 'rgba(216,243,106,0.96)' : 'rgba(12,32,27,0.78)',
                   color: active ? '#14302A' : '#F4FBF7',
                   backdropFilter: 'blur(8px)',
                   fontSize: '0.72rem',
@@ -564,15 +572,6 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-                <span
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: info.dot,
-                    flexShrink: 0,
-                  }}
-                />
                 {info.text}
               </button>
             );
@@ -589,6 +588,25 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
               zIndex: 10,
             }}
           >
+            <button
+              type="button"
+              onClick={() => setAutoOrbit((v) => !v)}
+              className="glass-surface"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                display: 'grid',
+                placeItems: 'center',
+                cursor: 'pointer',
+                background: autoOrbit ? 'var(--leaf-600)' : undefined,
+                color: autoOrbit ? '#ffffff' : undefined,
+              }}
+              aria-label={autoOrbit ? 'Matikan putar otomatis 360 derajat' : 'Putar otomatis 360 derajat'}
+              title={autoOrbit ? 'Matikan putar otomatis 360°' : 'Putar otomatis 360°'}
+            >
+              <RefreshCw size={14} />
+            </button>
             <button
               type="button"
               onClick={() => setZoomCommand((z) => ({ delta: -1, seq: z.seq + 1 }))}

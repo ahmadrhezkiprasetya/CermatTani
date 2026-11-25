@@ -408,10 +408,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...input,
       };
 
-      setActiveAlerts((prev) => [toast, ...prev].slice(0, 3));
+      // Maksimal 1 alert aktif sekaligus agar tidak pernah menumpuk / menutupi layar;
+      // semua riwayat tetap tersimpan di panel lonceng notifikasi.
+      alertTimersRef.current.forEach((oldTimer) => window.clearTimeout(oldTimer));
+      alertTimersRef.current.clear();
+      setActiveAlerts([toast]);
 
       if (typeof window !== 'undefined') {
-        const timeoutMs = input.severity === 'bad' ? 12000 : 9000;
+        const timeoutMs = input.severity === 'bad' ? 5500 : 4500;
         const timerId = window.setTimeout(() => {
           alertTimersRef.current.delete(id);
           setActiveAlerts((prev) => prev.filter((item) => item.id !== id));

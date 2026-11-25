@@ -108,17 +108,18 @@
   box-shadow: 0 24px 64px rgba(31, 57, 45, 0.16), 0 4px 16px rgba(31, 57, 45, 0.08);
   will-change: transform, opacity;
   animation: ct-auth-card-enter 560ms var(--auth-ease) both;
-  transition: height 560ms var(--auth-ease), min-height 560ms var(--auth-ease);
+  transition: grid-template-columns 520ms var(--auth-ease);
 }
 
 .ct-auth-card--register {
+  grid-template-areas: "form art" "footer footer";
+  grid-template-columns: minmax(0, 45fr) minmax(0, 55fr);
   height: min(720px, calc(100dvh - 56px));
   min-height: min(600px, calc(100dvh - 56px));
 }
 
 .ct-auth-art {
   position: relative;
-  z-index: 2;
   grid-area: art;
   display: flex;
   min-width: 0;
@@ -130,13 +131,11 @@
     radial-gradient(ellipse at 48% 53%, rgba(255, 255, 255, 0.55), transparent 52%),
     linear-gradient(160deg, var(--cream-warm, #f9f3e4) 0%, var(--auth-mint) 62%, #e2efe4 100%);
   color: var(--auth-forest);
-  will-change: transform;
   animation: ct-auth-panel-in 520ms var(--auth-ease) both;
-  transition: transform 580ms var(--auth-ease);
 }
 
 .ct-auth-card--register .ct-auth-art {
-  transform: translateX(calc(100% * 45 / 55));
+  animation-name: ct-auth-panel-in-reverse;
 }
 
 .ct-auth-brand {
@@ -331,12 +330,6 @@
     radial-gradient(ellipse at 88% 0%, rgba(195, 229, 200, 0.14), transparent 42%),
     linear-gradient(165deg, var(--auth-forest) 0%, #235e3d 100%);
   color: #fff;
-  will-change: transform;
-  transition: transform 580ms var(--auth-ease);
-}
-
-.ct-auth-card--register .ct-auth-form-panel {
-  transform: translateX(calc(-100% * 55 / 45));
 }
 
 .ct-auth-form-scroll {
@@ -348,7 +341,6 @@
   padding: clamp(24px, 3.2vw, 39px) clamp(24px, 3.4vw, 46px) 22px;
   scrollbar-color: rgba(216, 243, 106, 0.38) transparent;
   scrollbar-width: thin;
-  transition: padding 580ms var(--auth-ease);
 }
 
 .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll {
@@ -408,41 +400,6 @@
 }
 
 .ct-auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-}
-
-.ct-auth-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  margin-bottom: -13px;
-  opacity: 0;
-  transform: translateY(-6px);
-  pointer-events: none;
-  transition:
-    grid-template-rows 440ms var(--auth-ease),
-    opacity 300ms var(--auth-ease),
-    transform 440ms var(--auth-ease),
-    margin-bottom 440ms var(--auth-ease);
-}
-
-.ct-auth-collapse.is-open {
-  grid-template-rows: 1fr;
-  margin-bottom: 0;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.ct-auth-collapse-inner {
-  min-height: 0;
-  overflow: hidden;
-  margin: -4px;
-  padding: 4px;
-}
-
-.ct-auth-collapse-stack {
   display: flex;
   flex-direction: column;
   gap: 13px;
@@ -775,16 +732,12 @@
   height: calc(100% - 44px);
   overflow: visible;
   pointer-events: none;
-  transform: translateX(0) scaleX(1);
-  transform-origin: center center;
-  will-change: left, transform;
-  animation: ct-auth-divider-in 680ms 120ms var(--auth-ease) both;
-  transition: left 580ms var(--auth-ease), transform 580ms var(--auth-ease);
+  animation: ct-auth-divider-in 820ms 160ms ease both;
 }
 
 .ct-auth-card--register .ct-auth-divider {
-  left: 45%;
-  transform: translateX(-100%) scaleX(-1);
+  left: calc(45% - 106px);
+  transform: scaleX(-1);
 }
 
 .ct-auth-wave {
@@ -1505,11 +1458,6 @@
     height: 36px;
   }
 
-  .ct-auth-card--register .ct-auth-art,
-  .ct-auth-card--register .ct-auth-form-panel {
-    transform: none;
-  }
-
   .ct-auth-form-panel {
     overflow: visible;
   }
@@ -1535,18 +1483,6 @@
   }
 
   .ct-auth-form {
-    gap: 12px;
-  }
-
-  .ct-auth-collapse {
-    margin-bottom: -12px;
-  }
-
-  .ct-auth-collapse.is-open {
-    margin-bottom: 0;
-  }
-
-  .ct-auth-collapse-stack {
     gap: 12px;
   }
 

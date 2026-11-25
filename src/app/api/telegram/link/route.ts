@@ -50,6 +50,12 @@ export async function GET(request: Request) {
   });
 }
 
+/**
+ * POST /api/telegram/link
+ * Mendukung 2 mode:
+ * - mode: 'auto' (atau chatId kosong): otomatis mendeteksi Chat ID dari pesan `/start KODE` / `/link KODE`
+ * - mode: 'manual' (dengan chatId): memverifikasi Chat ID numerik & mengirim pesan konfirmasi nyata
+ */
 export async function POST(request: Request) {
   const auth = await authenticateSupabaseRequest(request);
   if ('error' in auth) {

@@ -421,11 +421,10 @@ export const GreenAreaChart: React.FC<{
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <span
             style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
+              width: 3,
+              height: 14,
+              borderRadius: 2,
               background: color,
-              boxShadow: `0 0 0 4px color-mix(in srgb, ${color} 20%, transparent)`,
               flexShrink: 0,
             }}
           />

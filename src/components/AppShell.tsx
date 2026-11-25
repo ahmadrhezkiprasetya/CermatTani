@@ -753,7 +753,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {authUser && dbSyncStatus.state === 'error' && (
             <div className="alert-card alert-card--bad" role="alert">
               <AlertTriangle size={22} strokeWidth={1.9} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>Sinkronisasi Database Supabase Tertunda</div>
                 <p className="t-small t-soft">{dbSyncStatus.message}</p>
               </div>
@@ -771,7 +771,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {(isOffline || state.offlineQueue.length > 0) && (
             <div className="alert-card alert-card--warn" role="status">
               <CloudOff size={22} strokeWidth={1.75} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>
                   {isOffline
                     ? 'Offline, data tersimpan di ponsel'

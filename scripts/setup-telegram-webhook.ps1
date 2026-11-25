@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 try {
   $baseUri = [Uri]$PublicUrl
 } catch {
-  throw "PublicUrl tidak valid. Masukkan URL deployment, misalnya https://cermattani.example.com"
+  throw "PublicUrl tidak . Masukkan URL deployment, misalnya https://cermattani.example.com"
 }
 
 if ($baseUri.Scheme -ne "https" -or $baseUri.IsLoopback) {

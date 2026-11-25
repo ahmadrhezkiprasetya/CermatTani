@@ -1057,68 +1057,57 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       )}
 
-      {/* Floating Live Alert Toasts — Kanan Atas */}
-      {activeAlerts.length > 0 && (
-        <div
-          className="alert-toast-stack"
-          role="region"
-          aria-label="Peringatan langsung kebun"
-          aria-live="polite"
-        >
-          {activeAlerts.map((toast) => (
+      {/* Floating Live Alert Snackbar — Ringkas, 1 Alert Sekaligus, Anti Tumpang Tindih */}
+      {activeAlerts.length > 0 && (() => {
+        const toast = activeAlerts[0];
+        const showAction =
+          Boolean(toast.actionLabel && toast.actionScreen) && toast.actionScreen !== activeScreen;
+        return (
+          <div
+            className="alert-toast-stack"
+            role="region"
+            aria-label="Peringatan langsung kebun"
+            aria-live="polite"
+          >
             <div key={toast.id} className={`alert-toast alert-toast--${toast.severity}`}>
-              <div className="alert-toast-icon">{renderNotifIcon(toast.tipe, 17)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginBottom: 3,
+              <div className="alert-toast-icon">{renderNotifIcon(toast.tipe, 15)}</div>
+              <div className="alert-toast-body">
+                <div className="alert-toast-head">
+                  <strong className="alert-toast-title">{toast.judul}</strong>
+                  <span className="alert-toast-time">{toast.waktu}</span>
+                </div>
+                <p className="alert-toast-desc">{toast.isi}</p>
+              </div>
+              {showAction && (
+                <button
+                  type="button"
+                  className="alert-toast-action"
+                  onClick={() => {
+                    const targetScreen = toast.actionScreen!;
+                    dismissAlert(toast.id);
+                    if (targetScreen === 'scan') {
+                      openScanWith('daun');
+                    } else {
+                      setActiveScreen(targetScreen);
+                    }
                   }}
                 >
-                  <strong style={{ fontSize: '0.86rem', lineHeight: 1.25 }}>{toast.judul}</strong>
-                  <span className="t-micro t-soft" style={{ flexShrink: 0 }}>
-                    {toast.waktu}
-                  </span>
-                </div>
-                <p className="t-small t-soft" style={{ fontSize: '0.8rem', lineHeight: 1.4 }}>
-                  {toast.isi}
-                </p>
-                {toast.actionLabel && toast.actionScreen && (
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type="button"
-                      className="alert-toast-action"
-                      onClick={() => {
-                        const targetScreen = toast.actionScreen!;
-                        dismissAlert(toast.id);
-                        if (targetScreen === 'scan') {
-                          openScanWith('daun');
-                        } else {
-                          setActiveScreen(targetScreen);
-                        }
-                      }}
-                    >
-                      {toast.actionLabel}
-                      <ArrowUpRight size={13} />
-                    </button>
-                  </div>
-                )}
-              </div>
+                  {toast.actionLabel}
+                  <ArrowUpRight size={12} />
+                </button>
+              )}
               <button
                 type="button"
                 className="alert-toast-close"
                 onClick={() => dismissAlert(toast.id)}
                 aria-label="Tutup peringatan"
               >
-                <X size={15} />
+                <X size={14} />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Panel Notifikasi & Jadwal Pengingat — Kanan Atas (Desktop) / Bottom Sheet (Mobile) */}
       {showNotifModal && (

@@ -1,5 +1,5 @@
 param(
-  [string]$PublicUrl = "https://cermattaniweb.vercel.app",
+  [string]$PublicUrl = "https://cermattani.vercel.app",
 
   [string]$EnvFile = ".env"
 )

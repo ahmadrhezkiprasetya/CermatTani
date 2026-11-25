@@ -1348,14 +1348,16 @@
 @media (max-width: 767px) {
   .ct-auth-page {
     min-height: 100dvh;
-    padding: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 14px 12px 24px;
   }
 
   .ct-auth-card,
   .ct-auth-card--register {
     grid-template-areas: "art" "form" "footer";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 200px auto auto;
+    grid-template-rows: 216px auto auto;
     width: min(520px, 100%);
     height: auto;
     min-height: 0;
@@ -1364,8 +1366,8 @@
   }
 
   .ct-auth-art {
-    min-height: 200px;
-    padding: 18px 22px;
+    min-height: 216px;
+    padding: 18px 20px;
   }
 
   .ct-auth-brand-mark {
@@ -1386,10 +1388,10 @@
   }
 
   .ct-auth-scene {
-    right: 15%;
-    bottom: -21%;
+    right: 6%;
+    bottom: -18%;
     left: -3%;
-    height: 160%;
+    height: 150%;
     min-height: 0;
   }
 
@@ -1414,31 +1416,25 @@
   }
 
   .ct-auth-mascot {
-    bottom: -4%;
-    left: 59%;
+    bottom: -2%;
+    left: 56%;
   }
 
   .ct-auth-mascot img {
-    height: 145px !important;
-    max-width: 130px !important;
+    height: 142px !important;
+    max-width: 128px !important;
   }
 
   .ct-auth-speech {
-    max-width: 170px;
-    padding: 6px 9px;
-    font-size: 0.58rem;
+    max-width: 185px;
+    padding: 6px 10px;
+    font-size: 0.6rem;
+    line-height: 1.35;
   }
 
-  .ct-auth-dew {
-    display: none;
-  }
-
+  .ct-auth-dew,
   .ct-auth-art-caption {
-    right: 14px;
-    bottom: 12px;
-    left: 14px;
-    font-size: 0.56rem;
-    text-align: left;
+    display: none;
   }
 
   .ct-auth-divider {
@@ -1453,17 +1449,19 @@
     left: 0;
     display: block;
     width: 100%;
-    height: 39px;
+    height: 36px;
   }
 
   .ct-auth-form-panel {
     overflow: visible;
   }
 
-  .ct-auth-form-scroll {
+  .ct-auth-card .ct-auth-form-scroll,
+  .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll,
+  .ct-auth-card--register .ct-auth-form-scroll {
     height: auto;
     overflow: visible;
-    padding: 18px 23px 24px;
+    padding: 18px 22px 26px;
   }
 
   .ct-auth-home-link {
@@ -1471,7 +1469,7 @@
   }
 
   .ct-auth-form-heading {
-    margin: 10px 0 17px;
+    margin: 10px 0 18px;
   }
 
   .ct-auth-form-heading h1 {
@@ -1482,11 +1480,16 @@
     gap: 12px;
   }
 
+  .ct-auth-security {
+    justify-content: center;
+    text-align: center;
+  }
+
   .ct-auth-card-footer {
-    min-height: 46px;
-    padding: 0 18px;
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
-    font-size: 0.59rem;
+    min-height: 48px;
+    padding: 10px 22px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.62rem;
   }
 
   .ct-footer-scenery {
@@ -1549,11 +1552,12 @@
 
 @media (max-width: 479px) {
   .ct-auth-card-footer {
-    align-items: flex-start;
+    align-items: center;
     flex-direction: column;
     justify-content: center;
-    gap: 2px;
-    padding: 8px 18px;
+    gap: 4px;
+    padding: 12px 20px;
+    text-align: center;
   }
 
   .ct-footer-scenery {

@@ -1,5 +1,5 @@
 param(
-  [string]$PublicUrl = "https://cermattani.vercel.app",
+  [string]$PublicUrl = "https://cermattaniweb.vercel.app",
 
   [string]$EnvFile = ".env"
 )
@@ -8,7 +8,8 @@ $ErrorActionPreference = "Stop"
 
 try {
   $baseUri = [Uri]$PublicUrl
-} catch {
+}
+catch {
   throw "PublicUrl tidak valid. Masukkan URL deployment, misalnya https://cermattani.example.com"
 }
 
@@ -25,7 +26,8 @@ if ((-not $botToken -or -not $webhookSecret) -and (Test-Path -LiteralPath $EnvFi
       $botToken = $Matches[1].Trim()
       if ($botToken.Length -ge 2 -and $botToken.StartsWith('"') -and $botToken.EndsWith('"')) {
         $botToken = $botToken.Substring(1, $botToken.Length - 2)
-      } elseif ($botToken.Length -ge 2 -and $botToken.StartsWith("'") -and $botToken.EndsWith("'")) {
+      }
+      elseif ($botToken.Length -ge 2 -and $botToken.StartsWith("'") -and $botToken.EndsWith("'")) {
         $botToken = $botToken.Substring(1, $botToken.Length - 2)
       }
     }
@@ -34,7 +36,8 @@ if ((-not $botToken -or -not $webhookSecret) -and (Test-Path -LiteralPath $EnvFi
       $webhookSecret = $Matches[1].Trim()
       if ($webhookSecret.Length -ge 2 -and $webhookSecret.StartsWith('"') -and $webhookSecret.EndsWith('"')) {
         $webhookSecret = $webhookSecret.Substring(1, $webhookSecret.Length - 2)
-      } elseif ($webhookSecret.Length -ge 2 -and $webhookSecret.StartsWith("'") -and $webhookSecret.EndsWith("'")) {
+      }
+      elseif ($webhookSecret.Length -ge 2 -and $webhookSecret.StartsWith("'") -and $webhookSecret.EndsWith("'")) {
         $webhookSecret = $webhookSecret.Substring(1, $webhookSecret.Length - 2)
       }
     }
@@ -53,7 +56,8 @@ $statusUrl = $baseUri.AbsoluteUri.TrimEnd("/") + "/api/telegram/status"
 
 try {
   $telegramBot = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/getMe"
-} catch {
+}
+catch {
   throw "Telegram menolak TELEGRAM_BOT_TOKEN dari $EnvFile. Periksa token tanpa membagikannya."
 }
 
@@ -63,7 +67,8 @@ if (-not $telegramBot.ok -or -not $telegramBot.result.username) {
 
 try {
   $deploymentStatus = Invoke-RestMethod -Uri $statusUrl
-} catch {
+}
+catch {
   throw "Tidak dapat membaca status deployment Vercel. Pastikan $statusUrl dapat dibuka publik."
 }
 
@@ -83,7 +88,8 @@ try {
     -ContentType "application/json" `
     -Body '{"update_id":0}'
   $probeStatus = [int]$probe.StatusCode
-} catch {
+}
+catch {
   $probeStatus = 0
   if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
     $probeStatus = [int]$_.Exception.Response.StatusCode
@@ -101,8 +107,8 @@ if ($probeStatus -ne 200) {
 }
 
 $payload = @{
-  url = $webhookUrl
-  secret_token = $webhookSecret
+  url             = $webhookUrl
+  secret_token    = $webhookSecret
   allowed_updates = @("message")
 } | ConvertTo-Json -Compress
 
@@ -112,7 +118,8 @@ try {
     -Method Post `
     -ContentType "application/json" `
     -Body $payload
-} catch {
+}
+catch {
   throw "Telegram gagal menerima setWebhook. Periksa token dan koneksi internet; detail request disembunyikan agar token tetap rahasia."
 }
 

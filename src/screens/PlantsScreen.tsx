@@ -219,19 +219,9 @@ export const PlantsScreen: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Bar Atas: Filter Fase + Cari Cepat + Aksi */}
-      <section
-        className="card"
-        style={{
-          padding: '14px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div className="seg-tabs" role="tablist" aria-label="Filter tanaman">
+      <section className="card plants-filter-bar">
+        <div className="plants-filter-left">
+          <div className="seg-tabs plants-seg-tabs" role="tablist" aria-label="Filter tanaman">
             {(
               [
                 { id: 'semua', label: `Semua (${activeFarmPlants.length})` },
@@ -253,50 +243,30 @@ export const PlantsScreen: React.FC = () => {
             ))}
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '0 11px',
-              minHeight: 36,
-              borderRadius: 11,
-              background: 'var(--surface-2)',
-              border: '1px solid var(--line)',
-            }}
-          >
-            <Search size={14} color="var(--ink-soft)" />
+          <div className="plants-search-box">
+            <Search size={14} color="var(--ink-soft)" style={{ flexShrink: 0 }} />
             <input
               type="search"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               placeholder="Filter petak..."
               aria-label="Filter daftar tanaman"
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '0.82rem',
-                width: 130,
-                color: 'var(--ink)',
-              }}
+              className="plants-search-input"
             />
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="plants-filter-actions">
           <button
             type="button"
-            className="btn-secondary"
-            style={{ minHeight: 38, padding: '6px 13px', fontSize: '0.84rem' }}
+            className="btn-secondary plants-filter-btn"
             onClick={handleExportCsv}
           >
             <Download size={15} /> Ekspor CSV
           </button>
           <button
             type="button"
-            className="btn-primary"
-            style={{ minHeight: 38, padding: '6px 14px', fontSize: '0.84rem' }}
+            className="btn-primary plants-filter-btn"
             onClick={() => setShowAddModal(true)}
           >
             <Plus size={16} /> Tambah tanaman
@@ -327,8 +297,48 @@ export const PlantsScreen: React.FC = () => {
           </button>
         </section>
       ) : (
-        /* Tata Letak Master–Detail: Daftar Petak Kiri (scroll lokal / swipe HP) + Detail Lengkap Kanan */
+        /* Tata Letak Master–Detail: Dropdown di Mobile, Daftar Petak di Desktop + Detail Lengkap */
         <div className="plants-layout">
+          {/* Dropdown Pemilih Tanaman Khusus Mobile (<= 768px) */}
+          <div className="plants-mobile-dropdown card">
+            <label htmlFor="mobile-plant-select" className="t-micro t-soft" style={{ fontWeight: 700 }}>
+              Pilih tanaman ({filteredPlants.length})
+            </label>
+            {filteredPlants.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="t-small t-soft">Tidak ada tanaman yang cocok.</span>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    setPhaseFilter('semua');
+                    setLocalSearch('');
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            ) : (
+              <select
+                id="mobile-plant-select"
+                className="field-select"
+                value={selectedPlant?.id || ''}
+                onChange={(e) => setSelectedPlantId(e.target.value)}
+                style={{ minHeight: 42, fontSize: '0.88rem', fontWeight: 600 }}
+              >
+                {filteredPlants.map((p) => {
+                  const meta = plantMetaMap.get(p.id);
+                  const statusLabel = meta?.hasIssue ? 'Perlu cek' : p.fase;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.nama} — {statusLabel} ({daysSince(p.tanggalTanam)} HST)
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+          </div>
+
           <aside className="plants-list-col" aria-label="Daftar tanaman kebun">
             {filteredPlants.length === 0 ? (
               <div className="card-subtle" style={{ textAlign: 'center', padding: 20 }}>
@@ -434,17 +444,17 @@ export const PlantsScreen: React.FC = () => {
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="plants-detail-actions">
                   <button
                     type="button"
-                    className="btn-tomato"
+                    className="btn-tomato plants-detail-btn"
                     onClick={() => openScanWith('buah', selectedPlant.id)}
                   >
-                    <Camera size={17} /> Scan tanaman
+                    <Camera size={16} /> Scan tanaman
                   </button>
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="btn-secondary plants-detail-btn"
                     onClick={() => openChatWithPlant(selectedPlant.id)}
                   >
                     <MessageCircle size={16} /> Tanya Cermo
@@ -467,9 +477,8 @@ export const PlantsScreen: React.FC = () => {
                     return (
                       <div
                         key={phaseName}
-                        className={`growth-step ${
-                          isCurrent ? 'growth-step--current' : isDone ? 'growth-step--done' : ''
-                        }`}
+                        className={`growth-step ${isCurrent ? 'growth-step--current' : isDone ? 'growth-step--done' : ''
+                          }`}
                       >
                         <span
                           style={{

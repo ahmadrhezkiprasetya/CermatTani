@@ -16,6 +16,13 @@ export interface TelegramBotInfo {
   error?: string;
 }
 
+export interface TelegramWebhookStatus {
+  configured: boolean;
+  endpointValid: boolean;
+  pendingUpdates: number;
+  lastError?: string;
+}
+
 interface TelegramApiResponse<T = unknown> {
   ok: boolean;
   result?: T;
@@ -135,6 +142,47 @@ export async function getTelegramBotInfo(): Promise<TelegramBotInfo> {
     firstName: cachedBotInfo?.data.firstName || 'CermatTani Bot',
     botUrl: cachedBotInfo?.data.botUrl || '',
     error: translateTelegramError(res.description),
+  };
+}
+
+export async function getTelegramWebhookStatus(): Promise<TelegramWebhookStatus> {
+  if (!getTelegramBotToken()) {
+    return { configured: false, endpointValid: false, pendingUpdates: 0 };
+  }
+
+  const res = await callTelegramApi<{
+    url?: string;
+    pending_update_count?: number;
+    last_error_message?: string;
+  }>('getWebhookInfo');
+
+  if (!res.ok || !res.result) {
+    return {
+      configured: false,
+      endpointValid: false,
+      pendingUpdates: 0,
+      lastError: translateTelegramError(res.description),
+    };
+  }
+
+  const url = res.result.url || '';
+  let endpointValid = false;
+  try {
+    const parsedUrl = new URL(url);
+    endpointValid =
+      parsedUrl.protocol === 'https:' &&
+      parsedUrl.pathname.replace(/\/+$/, '') === '/api/telegram/webhook' &&
+      !parsedUrl.search &&
+      !parsedUrl.hash;
+  } catch {
+    endpointValid = false;
+  }
+
+  return {
+    configured: Boolean(url),
+    endpointValid,
+    pendingUpdates: Number(res.result.pending_update_count || 0),
+    lastError: res.result.last_error_message,
   };
 }
 

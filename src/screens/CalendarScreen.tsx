@@ -86,7 +86,19 @@ export const CalendarScreen: React.FC = () => {
     username: string;
     botUrl: string;
     error: string;
-  }>({ configured: false, username: '', botUrl: '', error: '' });
+    webhook: {
+      configured: boolean;
+      endpointValid: boolean;
+      pendingUpdates: number;
+      lastError?: string;
+    };
+  }>({
+    configured: false,
+    username: '',
+    botUrl: '',
+    error: '',
+    webhook: { configured: false, endpointValid: false, pendingUpdates: 0 },
+  });
 
   useEffect(() => {
     if (reminderTab !== 'telegram') return;
@@ -144,6 +156,12 @@ export const CalendarScreen: React.FC = () => {
             username: d.username || '',
             botUrl: d.botUrl || '',
             error: d.error || '',
+            webhook: {
+              configured: Boolean(d.webhook?.configured),
+              endpointValid: Boolean(d.webhook?.endpointValid),
+              pendingUpdates: Number(d.webhook?.pendingUpdates || 0),
+              lastError: d.webhook?.lastError,
+            },
           });
         }
       })
@@ -676,6 +694,31 @@ export const CalendarScreen: React.FC = () => {
               </div>
             ) : (
               <div key="rem-telegram" className="tab-fade" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {tgBotInfo.configured &&
+                  (!tgBotInfo.webhook.configured || !tgBotInfo.webhook.endpointValid) && (
+                    <div className="alert-card alert-card--warn" role="status">
+                      <div>
+                        <strong>Webhook Telegram belum siap</strong>
+                        <p className="t-small" style={{ marginTop: 4 }}>
+                          Tombol Start tidak akan diproses sampai webhook terdaftar ke URL HTTPS
+                          <code>/api/telegram/webhook</code>. Daftarkan webhook untuk domain aplikasi
+                          sesuai langkah di README, lalu coba Start lagi.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                {tgBotInfo.webhook.lastError && (
+                  <div className="alert-card alert-card--warn" role="status">
+                    <div>
+                      <strong>Telegram gagal menghubungi webhook</strong>
+                      <p className="t-small" style={{ marginTop: 4 }}>
+                        {tgBotInfo.webhook.lastError}
+                        {tgBotInfo.webhook.pendingUpdates > 0 &&
+                          ` (${tgBotInfo.webhook.pendingUpdates} update tertunda)`}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {!state.user.telegramChatId ? (
                   <>
                     <div className="card-forest" style={{ textAlign: 'center', padding: 18 }}>

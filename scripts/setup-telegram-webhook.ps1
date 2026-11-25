@@ -1,8 +1,7 @@
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$PublicUrl,
+  [string]$PublicUrl = "https://cermattaniweb.vercel.app",
 
-  [string]$EnvFile = ".env.local"
+  [string]$EnvFile = ".env"
 )
 
 $ErrorActionPreference = "Stop"

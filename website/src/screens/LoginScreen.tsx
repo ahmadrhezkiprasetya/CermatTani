@@ -230,7 +230,7 @@ export const LoginScreen: React.FC = () => {
 
           <p className="ct-auth-art-caption">Langkah cermat hari ini, panen lebih baik esok hari.</p>
           <svg className="ct-auth-wave" viewBox="0 0 390 48" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0 27c54-21 90 14 147 6 55-8 88-26 141-14 40 9 67 15 102 2v27H0V27Z" fill="#0E4F43" />
+            <path d="M0 27c54-21 90 14 147 6 55-8 88-26 141-14 40 9 67 15 102 2v27H0V27Z" fill="#286c46" />
           </svg>
         </section>
 
@@ -480,7 +480,7 @@ export const LoginScreen: React.FC = () => {
         </section>
 
         <svg className="ct-auth-divider" viewBox="0 0 100 620" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 0h8c25 46 72 69 61 124-7 38-42 61-28 111 15 52 58 68 43 123-12 44-49 61-34 111 10 34 39 55 31 88-5 22-24 47-36 63H0V0Z" fill="#EEF7F1" />
+          <path d="M0 0h8c25 46 72 69 61 124-7 38-42 61-28 111 15 52 58 68 43 123-12 44-49 61-34 111 10 34 39 55 31 88-5 22-24 47-36 63H0V0Z" fill="#eef6ef" />
         </svg>
 
         <div className="ct-auth-card-footer">

@@ -30,13 +30,13 @@ Buka peramban di **http://localhost:3000**.
    ```
 
 6. Isi `TELEGRAM_WEBHOOK_SECRET` dengan rahasia acak. Buat nilai aman, misalnya dengan `node -p "require('node:crypto').randomBytes(32).toString('base64url')"`.
-7. Deploy aplikasi ke URL HTTPS publik. Telegram tidak dapat mengirim webhook ke `localhost`. Jalankan skrip berikut di PowerShell dari root project. Skrip membaca token dan secret dari environment atau `.env.local` tanpa menampilkannya:
+7. Deploy aplikasi ke URL HTTPS publik. Telegram tidak dapat mengirim webhook ke `localhost`. Jalankan skrip berikut di PowerShell dari root project. Skrip membaca token dan secret dari environment atau `.env`, memeriksa agar token bot cocok dengan deployment Vercel, menguji endpoint dan secret webhook, lalu mendaftarkan webhook tanpa menampilkan token:
 
    ```powershell
-   .\scripts\setup-telegram-webhook.ps1 -PublicUrl "https://DOMAIN_KAMU"
+   .\scripts\setup-telegram-webhook.ps1
    ```
 
-   Jika konfigurasi disimpan di file lain, tambahkan `-EnvFile ".env"`. Verifikasi status dari kartu Telegram di **Kalender → Telegram**; jika webhook belum terdaftar atau Telegram gagal menghubunginya, halaman akan menampilkan status/error webhook.
+   URL deployment sudah diatur di skrip. Jika konfigurasi disimpan di file lain, tambahkan `-EnvFile ".env.local"`. Verifikasi status dari kartu Telegram di **Kalender → Telegram**; jika webhook belum terdaftar atau Telegram gagal menghubunginya, halaman akan menampilkan status/error webhook.
 
 8. Login ke CermatTani, buka **Kalender → Telegram**, buat kode tautan, lalu tekan **Start** dari tautan bot. Kode berlaku 10 menit, hanya bisa digunakan sekali, dan status koneksi diperbarui otomatis.
 

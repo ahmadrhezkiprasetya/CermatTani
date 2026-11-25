@@ -30,7 +30,7 @@ Buka peramban di **http://localhost:3000**.
    ```
 
 6. Isi `TELEGRAM_WEBHOOK_SECRET` dengan rahasia acak. Buat nilai aman, misalnya dengan `node -p "require('node:crypto').randomBytes(32).toString('base64url')"`.
-7. Deploy aplikasi ke URL HTTPS publik. Telegram tidak dapat mengirim webhook ke `localhost`. Jalankan skrip berikut di PowerShell dari root project. Skrip membaca token dan secret dari environment atau `.env` tanpa menampilkannya:
+7. Deploy aplikasi ke URL HTTPS publik. Telegram tidak dapat mengirim webhook ke `localhost`. Jalankan skrip berikut di PowerShell dari root project. Skrip membaca token dan secret dari environment atau `.env`, memeriksa agar token bot cocok dengan deployment Vercel, menguji endpoint dan secret webhook, lalu mendaftarkan webhook tanpa menampilkan token:
 
    ```powershell
    .\scripts\setup-telegram-webhook.ps1

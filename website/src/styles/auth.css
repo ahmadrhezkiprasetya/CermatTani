@@ -353,12 +353,21 @@
 .ct-auth-art-caption {
   position: absolute;
   z-index: 2;
-  right: 25px;
-  bottom: 14px;
-  left: 25px;
-  color: #4a6658;
+  right: calc(25px + var(--auth-wave-r));
+  bottom: 12px;
+  left: calc(25px + var(--auth-wave-l));
+  width: fit-content;
+  max-width: calc(100% - 50px - var(--auth-wave-l) - var(--auth-wave-r));
+  margin-inline: auto;
+  padding: 5px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(249, 243, 228, 0.86);
+  box-shadow: 0 4px 14px rgba(29, 68, 47, 0.14);
+  color: #2f5a45;
   font-size: 0.66rem;
   font-weight: 600;
+  line-height: 1.4;
   text-align: center;
 }
 
@@ -396,7 +405,7 @@
 
 .ct-auth-home-link {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   gap: 6px;
   padding: 4px 0;
@@ -415,7 +424,7 @@
 }
 
 .ct-auth-form-heading {
-  margin: 15px 0 21px;
+  margin: 10px 0 18px;
   animation: ct-auth-form-rise 480ms 80ms ease both;
 }
 
@@ -756,7 +765,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-top: 20px;
+  margin-top: 12px;
   color: var(--auth-muted);
   font-size: 0.65rem;
 }

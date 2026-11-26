@@ -106,6 +106,8 @@
   border-radius: 36px;
   background: var(--auth-forest);
   box-shadow: 0 24px 64px rgba(31, 57, 45, 0.16), 0 4px 16px rgba(31, 57, 45, 0.08);
+  /* Lebar & bentuk gelombang di-set inline dari src/lib/authWave.ts */
+  --auth-wave-w: 72px;
   will-change: transform, opacity;
   animation: ct-auth-card-enter 560ms var(--auth-ease) both;
   transition: grid-template-columns 520ms var(--auth-ease);
@@ -118,24 +120,65 @@
   min-height: min(600px, calc(100dvh - 56px));
 }
 
+/*
+ * Panel ilustrasi diperpanjang selebar gelombang ke arah panel form, lalu tepinya
+ * dipotong dengan mask berbentuk gelombang. Gelombang = bagian dari panel yang sama,
+ * jadi warna/gradient-nya selalu menyatu tanpa sambungan.
+ */
 .ct-auth-art {
+  --auth-art-pad: clamp(24px, 3.8vw, 44px);
+  --auth-wave-l: 0px;
+  --auth-wave-r: var(--auth-wave-w);
   position: relative;
+  z-index: 2;
   grid-area: art;
   display: flex;
   min-width: 0;
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  padding: clamp(24px, 3.8vw, 44px);
+  margin-right: calc(-1 * var(--auth-wave-r));
+  margin-left: calc(-1 * var(--auth-wave-l));
+  padding: var(--auth-art-pad);
+  padding-right: calc(var(--auth-art-pad) + var(--auth-wave-r));
+  padding-left: calc(var(--auth-art-pad) + var(--auth-wave-l));
   background:
     radial-gradient(ellipse at 48% 53%, rgba(255, 255, 255, 0.55), transparent 52%),
     linear-gradient(160deg, var(--cream-warm, #f9f3e4) 0%, var(--auth-mint) 62%, #e2efe4 100%);
   color: var(--auth-forest);
+  -webkit-mask:
+    linear-gradient(#000 0 0) left top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat,
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) right top / var(--auth-wave-w) 100% no-repeat;
+  mask:
+    linear-gradient(#000 0 0) left top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat,
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) right top / var(--auth-wave-w) 100% no-repeat;
   animation: ct-auth-panel-in 520ms var(--auth-ease) both;
 }
 
 .ct-auth-card--register .ct-auth-art {
+  --auth-wave-l: var(--auth-wave-w);
+  --auth-wave-r: 0px;
+  -webkit-mask:
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) left top / var(--auth-wave-w) 100% no-repeat,
+    linear-gradient(#000 0 0) right top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat;
+  mask:
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) left top / var(--auth-wave-w) 100% no-repeat,
+    linear-gradient(#000 0 0) right top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat;
   animation-name: ct-auth-panel-in-reverse;
+}
+
+/* TOOLS SEMENTARA: kotak overlay editor gelombang (?wave-editor) */
+.ct-auth-wave-editor-box {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 48%;
+  width: var(--auth-wave-w);
+  height: calc(100% - 44px);
+}
+
+.ct-auth-card--register .ct-auth-wave-editor-box {
+  left: calc(52% - var(--auth-wave-w));
 }
 
 .ct-auth-brand {
@@ -183,7 +226,7 @@
   position: absolute;
   z-index: 2;
   top: 24%;
-  left: clamp(24px, 3.8vw, 44px);
+  left: calc(var(--auth-art-pad) + var(--auth-wave-l));
   max-width: 260px;
   pointer-events: none;
 }
@@ -207,9 +250,9 @@
 
 .ct-auth-scene {
   position: absolute;
-  right: 3%;
-  bottom: 4%;
-  left: 1%;
+  right: calc(3% + var(--auth-wave-r));
+  bottom: 46px;
+  left: calc(1% + var(--auth-wave-l));
   height: 68%;
   min-height: 300px;
 }
@@ -723,23 +766,6 @@
   color: var(--auth-lime);
 }
 
-.ct-auth-divider {
-  position: absolute;
-  z-index: 4;
-  top: 0;
-  left: 55%;
-  width: 106px;
-  height: calc(100% - 44px);
-  overflow: visible;
-  pointer-events: none;
-  animation: ct-auth-divider-in 820ms 160ms ease both;
-}
-
-.ct-auth-card--register .ct-auth-divider {
-  left: calc(45% - 106px);
-  transform: scaleX(-1);
-}
-
 .ct-auth-wave {
   display: none;
 }
@@ -781,11 +807,6 @@
 @keyframes ct-auth-panel-in-reverse {
   from { opacity: 0.82; transform: translateX(10px); }
   to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes ct-auth-divider-in {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0 0 0 0); }
 }
 
 @keyframes ct-auth-form-rise {

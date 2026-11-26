@@ -18,6 +18,9 @@ import {
 import { useApp } from '../state/AppContext';
 import { PakCermatMascot, type PakCermatPose } from '../components/PakCermatMascot';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { AUTH_WAVE_DEFAULT, buildWaveMask, type AuthWave } from '@/lib/authWave';
+// TOOLS SEMENTARA: editor gelombang (aktif via ?wave-editor). Hapus setelah bentuk final.
+import { AuthWaveEditor, loadWaveEditorDraft } from '../components/AuthWaveEditor';
 
 function translateAuthError(raw: string): string {
   const lower = raw.toLowerCase();
@@ -90,6 +93,21 @@ export const LoginScreen: React.FC = () => {
         : focusedField === 'password'
           ? 'Tenang, saya nggak ngintip kok.'
           : 'Sugeng rawuh, Juragan!';
+
+  // TOOLS SEMENTARA: draft gelombang dari editor (null = editor tidak aktif).
+  const [waveDraft, setWaveDraft] = useState<AuthWave | null>(null);
+  React.useEffect(() => {
+    setWaveDraft(loadWaveEditorDraft());
+  }, []);
+  const wave = waveDraft ?? AUTH_WAVE_DEFAULT;
+  const cardStyle = React.useMemo(
+    () =>
+      ({
+        '--auth-wave-w': `${wave.width}px`,
+        '--auth-wave-mask': buildWaveMask(wave.nodes, mode === 'register'),
+      }) as React.CSSProperties,
+    [wave, mode]
+  );
 
   React.useEffect(() => {
     if (authUser) {
@@ -172,6 +190,7 @@ export const LoginScreen: React.FC = () => {
 
       <section
         className={`ct-auth-card ct-auth-card--${mode}`}
+        style={cardStyle}
         aria-label={mode === 'login' ? 'Masuk ke CermatTani' : 'Daftar akun CermatTani'}
       >
         <section className="ct-auth-art" aria-label="Pak Cermat menyambut petani">
@@ -201,9 +220,10 @@ export const LoginScreen: React.FC = () => {
             <svg className="ct-auth-farm" viewBox="0 0 540 360" fill="none">
               <circle cx="402" cy="72" r="31" fill="#F8C55D" />
               <circle cx="402" cy="72" r="46" fill="#F8C55D" fillOpacity=".16" />
-              <path d="M0 206C77 158 136 175 202 198c82 28 136-9 204-29 59-18 96-5 134 16v175H0V206Z" fill="#B9DDA9" />
-              <path d="M0 238c80-38 145-27 218 2 75 29 147 1 209-19 47-15 80-11 113 3v136H0V238Z" fill="#72B987" />
-              <path d="M0 267c82-29 154-17 230 13 74 29 141 10 205-8 43-12 75-8 105 3v82H0v-90Z" fill="#4C9D70" />
+              {/* Bukit diperpanjang ke kiri, kanan & bawah agar menyatu sampai tepi gelombang dan dasar panel. */}
+              <path d="M-320 214C-200 190-90 186 0 206C77 158 136 175 202 198c82 28 136-9 204-29 59-18 96-5 134 16 110 24 220 12 360-6V470H-320Z" fill="#B9DDA9" />
+              <path d="M-320 250C-210 226-100 222 0 238c80-38 145-27 218 2 75 29 147 1 209-19 47-15 80-11 113 3 100 22 200 18 360 4V470H-320Z" fill="#72B987" />
+              <path d="M-320 280C-210 258-100 254 0 267c82-29 154-17 230 13 74 29 141 10 205-8 43-12 75-8 105 3 100 20 200 16 360 4V470H-320Z" fill="#4C9D70" />
               <path d="M9 255c71-23 134-12 199 12m-165 4c70-21 124-9 182 12m-107-49c70-20 129-8 188 13m-89 41c67-18 122-8 177 9" stroke="#D8F3C8" strokeOpacity=".8" strokeWidth="5" strokeLinecap="round" />
               <path d="M375 351c-10-47 10-82 40-111 24-23 52-41 73-64-7 41-20 66-44 94-22 26-41 49-41 81h-28Z" fill="#6BC4CC" />
               <path d="M377 351c-6-40 12-73 37-99m-25 88c7-41 31-73 62-102" stroke="#E4FAF7" strokeWidth="4" strokeLinecap="round" />
@@ -479,9 +499,9 @@ export const LoginScreen: React.FC = () => {
           </div>
         </section>
 
-        <svg className="ct-auth-divider" viewBox="0 0 100 620" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 0h8c25 46 72 69 61 124-7 38-42 61-28 111 15 52 58 68 43 123-12 44-49 61-34 111 10 34 39 55 31 88-5 22-24 47-36 63H0V0Z" fill="#eef6ef" />
-        </svg>
+        {waveDraft && (
+          <AuthWaveEditor wave={waveDraft} onChange={setWaveDraft} flipped={mode === 'register'} />
+        )}
 
         <div className="ct-auth-card-footer">
           <span>© 2026 Cermat Tani</span>

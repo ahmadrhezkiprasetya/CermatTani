@@ -292,58 +292,61 @@ export const LoginScreen: React.FC = () => {
             )}
 
             <form key={mode} id="auth-form" className="ct-auth-form" onSubmit={handleSubmit}>
-              {mode === 'register' && (
+              {/* Mode daftar: kolom dipasangkan 2-2 agar form muat di layar tanpa tertutup. */}
+              <div className="ct-auth-field-row">
+                {mode === 'register' && (
+                  <div className="field-group">
+                    <label htmlFor="auth-nama" className="field-label">Nama lengkap</label>
+                    <div className="ct-auth-input-wrap">
+                      <User size={17} aria-hidden="true" />
+                      <input
+                        id="auth-nama"
+                        type="text"
+                        required
+                        minLength={2}
+                        className="field-input"
+                        placeholder="Nama panggilanmu"
+                        value={nama}
+                        onFocus={() => setFocusedField('nama')}
+                        onBlur={() => setFocusedField(null)}
+                        onChange={(event) => setNama(event.target.value)}
+                        autoComplete="name"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="field-group">
-                  <label htmlFor="auth-nama" className="field-label">Nama lengkap</label>
+                  <label htmlFor="auth-email" className="field-label">Email</label>
                   <div className="ct-auth-input-wrap">
-                    <User size={17} aria-hidden="true" />
+                    <Mail size={17} aria-hidden="true" />
                     <input
-                      id="auth-nama"
-                      type="text"
+                      id="auth-email"
+                      type="email"
                       required
-                      minLength={2}
                       className="field-input"
-                      placeholder="Nama yang ingin kami gunakan"
-                      value={nama}
-                      onFocus={() => setFocusedField('nama')}
+                      placeholder="nama@email.com"
+                      value={email}
+                      onFocus={() => setFocusedField('email')}
                       onBlur={() => setFocusedField(null)}
-                      onChange={(event) => setNama(event.target.value)}
-                      autoComplete="name"
+                      onChange={(event) => setEmail(event.target.value)}
+                      autoComplete="email"
                     />
                   </div>
-                </div>
-              )}
-
-              <div className="field-group">
-                <label htmlFor="auth-email" className="field-label">Email</label>
-                <div className="ct-auth-input-wrap">
-                  <Mail size={17} aria-hidden="true" />
-                  <input
-                    id="auth-email"
-                    type="email"
-                    required
-                    className="field-input"
-                    placeholder="nama@email.com"
-                    value={email}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
-                    onChange={(event) => setEmail(event.target.value)}
-                    autoComplete="email"
-                  />
                 </div>
               </div>
 
               {mode === 'register' && (
-                <>
+                <div className="ct-auth-field-row">
                   <div className="field-group">
-                    <label htmlFor="auth-farm" className="field-label">Kelompok tani / nama kebun (opsional)</label>
+                    <label htmlFor="auth-farm" className="field-label">Nama kebun (opsional)</label>
                     <div className="ct-auth-input-wrap">
                       <Sprout size={17} aria-hidden="true" />
                       <input
                         id="auth-farm"
                         type="text"
                         className="field-input"
-                        placeholder="Contoh: Kebun Sayur Lembang"
+                        placeholder="Kebun Lembang"
                         value={namaKebun}
                         onFocus={() => setFocusedField('nama')}
                         onBlur={() => setFocusedField(null)}
@@ -352,14 +355,14 @@ export const LoginScreen: React.FC = () => {
                     </div>
                   </div>
                   <div className="field-group">
-                    <label htmlFor="auth-location" className="field-label">Desa atau lokasi kebun (opsional)</label>
+                    <label htmlFor="auth-location" className="field-label">Lokasi kebun (opsional)</label>
                     <div className="ct-auth-input-wrap">
                       <MapPin size={17} aria-hidden="true" />
                       <input
                         id="auth-location"
                         type="text"
                         className="field-input"
-                        placeholder="Contoh: Lembang, Bandung Barat"
+                        placeholder="Desa / kecamatan"
                         value={lokasiKebun}
                         onFocus={() => setFocusedField('nama')}
                         onBlur={() => setFocusedField(null)}
@@ -368,53 +371,49 @@ export const LoginScreen: React.FC = () => {
                       />
                     </div>
                   </div>
-                </>
+                </div>
               )}
 
-              <div className="field-group">
-                <label htmlFor="auth-password" className="field-label">Kata sandi</label>
-                <div className="ct-auth-input-wrap">
-                  <Lock size={17} aria-hidden="true" />
-                  <input
-                    id="auth-password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    className="field-input"
-                    placeholder="Minimal 6 karakter"
-                    value={password}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                    onChange={(event) => setPassword(event.target.value)}
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  />
-                  <button
-                    type="button"
-                    className="ct-auth-visibility"
-                    onClick={() => setShowPassword((visible) => !visible)}
-                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
-                  >
-                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                  </button>
-                </div>
-                {mode === 'register' && password.length > 0 && (
-                  <div className="ct-auth-strength" aria-live="polite">
-                    <div className="ct-auth-strength-leaves" aria-hidden="true">
-                      {[1, 2, 3, 4].map((leaf) => (
-                        <span key={leaf} className={passwordStrength >= leaf ? 'is-lit' : ''} />
-                      ))}
-                    </div>
-                    <span>{['Panjang kata sandi minimal 8 karakter', 'Mulai kuat', 'Cukup kuat', 'Kuat', 'Sangat kuat'][passwordStrength]}</span>
+              <div className="ct-auth-field-row">
+                <div className="field-group">
+                  <label htmlFor="auth-password" className="field-label">Kata sandi</label>
+                  <div className="ct-auth-input-wrap">
+                    <Lock size={17} aria-hidden="true" />
+                    <input
+                      id="auth-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      className="field-input"
+                      placeholder="Minimal 6 karakter"
+                      value={password}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    />
+                    <button
+                      type="button"
+                      className="ct-auth-visibility"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                    >
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
                   </div>
-                )}
-              </div>
-
-              {mode === 'login' ? (
-                <div className="ct-auth-forgot">
-                  <a href="mailto:bantuan@cermattani.id?subject=Bantuan%20Kata%20Sandi">Lupa kata sandi?</a>
+                  {mode === 'register' && password.length > 0 && (
+                    <div className="ct-auth-strength" aria-live="polite">
+                      <div className="ct-auth-strength-leaves" aria-hidden="true">
+                        {[1, 2, 3, 4].map((leaf) => (
+                          <span key={leaf} className={passwordStrength >= leaf ? 'is-lit' : ''} />
+                        ))}
+                      </div>
+                      <span>{['Minimal 8 karakter', 'Mulai kuat', 'Cukup kuat', 'Kuat', 'Sangat kuat'][passwordStrength]}</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <>
+
+                {mode === 'register' && (
                   <div className="field-group">
                     <label htmlFor="auth-confirm" className="field-label">Konfirmasi kata sandi</label>
                     <div className="ct-auth-input-wrap">
@@ -443,7 +442,15 @@ export const LoginScreen: React.FC = () => {
                       </span>
                     )}
                   </div>
+                )}
+              </div>
 
+              {mode === 'login' ? (
+                <div className="ct-auth-forgot">
+                  <a href="mailto:bantuan@cermattani.id?subject=Bantuan%20Kata%20Sandi">Lupa kata sandi?</a>
+                </div>
+              ) : (
+                <>
                   <label className="ct-auth-terms">
                     <input
                       type="checkbox"

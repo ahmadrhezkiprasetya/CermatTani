@@ -115,9 +115,7 @@
 
 .ct-auth-card--register {
   grid-template-areas: "form art" "footer footer";
-  grid-template-columns: minmax(0, 45fr) minmax(0, 55fr);
-  height: min(720px, calc(100dvh - 56px));
-  min-height: min(600px, calc(100dvh - 56px));
+  grid-template-columns: minmax(0, 52fr) minmax(0, 48fr);
 }
 
 /*
@@ -400,7 +398,52 @@
 }
 
 .ct-auth-card--register .ct-auth-form-scroll {
-  padding-right: clamp(72px, 6vw, 94px);
+  padding-right: clamp(56px, 5vw, 68px);
+}
+
+/* Baris 2 kolom hanya aktif di mode daftar; di mode login isinya tetap bertumpuk biasa. */
+.ct-auth-field-row {
+  display: contents;
+}
+
+.ct-auth-card--register .ct-auth-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.ct-auth-card--register .ct-auth-form {
+  gap: 10px;
+}
+
+.ct-auth-card--register .ct-auth-form-heading {
+  margin: 6px 0 14px;
+}
+
+.ct-auth-card--register .ct-auth-form .field-input {
+  min-height: 44px;
+}
+
+/* Ruang kanan 43px hanya perlu untuk tombol mata di kolom kata sandi. */
+.ct-auth-card--register .ct-auth-form .field-input:not(#auth-password) {
+  padding-right: 16px;
+}
+
+/* Panel ilustrasi (48%) sama di kedua mode: posisi judul sama, embun pertama disembunyikan karena jatuh di ujung judul. */
+.ct-auth-art-heading {
+  top: 19%;
+}
+
+.ct-auth-dew--one {
+  display: none;
+}
+
+/* Layar laptop yang pendek: kurangi jarak luar agar kartu tetap muat satu layar. */
+@media (max-height: 780px) and (min-width: 1024px) {
+  .ct-auth-page {
+    --auth-pad-y: 14px;
+  }
 }
 
 .ct-auth-home-link {

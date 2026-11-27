@@ -163,6 +163,34 @@ async function getTelegramAuthorizationHeader(): Promise<string> {
   return `Bearer ${accessToken}`;
 }
 
+/* Onboarding hanya untuk akun yang BARU DAFTAR. Penanda disimpan per email agar tetap berlaku
+   bila pendaftaran butuh konfirmasi email lalu login pertama; dihapus saat onboarding selesai/logout. */
+const PENDING_ONBOARDING_KEY = 'cermattani.pendingOnboardingEmail';
+
+function readPendingOnboardingEmail(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(PENDING_ONBOARDING_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writePendingOnboardingEmail(email: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (email) window.localStorage.setItem(PENDING_ONBOARDING_KEY, email.trim().toLowerCase());
+    else window.localStorage.removeItem(PENDING_ONBOARDING_KEY);
+  } catch {
+    // Abaikan storage penuh / diblokir
+  }
+}
+
+function isPendingOnboarding(email: string | null | undefined): boolean {
+  const pending = readPendingOnboardingEmail();
+  return Boolean(pending && email && pending === email.trim().toLowerCase());
+}
+
 function createDefaultState(onboarded = false): PersistedState {
   return {
     onboarded,
@@ -530,7 +558,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           return {
             ...prev,
-            onboarded: true,
+            onboarded: readPendingOnboardingEmail() ? prev.onboarded : true,
             user: bundle.profile!,
             farms: nextFarms,
             activeFarmId: nextActiveFarmId,
@@ -592,12 +620,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await hydrateFromSupabaseAccount();
   }, [hydrateFromSupabaseAccount]);
 
-  // Akun yang sudah login dianggap selesai onboarding: data nama & kebun sudah diisi saat daftar.
-  // Ditandai SEBELUM sinkron Supabase agar onboarding tidak muncul lagi walau sinkron gagal/lambat.
+  // Login biasa = langsung ke aplikasi tanpa onboarding. Onboarding hanya untuk akun yang baru daftar.
+  // Ditandai SEBELUM sinkron Supabase agar tidak bergantung pada sinkron yang gagal/lambat.
   const signedInUserIdRef = useRef<string | null>(null);
-  const markSignedInOnboarded = useCallback((userId: string) => {
+  const markSignedInOnboarded = useCallback((userId: string, email?: string | null) => {
     signedInUserIdRef.current = userId;
-    setState((prev) => (prev.onboarded ? prev : { ...prev, onboarded: true }));
+    const needsOnboarding = isPendingOnboarding(email);
+    setState((prev) =>
+      prev.onboarded === !needsOnboarding ? prev : { ...prev, onboarded: !needsOnboarding }
+    );
   }, []);
 
   // Sinkronkan sesi Auth Supabase saat pertama kali halaman dibuka & saat login/logout terjadi
@@ -620,7 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const user = data.session?.user;
         if (user) {
           setAuthUser({ id: user.id, email: user.email || '' });
-          markSignedInOnboarded(user.id);
+          markSignedInOnboarded(user.id, user.email);
           await hydrateFromSupabaseAccount();
         } else {
           setAuthUser(null);
@@ -636,7 +667,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (user) {
         setAuthUser({ id: user.id, email: user.email || '' });
         // Hanya saat akun baru masuk (bukan refresh token) agar "Ulangi onboarding" tetap bisa dipakai
-        if (signedInUserIdRef.current !== user.id) markSignedInOnboarded(user.id);
+        if (signedInUserIdRef.current !== user.id) markSignedInOnboarded(user.id, user.email);
       } else {
         signedInUserIdRef.current = null;
         setAuthUser(null);
@@ -710,7 +741,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await cermatSupabaseRepo.signIn(email, password);
       if (res.user) {
         setAuthUser({ id: res.user.id, email: res.user.email || email });
-        markSignedInOnboarded(res.user.id);
+        markSignedInOnboarded(res.user.id, res.user.email || email);
         await hydrateFromSupabaseAccount();
         const dest = postLoginScreen && postLoginScreen !== 'login' ? postLoginScreen : 'beranda';
         setPostLoginScreen(null);
@@ -722,10 +753,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const registerAccount: AppContextValue['registerAccount'] = useCallback(
     async (input) => {
-      const res = await cermatSupabaseRepo.signUp(input.email, input.password, input.nama);
+      // Tandai SEBELUM signUp: event SIGNED_IN Supabase bisa terpicu sebelum fungsi ini lanjut
+      writePendingOnboardingEmail(input.email);
+      let res: Awaited<ReturnType<typeof cermatSupabaseRepo.signUp>>;
+      try {
+        res = await cermatSupabaseRepo.signUp(input.email, input.password, input.nama);
+      } catch (err) {
+        // Pendaftaran gagal (mis. email sudah terdaftar): jangan biarkan penanda onboarding tertinggal
+        writePendingOnboardingEmail(null);
+        throw err;
+      }
       if (res.session && res.user) {
         setAuthUser({ id: res.user.id, email: res.user.email || input.email });
-        markSignedInOnboarded(res.user.id);
+        markSignedInOnboarded(res.user.id, res.user.email || input.email);
         await hydrateFromSupabaseAccount({
           nama: input.nama,
           namaKebun: input.namaKebun,
@@ -744,6 +784,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const signOutAccount = useCallback(async () => {
     await cermatSupabaseRepo.signOut();
     signedInUserIdRef.current = null;
+    writePendingOnboardingEmail(null);
     setAuthUser(null);
     setChatContextScan(null);
     setPendingChatQuestion(null);
@@ -1127,6 +1168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const completeOnboarding: AppContextValue['completeOnboarding'] = (payload) => {
+    writePendingOnboardingEmail(null);
     setState((prev) => {
       let nextFarms = prev.farms;
       let nextActiveFarmId = prev.activeFarmId;

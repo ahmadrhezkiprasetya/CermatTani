@@ -121,6 +121,10 @@ export interface ScanRecord {
   /** Perbandingan ciri objek di foto vs tanaman yang dipilih (hanya bila jenis tidak sesuai). */
   perbandinganJenis?: { aspek: string; diFoto: string; tanamanTarget: string }[];
   saranJenis?: string;
+  /** Token AI yang terpakai untuk scan ini (0 bila diambil dari cache). */
+  tokenAi?: number;
+  /** true = hasil diambil dari cache (foto & tanaman sama), tanpa memanggil AI lagi. */
+  dariCache?: boolean;
   /** Laporan kondisi ringkas untuk petani: panen, penyakit, hara & catatan lain. */
   laporanKondisi?: ScanConditionReport | null;
   // Metadata hasil nyata model AI

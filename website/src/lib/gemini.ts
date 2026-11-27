@@ -53,12 +53,21 @@ export function logAiFailure(context: string, detail: unknown, statusCode?: numb
   console.error(`[AI ${context}] gagal${statusCode ? ` (${statusCode})` : ''}: ${msg}`);
 }
 
+/** Jumlah token satu panggilan AI (untuk log & bukti hemat token di UI). */
+export interface AiTokenUsage {
+  input: number;
+  cached: number;
+  output: number;
+  total: number;
+}
+
 export type GeminiCallResult =
   | {
       ok: true;
       text: string;
       model: string;
       provider: AiProvider;
+      tokens?: AiTokenUsage;
     }
   | {
       ok: false;
@@ -117,7 +126,13 @@ function getKoboiModels(mode: 'vision' | 'chat'): string[] {
 
 type OpenAiContentPart =
   | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } };
+
+/** Tingkat detail gambar untuk model vision (KOBOILLM_IMAGE_DETAIL: low | high | auto). */
+function getImageDetail(): 'low' | 'high' | 'auto' {
+  const v = process.env.KOBOILLM_IMAGE_DETAIL?.trim().toLowerCase();
+  return v === 'high' || v === 'auto' ? v : 'low';
+}
 
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant';
@@ -139,7 +154,10 @@ function toOpenAiMessages(systemPrompt: string, contents: GeminiContent[]): Open
       if (p.inlineData) {
         parts.push({
           type: 'image_url',
-          image_url: { url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}` },
+          image_url: {
+            url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
+            detail: getImageDetail(),
+          },
         });
       }
     }
@@ -165,6 +183,9 @@ function toJsonSchema(schema: unknown): unknown {
       );
     } else if (key === 'items') {
       out.items = toJsonSchema(value);
+    } else if (key === 'enum' && Array.isArray(value) && value.length > 12) {
+      // Hemat token: enum panjang sudah dicantumkan sekali di aturan prompt → cukup rujukan singkat
+      out.description = 'ID dari daftar resmi di aturan';
     } else {
       out[key] = value;
     }
@@ -274,9 +295,32 @@ ${JSON.stringify(toJsonSchema(options.responseSchema))}`
 
         const data = await res.json();
         const text = extractOpenAiText(data);
+        const usage = (data as {
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+            prompt_tokens_details?: { cached_tokens?: number };
+          };
+        })?.usage;
+        const tokens: AiTokenUsage | undefined = usage
+          ? {
+              input: usage.prompt_tokens ?? 0,
+              cached: usage.prompt_tokens_details?.cached_tokens ?? 0,
+              output: usage.completion_tokens ?? 0,
+              total: usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0),
+            }
+          : undefined;
+        if (usage) {
+          console.info(
+            `[AI usage] ${mode} ${model} masuk=${usage.prompt_tokens ?? '?'} (cache=${
+              usage.prompt_tokens_details?.cached_tokens ?? 0
+            }) keluar=${usage.completion_tokens ?? '?'} total=${usage.total_tokens ?? '?'}`
+          );
+        }
         if (text) {
           const servedModel = String((data as { model?: string })?.model || model);
-          return { ok: true, text, model: servedModel, provider: 'koboillm' };
+          return { ok: true, text, model: servedModel, provider: 'koboillm', tokens };
         }
         lastStatus = 502;
         lastError = `Model ${model} mengembalikan respons kosong.`;
@@ -361,7 +405,22 @@ async function callGeminiDirect(options: GeminiCallOptions): Promise<GeminiCallR
 
       const data = (await res.json()) as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+        usageMetadata?: {
+          promptTokenCount?: number;
+          cachedContentTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
       };
+      const um = data.usageMetadata;
+      const tokens: AiTokenUsage | undefined = um
+        ? {
+            input: um.promptTokenCount ?? 0,
+            cached: um.cachedContentTokenCount ?? 0,
+            output: um.candidatesTokenCount ?? 0,
+            total: um.totalTokenCount ?? 0,
+          }
+        : undefined;
       const parts = data?.candidates?.[0]?.content?.parts;
       const text = Array.isArray(parts)
         ? parts
@@ -370,7 +429,7 @@ async function callGeminiDirect(options: GeminiCallOptions): Promise<GeminiCallR
             .join('')
             .trim()
         : '';
-      if (text) return { ok: true, text, model, provider: 'gemini' };
+      if (text) return { ok: true, text, model, provider: 'gemini', tokens };
 
       lastStatus = 502;
       lastError = `Model ${model} mengembalikan respons kosong.`;

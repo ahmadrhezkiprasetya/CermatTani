@@ -593,8 +593,8 @@ export const ScanScreen: React.FC = () => {
                 <Zap size={14} />
               </span>
               <span>
-                <strong>AI hemat token:</strong> foto dikompres di perangkat (maks. 960 px, JPEG 82%) · model vision ringan ·
-                jawaban JSON terstruktur.
+                <strong>AI hemat token:</strong> foto dikompres di perangkat · mode gambar hemat · foto yang sama tidak
+                dianalisis ulang (0 token) · jawaban JSON ringkas.
               </span>
             </p>
           </div>
@@ -989,6 +989,11 @@ export const ScanScreen: React.FC = () => {
                       {result.fotoUkuranAsliKb && result.fotoUkuranKompresKb
                         ? ` · foto ${result.fotoUkuranAsliKb} KB → ${result.fotoUkuranKompresKb} KB`
                         : ''}
+                      {result.dariCache
+                        ? ' · 0 token (hasil tersimpan)'
+                        : result.tokenAi
+                          ? ` · ${result.tokenAi.toLocaleString('id-ID')} token`
+                          : ''}
                     </div>
                   </div>
 

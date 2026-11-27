@@ -182,6 +182,7 @@ ${groundedDataset}${externalBlock}
       reply: aiRes.text,
       disclaimer: 'Saran, bukan keputusan akhir',
       aiProvider: aiRes.provider,
+      tokenUsage: aiRes.tokens ?? null,
       aiModel: aiRes.model,
       datasetVersion: 'CermatTani-Agronomy-v3.0',
       externalSource: externalKnowledge

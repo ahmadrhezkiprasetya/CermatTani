@@ -136,6 +136,20 @@ export async function runTomatoScanAnalysis(params: {
   return out.record;
 }
 
+/* Cache hasil scan di memori sesi: foto yang sama + tanaman target yang sama → 0 token (tidak memanggil AI lagi) */
+const SCAN_CACHE_LIMIT = 20;
+const scanResultCache = new Map<string, unknown>();
+
+/** Hash FNV-1a 32-bit dari data foto (cukup untuk mengenali foto yang identik). */
+function hashString(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36) + ':' + input.length.toString(36);
+}
+
 /* Analisis Vision 100% nyata lewat /api/scan (Gemini AI + Dataset Agronomi v2.1, auto-deteksi konteks) */
 export async function runSmartPlantScan(params: {
   plant: Plant | null;
@@ -162,25 +176,37 @@ export async function runSmartPlantScan(params: {
     throw new Error('Gunakan foto tanaman asli dari kamera atau unggah gambar JPG/PNG/WebP/HEIC.');
   }
 
-  const res = await fetch('/api/scan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fotoUrl,
-      bagian,
-      plant,
-      sensorAvailable,
-      lowConfidenceThreshold,
-    }),
-  });
+  const cacheKey = `${hashString(fotoUrl)}|${plant?.id ?? ''}|${bagian}`;
+  const cached = scanResultCache.get(cacheKey);
+  let data = cached as Record<string, any> | null | undefined;
+  const fromCache = Boolean(cached);
 
-  const data = await res.json().catch(() => null);
+  if (!data) {
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fotoUrl,
+        bagian,
+        plant,
+        sensorAvailable,
+        lowConfidenceThreshold,
+      }),
+    });
 
-  if (!res.ok || !data?.ok || !data.scan) {
-    throw new Error(
-      data?.error ||
-        'Cermo sedang sibuk memeriksa banyak foto. Coba pindai ulang dalam beberapa saat ya.'
-    );
+    data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.ok || !data.scan) {
+      throw new Error(
+        data?.error ||
+          'Cermo sedang sibuk memeriksa banyak foto. Coba pindai ulang dalam beberapa saat ya.'
+      );
+    }
+    scanResultCache.set(cacheKey, data);
+    if (scanResultCache.size > SCAN_CACHE_LIMIT) {
+      const oldest = scanResultCache.keys().next().value;
+      if (oldest !== undefined) scanResultCache.delete(oldest);
+    }
   }
 
   const s = data.scan;
@@ -240,6 +266,8 @@ export async function runSmartPlantScan(params: {
       perbandinganJenis: Array.isArray(s.perbandinganJenis) ? s.perbandinganJenis : undefined,
       saranJenis: s.saranJenis || undefined,
       laporanKondisi: s.laporanKondisi || null,
+      tokenAi: fromCache ? 0 : Number(data.tokenUsage?.total) || undefined,
+      dariCache: fromCache,
       aiModel,
       ringkasanAi: data.ringkasanSingkat || data.alasanTidakTerdeteksi || undefined,
       temuanVisual: Array.isArray(data.temuanVisual) ? data.temuanVisual : undefined,

@@ -577,7 +577,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
         )}
       </div>
 
-      {/* Toolbar: sudut kamera (kiri) · lapisan visual + layar penuh (kanan) */}
+      {/* Toolbar: sudut kamera (kiri) · layar penuh (kanan) */}
       <div className="sim3d-toolbar">
         <div className="sim3d-cam-group">
           <span className="t-micro t-soft sim3d-cam-label">
@@ -605,27 +605,6 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
         </div>
 
         <div className="sim3d-tabs-wrap">
-          <div className="seg-tabs sim3d-seg-tabs" role="tablist" aria-label="Lapisan visual 3D">
-            {(
-              [
-                { id: 'normal', label: '3D Nyata' },
-                { id: 'kelembapan', label: 'Tanah' },
-                { id: 'kesehatan', label: 'Kesehatan' },
-                { id: 'panen', label: 'Panen' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={layer === tab.id}
-                className={`seg-tab ${layer === tab.id ? 'active' : ''}`}
-                onClick={() => setLayer(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             className="icon-btn sim3d-fs-btn"

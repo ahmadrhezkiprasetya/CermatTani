@@ -55,7 +55,21 @@ abstract final class GeminiService {
   static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
   static const String _customModel = String.fromEnvironment('GEMINI_MODEL', defaultValue: '');
 
-  static bool get isConfigured => _apiKey.trim().isNotEmpty;
+  // ---- KoboiLLM (utama, API kompatibel OpenAI) — sama seperti website ----
+  static const String _koboiKeyRaw = String.fromEnvironment('KOBOILLM_API_KEY', defaultValue: '');
+  static const String _koboiBaseUrl =
+      String.fromEnvironment('KOBOILLM_BASE_URL', defaultValue: 'https://api.koboillm.com/v1');
+  static const String _koboiModelVision = String.fromEnvironment('KOBOILLM_MODEL_VISION', defaultValue: '');
+  static const String _koboiModelChat = String.fromEnvironment('KOBOILLM_MODEL_CHAT', defaultValue: '');
+
+  /// Ambil kunci `sk-...` saja — toleran bila label (mis. "Koboilm:") atau kutip ikut ter-paste.
+  static String get _koboiKey {
+    final raw = _koboiKeyRaw.trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+    final idx = raw.indexOf('sk-');
+    return idx > 0 ? raw.substring(idx).trim() : raw;
+  }
+
+  static bool get isConfigured => _koboiKey.isNotEmpty || _apiKey.trim().isNotEmpty;
 
   static List<String> _modelCascade({required bool isVision}) {
     final defaults = isVision
@@ -92,10 +106,23 @@ abstract final class GeminiService {
     double? temperature,
     int? maxOutputTokens,
   }) async {
+    // KoboiLLM dipakai lebih dulu bila kuncinya tertanam; Gemini langsung hanya cadangan.
+    if (_koboiKey.isNotEmpty) {
+      return _callKoboi(
+        isVision: isVision,
+        systemInstruction: systemInstruction,
+        contents: contents,
+        responseMimeType: responseMimeType,
+        responseSchema: responseSchema,
+        temperature: temperature,
+        maxOutputTokens: maxOutputTokens,
+      );
+    }
+
     final apiKey = _apiKey.trim();
     if (apiKey.isEmpty) {
       throw const GeminiException(
-        'GEMINI_API_KEY belum tertanam pada build aplikasi ini. Bangun ulang dengan --dart-define-from-file=.env.json.',
+        'KOBOILLM_API_KEY belum tertanam pada build aplikasi ini. Bangun ulang dengan --dart-define-from-file=.env.json.',
       );
     }
 
@@ -181,6 +208,177 @@ abstract final class GeminiService {
       client.close(force: true);
     }
 
+    throw GeminiException(lastError);
+  }
+
+  /* ==================== KoboiLLM (OpenAI Chat Completions) ==================== */
+
+  static List<String> _koboiModels({required bool isVision}) {
+    final list = isVision
+        ? [_koboiModelVision, 'openai/gpt-4o-mini', 'gemini/gemini-2.5-flash', 'openai/gpt-4o']
+        : [_koboiModelChat, _koboiModelVision, 'openai/gpt-4o-mini', 'gemini/gemini-2.5-flash'];
+    final seen = <String>{};
+    return [
+      for (final m in list.map((e) => e.trim()))
+        if (m.isNotEmpty && seen.add(m)) m,
+    ];
+  }
+
+  /// Ubah skema gaya Gemini (type 'OBJECT', nullable) menjadi JSON Schema standar (ringkas, hemat token).
+  static dynamic _toJsonSchema(dynamic schema) {
+    if (schema is List) return schema.map(_toJsonSchema).toList();
+    if (schema is! Map) return schema;
+    final out = <String, dynamic>{};
+    final nullable = schema['nullable'] == true;
+    schema.forEach((key, value) {
+      final k = key.toString();
+      if (k == 'nullable') return;
+      if (k == 'type' && value is String) {
+        final t = value.toLowerCase();
+        out['type'] = nullable ? [t, 'null'] : t;
+      } else if (k == 'properties' && value is Map) {
+        out['properties'] = value.map((pk, pv) => MapEntry(pk.toString(), _toJsonSchema(pv)));
+      } else if (k == 'items') {
+        out['items'] = _toJsonSchema(value);
+      } else if (k == 'enum' && value is List && value.length > 12) {
+        // Hemat token: daftar ID panjang sudah dicantumkan sekali di aturan prompt
+        out['description'] = 'ID dari daftar resmi di aturan';
+      } else {
+        out[k] = value;
+      }
+    });
+    return out;
+  }
+
+  static List<Map<String, dynamic>> _toOpenAiMessages(String systemPrompt, List<Map<String, dynamic>> contents) {
+    final messages = <Map<String, dynamic>>[
+      {'role': 'system', 'content': systemPrompt},
+    ];
+    for (final c in contents) {
+      final role = c['role'] == 'model' ? 'assistant' : 'user';
+      final parts = (c['parts'] as List?)?.whereType<Map>().toList() ?? const <Map>[];
+      final hasImage = parts.any((p) => p['inlineData'] != null);
+      if (!hasImage) {
+        messages.add({'role': role, 'content': parts.map((p) => (p['text'] ?? '').toString()).join('\n')});
+        continue;
+      }
+      final out = <Map<String, dynamic>>[];
+      for (final p in parts) {
+        if (p['text'] is String) out.add({'type': 'text', 'text': p['text']});
+        final inl = p['inlineData'];
+        if (inl is Map) {
+          out.add({
+            'type': 'image_url',
+            // detail "low": hemat token gambar sampai ±78% dengan hasil yang sama
+            'image_url': {'url': 'data:${inl['mimeType']};base64,${inl['data']}', 'detail': 'low'},
+          });
+        }
+      }
+      messages.add({'role': role, 'content': out});
+    }
+    return messages;
+  }
+
+  static String _extractOpenAiText(dynamic data) {
+    final choices = data is Map ? data['choices'] : null;
+    final first = (choices is List && choices.isNotEmpty) ? choices.first : null;
+    final msg = first is Map ? first['message'] : null;
+    final content = msg is Map ? msg['content'] : null;
+    var text = '';
+    if (content is String) {
+      text = content;
+    } else if (content is List) {
+      text = content.whereType<Map>().map((p) => (p['text'] ?? '').toString()).join('');
+    }
+    return text.replaceAll(RegExp(r'<think>[\s\S]*?</think>', caseSensitive: false), '').trim();
+  }
+
+  static Future<({String text, String model})> _callKoboi({
+    required bool isVision,
+    required String systemInstruction,
+    required List<Map<String, dynamic>> contents,
+    String? responseMimeType,
+    Map<String, dynamic>? responseSchema,
+    double? temperature,
+    int? maxOutputTokens,
+  }) async {
+    final apiKey = _koboiKey;
+    final baseUrl = _koboiBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final wantJson = responseMimeType == 'application/json';
+    final systemPrompt = wantJson && responseSchema != null
+        ? '$systemInstruction\n\nFORMAT JAWABAN WAJIB: kembalikan HANYA satu objek JSON valid (tanpa markdown, tanpa teks lain) '
+            'yang mengikuti JSON Schema berikut. Semua field "required" wajib ada.\n${jsonEncode(_toJsonSchema(responseSchema))}'
+        : systemInstruction;
+    final messages = _toOpenAiMessages(systemPrompt, contents);
+    final timeout = Duration(seconds: isVision ? 40 : 25);
+    final maxTokens = isVision ? math.min(maxOutputTokens ?? 1500, 1500) : (maxOutputTokens ?? 640);
+
+    String lastError = 'Layanan AI sedang sibuk. Silakan coba lagi beberapa saat.';
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    try {
+      for (final model in _koboiModels(isVision: isVision)) {
+        for (final useJson in wantJson ? const [true, false] : const [false]) {
+          final payload = jsonEncode({
+            'model': model,
+            'messages': messages,
+            'temperature': temperature ?? (isVision ? 0.15 : 0.3),
+            'max_tokens': maxTokens,
+            if (useJson) 'response_format': {'type': 'json_object'},
+          });
+          try {
+            final req = await client.postUrl(Uri.parse('$baseUrl/chat/completions')).timeout(timeout);
+            req.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+            req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
+            req.add(utf8.encode(payload));
+            final res = await req.close().timeout(timeout);
+            final bodyStr = await res.transform(utf8.decoder).join().timeout(timeout);
+
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              var detail = '';
+              try {
+                final errObj = jsonDecode(bodyStr);
+                final e = errObj is Map ? errObj['error'] : null;
+                detail = e is String ? e : (e is Map ? (e['message'] ?? '').toString() : '');
+              } catch (_) {}
+              if (detail.isNotEmpty) lastError = detail;
+              if (res.statusCode == 401 || res.statusCode == 403) {
+                throw GeminiException('Kunci API KoboiLLM ditolak (${res.statusCode}). Periksa KOBOILLM_API_KEY.');
+              }
+              if (res.statusCode == 402) {
+                throw const GeminiException('Saldo KoboiLLM habis. Isi ulang di dashboard.koboillm.com lalu coba lagi.');
+              }
+              // Model menolak response_format → ulangi model yang sama tanpa mode JSON
+              if (useJson && res.statusCode == 400 && RegExp('response_format|json', caseSensitive: false).hasMatch(detail)) {
+                continue;
+              }
+              break; // model tidak tersedia/sibuk → coba model berikutnya
+            }
+
+            final data = jsonDecode(bodyStr);
+            final text = _extractOpenAiText(data);
+            if (text.isNotEmpty) {
+              final served = (data is Map && data['model'] is String) ? data['model'] as String : model;
+              return (text: text, model: served);
+            }
+            lastError = 'Model $model mengembalikan respons kosong.';
+            break;
+          } on GeminiException {
+            rethrow;
+          } on TimeoutException {
+            lastError = 'Permintaan ke AI melebihi batas waktu. Cek kestabilan sinyal internet.';
+            break;
+          } on SocketException {
+            lastError = 'Tidak dapat terhubung ke server AI. Pastikan koneksi internet HP aktif.';
+            break;
+          } catch (e) {
+            lastError = 'Kendala koneksi AI: $e';
+            break;
+          }
+        }
+      }
+    } finally {
+      client.close(force: true);
+    }
     throw GeminiException(lastError);
   }
 
@@ -284,6 +482,9 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
      * Jika pada buah segar ada bercak/penyakit KECIL atau gejala awal ringan, tetap set "fokusOutput": "kematangan", set "penyakitUtamaId": "sehat", dan isi "penyakitRinganId" dengan ID penyakit ringannya (selain itu null).
    - KASUS C — GEJALA KEKURANGAN HARA MURNI (misal daun menguning pucat/tepi terbakar tanpa penyakit jamur/bakteri dominan):
      * Set "fokusOutput": "hara", "adaGejalaHara": true, "dugaanHaraId" bukan "cukup", "boxes": [], "tahapDominan": null, "anjuranPanen": "Fokus daun/batang".
+3B. SAYURAN DAUN & TANAMAN TANPA BUAH (selada, sawi, pakcoy, bayam, kangkung, seledri, dll):
+   - Bagian yang dipanen adalah DAUN/BATANG. JANGAN pernah set "fokusOutput": "tidak_terdeteksi" hanya karena tidak ada buah.
+   - Jika tanaman tampak jelas: pilih "penyakit" (dengan "penyakitUtamaId": "sehat" bila sehat) atau "hara" bila ada gejala kekurangan hara. "tanpaBuahTerdeteksi": false.
 4. DETEKSI GEJALA HARA ("adaGejalaHara"):
    - Set true HANYA jika tampak gejala kekurangan hara nyata (termasuk busuk_ujung_buah -> kurang_kalsium) dan "dugaanHaraId" != "cukup". Selain itu false & "cukup".
 5. PENYAKIT TOP-3:
@@ -467,7 +668,8 @@ Kembalikan tepat JSON sesuai skema.''';
 
     // Penegakan ketat Smart Context Routing di sisi klien Dart
     var fokus = _parseFocus(parsed['fokusOutput']);
-    if (diluarKonteks || parsed['tanpaBuahTerdeteksi'] == true) {
+    // Catatan: 'tanpaBuahTerdeteksi' TIDAK lagi memaksa tidak terdeteksi — sayuran daun (selada, sawi) memang tak berbuah
+    if (diluarKonteks) {
       fokus = ScanOutputFocus.tidakTerdeteksi;
     } else if (_fruitRotIds.contains(utamaId) ||
         (utamaId != 'sehat' && fokus != ScanOutputFocus.kematangan)) {
@@ -502,10 +704,11 @@ Kembalikan tepat JSON sesuai skema.''';
       }
     }
 
+    // Fokus kematangan tanpa kotak buah: tampilkan sebagai pemeriksaan kesehatan, bukan "tidak terdeteksi"
     if (fokus == ScanOutputFocus.kematangan &&
         safeBoxes.isEmpty &&
         parsed['tahapDominan'] == null) {
-      fokus = ScanOutputFocus.tidakTerdeteksi;
+      fokus = ScanOutputFocus.penyakit;
     }
 
     final tanpaObjek = fokus == ScanOutputFocus.tidakTerdeteksi;

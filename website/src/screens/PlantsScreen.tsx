@@ -157,6 +157,12 @@ export const PlantsScreen: React.FC = () => {
     [activeFarmPlants, plantMetaMap]
   );
 
+  const growingCount = useMemo(
+    () =>
+      activeFarmPlants.filter((p) => p.fase === 'Bibit' || p.fase === 'Vegetatif' || p.fase === 'Berbunga').length,
+    [activeFarmPlants]
+  );
+
   const fruitingCount = useMemo(
     () => activeFarmPlants.filter((p) => p.fase === 'Berbuah' || p.fase === 'Panen').length,
     [activeFarmPlants]
@@ -226,7 +232,7 @@ export const PlantsScreen: React.FC = () => {
               [
                 { id: 'semua', label: `Semua (${activeFarmPlants.length})` },
                 { id: 'berbuah', label: `Berbuah (${fruitingCount})` },
-                { id: 'tumbuh', label: 'Tumbuh' },
+                { id: 'tumbuh', label: `Tumbuh (${growingCount})` },
                 ...(attentionCount > 0 ? [{ id: 'perhatian' as const, label: `Cek (${attentionCount})` }] : []),
               ] as const
             ).map((tab) => (
@@ -369,40 +375,19 @@ export const PlantsScreen: React.FC = () => {
                     onClick={() => setSelectedPlantId(p.id)}
                     className={`plant-row-btn ${isSelected ? 'active' : ''}`}
                   >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 12,
-                        background: isSelected ? 'var(--leaf-600)' : 'var(--surface-2)',
-                        color: isSelected ? '#FFFFFF' : 'var(--leaf-600)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        flexShrink: 0,
-                        transition: 'background 200ms ease, color 200ms ease',
-                      }}
-                    >
+                    <span className="plant-row-icon" aria-hidden="true">
                       <Sprout size={19} strokeWidth={1.9} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          color: 'var(--ink)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {p.nama}
-                      </div>
-                      <div className="t-micro t-soft" style={{ marginTop: 1 }}>
+                    </span>
+                    <span className="plant-row-body">
+                      <span className="plant-row-top">
+                        <span className="plant-row-name">{p.nama}</span>
+                        <span className={`pill plant-row-pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`}>
+                          {hasIssue ? 'Perlu cek' : p.fase}
+                        </span>
+                      </span>
+                      <span className="plant-row-meta">
                         {p.varietas} · {daysSince(p.tanggalTanam)} HST · {scanCount} scan
-                      </div>
-                    </div>
-                    <span className={`pill ${hasIssue ? 'pill-bad' : 'pill-ok'}`} style={{ flexShrink: 0 }}>
-                      {hasIssue ? 'Cek' : p.fase}
+                      </span>
                     </span>
                   </button>
                 );
@@ -429,7 +414,7 @@ export const PlantsScreen: React.FC = () => {
                   borderBottom: '1px solid var(--line)',
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0, flex: '1 1 260px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                     <span className={`pill ${selectedMeta?.hasIssue ? 'pill-bad' : 'pill-ok'}`}>
                       {selectedMeta?.hasIssue ? 'Perlu perhatian' : `Fase ${selectedPlant.fase}`}
@@ -514,33 +499,37 @@ export const PlantsScreen: React.FC = () => {
               </div>
 
               {/* Strip 3 Metrik Ringkas Tanaman */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-                <div className="card-subtle" style={{ padding: '12px 14px' }}>
-                  <div className="t-micro t-soft">Total pemeriksaan AI</div>
-                  <div className="font-display tabular-nums" style={{ fontSize: '1.35rem', marginTop: 2 }}>
-                    {plantScansChrono.length} kali
-                  </div>
+              <div className="plant-stats">
+                <div className="card-subtle plant-stat">
+                  <span className="plant-stat-label">
+                    <Sparkles size={13} color="var(--leaf-600)" /> Pemeriksaan AI
+                  </span>
+                  <span className="plant-stat-value tabular-nums">{plantScansChrono.length} kali</span>
                 </div>
-                <div className="card-subtle" style={{ padding: '12px 14px' }}>
-                  <div className="t-micro t-soft">Status terakhir</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: 4, color: 'var(--ink)' }}>
-                    {selectedMeta?.latest
-                      ? selectedMeta.latest.penyakitUtamaNama
-                      : 'Belum pernah dipindai'}
-                  </div>
+                <div className="card-subtle plant-stat">
+                  <span className="plant-stat-label">
+                    <AlertCircle size={13} color={selectedMeta?.hasIssue ? 'var(--bad-600)' : 'var(--leaf-600)'} />
+                    Status terakhir
+                  </span>
+                  <span
+                    className="plant-stat-value plant-stat-value--clamp"
+                    title={selectedMeta?.latest?.penyakitUtamaNama}
+                    style={selectedMeta?.hasIssue ? { color: 'var(--bad-600)' } : undefined}
+                  >
+                    {selectedMeta?.latest ? selectedMeta.latest.penyakitUtamaNama : 'Belum pernah dipindai'}
+                  </span>
                 </div>
                 <button
                   type="button"
-                  className="card-subtle card-interactive"
+                  className="card-subtle card-interactive plant-stat"
                   onClick={() => setActiveScreen('kalender')}
-                  style={{ padding: '12px 14px', textAlign: 'left', cursor: 'pointer' }}
                 >
-                  <div className="t-micro t-soft" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span className="plant-stat-label">
                     <CalendarDays size={13} color="var(--leaf-600)" /> Estimasi panen
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: 4, color: 'var(--ink)' }}>
+                  </span>
+                  <span className="plant-stat-value">
                     {selectedMeta?.nextHarvest ? formatDateId(selectedMeta.nextHarvest) : 'Atur di kalender'}
-                  </div>
+                  </span>
                 </button>
               </div>
 
@@ -595,13 +584,18 @@ export const PlantsScreen: React.FC = () => {
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
+                        alignItems: 'flex-end',
                         marginBottom: 12,
                         flexWrap: 'wrap',
                         gap: 8,
                       }}
                     >
-                      <h3 className="t-h3">Jejak pemeriksaan AI (klik kartu untuk detail)</h3>
+                      <div>
+                        <h3 className="t-h3">Riwayat pemeriksaan AI</h3>
+                        <p className="t-micro t-soft" style={{ marginTop: 2 }}>
+                          Ketuk kartu untuk melihat detail hasil scan
+                        </p>
+                      </div>
                       {firstDiseaseScanId && (
                         <span className="pill pill-bad">
                           <AlertCircle size={14} /> Gejala pertama ditandai merah
@@ -612,7 +606,7 @@ export const PlantsScreen: React.FC = () => {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
                         gap: 12,
                       }}
                     >
@@ -656,6 +650,11 @@ export const PlantsScreen: React.FC = () => {
                             </div>
                             <div>
                               <div
+                                title={
+                                  scan.tahapDominan
+                                    ? RIPENESS_REFERENCE[scan.tahapDominan].label
+                                    : scan.penyakitUtamaNama
+                                }
                                 style={{
                                   fontWeight: 700,
                                   fontSize: '0.84rem',

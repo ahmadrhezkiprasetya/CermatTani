@@ -27,6 +27,7 @@ import {
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
 import { ScanPhotoExamples } from '../components/ScanPhotoExamples';
+import { FertilizerRecommendation } from '../components/FertilizerRecommendation';
 import { FormattedText } from '../components/FormattedText';
 import { TomatoConfetti } from '../components/Illustrations';
 import { StripedProgressBar } from '../components/Charts';
@@ -1334,49 +1335,22 @@ export const ScanScreen: React.FC = () => {
             </section>
           )}
 
-          {/* 2C. OUTPUT HARA & PUPUK (HANYA tampil otomatis jika benar-benar terdeteksi gejala kekurangan hara!) */}
-          {nutrientInfo && (focus === 'hara' || result.adaGejalaHara) && (
-            <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <h3 className="t-h3" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <FlaskConical size={19} color="var(--leaf-600)" /> {nutrientInfo.dugaan}
-                </h3>
-                {result.pakaiDataSensor ? (
-                  <>
-                    <span className="pill pill-ok">Dengan data sensor</span>
-                    <span className="pill pill-sim">Simulasi</span>
-                  </>
-                ) : (
-                  <span className="pill pill-warn">Dugaan visual</span>
-                )}
-              </div>
-
-              <p className="t-small t-soft">
-                <strong>Gejala acuan:</strong> {nutrientInfo.gejala}
-              </p>
-
-              <div className="alert-card alert-card--ok">
-                <Leaf size={20} style={{ flexShrink: 0, color: 'var(--leaf-600)' }} />
-                <div>
-                  <strong>Pilihan organik lebih dulu</strong>
-                  <p className="t-small" style={{ marginTop: 4 }}>
-                    {nutrientInfo.rekomendasiOrganik}
-                  </p>
-                </div>
-              </div>
-
-              <div className="card-subtle">
-                <strong className="t-small">
-                  Dosis umum untuk fase aktif ({targetPlant?.fase || 'Berbuah'})
-                </strong>
-                <p className="t-body" style={{ marginTop: 4, fontWeight: 600 }}>
-                  {nutrientInfo.dosisPerFase[targetPlant?.fase || 'Berbuah']}
-                </p>
-                <p className="t-micro t-soft" style={{ marginTop: 8 }}>
-                  Sumber: {nutrientInfo.sumber} · <strong>Bukan pengganti uji tanah.</strong>
-                </p>
-              </div>
-            </section>
+          {/* 2C. REKOMENDASI PUPUK — tampil di setiap hasil scan tanaman (dari dataset, tanpa token AI tambahan) */}
+          {!result.jenisTidakSesuai && focus !== 'tidak_terdeteksi' && (
+            <FertilizerRecommendation
+              haraId={result.adaGejalaHara && result.dugaanHaraId ? result.dugaanHaraId : 'cukup'}
+              defaultPhase={
+                targetPlant?.fase ||
+                (result.bagian === 'buah' ? (result.tahapDominan === 'matang' ? 'Panen' : 'Berbuah') : 'Vegetatif')
+              }
+              plantName={targetPlant?.nama || (result.objekTeridentifikasi || 'tanaman').toLowerCase()}
+              diseaseName={
+                focus === 'penyakit' && result.penyakitUtamaId !== 'sehat'
+                  ? diseaseInfo?.penyakit || result.penyakitUtamaNama
+                  : null
+              }
+              withSensor={Boolean(result.pakaiDataSensor)}
+            />
           )}
 
           {/* 3. INPUT TANYA LANJUTAN LANGSUNG KE CHATBOT CERMO (MEMBAWA DATA HASIL SCAN INI) */}

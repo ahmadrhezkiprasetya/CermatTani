@@ -6517,3 +6517,154 @@ button.plant-stat {
     transform: scale(1.25);
   }
 }
+
+/* ============================================================================
+   HASIL SCAN — REKOMENDASI PUPUK (organik dulu · pupuk anjuran · dosis per fase)
+   ============================================================================ */
+.scan-fert {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scan-fert-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scan-fert-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+}
+
+.scan-fert-title svg {
+  color: var(--leaf-600);
+}
+
+.scan-fert-symptom {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.scan-fert-phase {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.scan-fert-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scan-fert-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.scan-fert-chip:hover {
+  border-color: var(--leaf-500);
+}
+
+.scan-fert-chip.is-active {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: var(--on-leaf, #ffffff);
+}
+
+.scan-fert-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scan-fert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--water-700);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.scan-fert-card--organic {
+  border-top-color: var(--leaf-600);
+}
+
+.scan-fert-card--dose {
+  border-top-color: var(--sun-400);
+}
+
+.scan-fert-card-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-fert-card--organic .scan-fert-card-head svg {
+  color: var(--leaf-600);
+}
+
+.scan-fert-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.scan-fert-card--dose p {
+  font-weight: 600;
+}
+
+.scan-fert-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-card-sm);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.scan-fert-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.scan-fert-source {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  .scan-fert-grid {
+    grid-template-columns: 1fr;
+  }
+}

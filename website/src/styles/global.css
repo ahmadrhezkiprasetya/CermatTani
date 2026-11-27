@@ -258,6 +258,35 @@ textarea {
   margin-bottom: 5px;
 }
 
+.sidebar-farm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sidebar-farm-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: var(--leaf-700);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 2px 5px;
+  cursor: pointer;
+}
+
+.sidebar-farm-add:hover {
+  color: var(--leaf-600);
+  text-decoration: underline;
+}
+
+.mobile-farm-add {
+  border-style: dashed;
+}
+
 .sidebar-farm-select {
   width: 100%;
   background: var(--surface);
@@ -1016,9 +1045,10 @@ textarea {
 
 .dashboard-two-col {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  /* Kartu bersebelahan selalu sama tinggi agar tepinya rata */
+  align-items: stretch;
 }
 
 .dashboard-col {
@@ -1040,19 +1070,20 @@ textarea {
 .kpi-grid-4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  /* Jarak sama dengan baris 2 kolom di bawahnya agar tepi kartu segaris */
+  gap: 18px;
 }
 
-/* Kartu Ringkasan Kebun & Cuaca Terpadu (Pengganti 4 KPI Terpisah di Desktop) */
+/* Kartu Ringkasan Kebun & Cuaca Terpadu (desktop): lokasi + cuaca, 4 metrik berkotak, busur matahari */
 .dash-climate-card {
   background: var(--surface);
   border: 1px solid var(--card-hairline);
-  border-radius: 26px;
-  padding: 24px 28px 20px;
+  border-radius: var(--r-card);
+  padding: 22px 24px 18px;
   box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
   transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
 
@@ -1063,39 +1094,84 @@ textarea {
   gap: 16px;
 }
 
+.dash-climate-place {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .dash-climate-loc {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1.02rem;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--ink);
   letter-spacing: -0.01em;
 }
 
 .dash-climate-pin {
-  color: var(--ink-soft);
+  color: var(--leaf-600);
   flex-shrink: 0;
 }
 
-.dash-climate-temp-wrap {
+.dash-climate-date {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-climate-weather {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
-.dash-climate-cloud {
-  display: block;
-  flex-shrink: 0;
+.dash-climate-cond-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-climate-cond-icon--cerah {
+  background: var(--warn-bg);
+  color: var(--sun-400);
+}
+
+.dash-climate-cond-icon--malam {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+.dash-climate-weather-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
 }
 
 .dash-climate-temp {
   font-family: var(--font-display);
-  font-size: clamp(1.9rem, 2.6vw, 2.45rem);
+  font-size: clamp(1.8rem, 2.4vw, 2.3rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
   color: var(--ink);
+}
+
+.dash-climate-cond {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
 
 .dash-climate-metrics {
@@ -1105,22 +1181,24 @@ textarea {
 }
 
 .dash-climate-metric {
-  border: none;
-  background: transparent;
-  padding: 10px 12px;
-  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  padding: 14px 14px 12px;
+  border-radius: var(--r-card-sm);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
   text-align: left;
   cursor: pointer;
   color: inherit;
-  transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 .dash-climate-metric:hover {
-  background: var(--surface-2);
+  border-color: var(--leaf-500);
+  box-shadow: var(--shadow-1);
   transform: translateY(-2px);
 }
 
@@ -1128,64 +1206,595 @@ textarea {
   transform: translateY(0) scale(0.985);
 }
 
-.dash-climate-icon {
-  color: var(--ink-soft);
-  margin-bottom: 3px;
+.dash-climate-metric:focus-visible {
+  outline: 2px solid var(--leaf-600);
+  outline-offset: 2px;
+}
+
+.dash-climate-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.dash-climate-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.dash-climate-chip--leaf {
+  background: var(--ok-bg);
+  color: var(--leaf-600);
+}
+
+.dash-climate-chip--water {
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-climate-chip--sky {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.dash-climate-chip--soil {
+  background: rgba(168, 116, 64, 0.14);
+  color: #8a5a2b;
+}
+
+:root[data-theme="dark"] .dash-climate-chip--soil {
+  background: rgba(214, 160, 104, 0.16);
+  color: #e3b98a;
+}
+
+.dash-climate-pill {
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  white-space: nowrap;
 }
 
 .dash-climate-val {
-  font-size: 1.15rem;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.1;
   color: var(--ink);
+  min-width: 0;
 }
 
 .dash-climate-subval {
-  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dash-climate-label {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--ink-soft);
 }
 
-.dash-climate-sunrow {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 18px;
-  padding-top: 4px;
+/* Bar level + penanda ambang batas */
+.dash-climate-bar {
+  position: relative;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--line);
 }
 
-.dash-climate-suntime {
+.dash-climate-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width 600ms var(--ease-out);
+}
+
+.dash-climate-bar i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--ink-soft);
+  opacity: 0.55;
+}
+
+.dash-climate-bar--leaf span {
+  background: var(--leaf-500);
+}
+
+.dash-climate-bar--water span {
+  background: var(--water-700);
+}
+
+.dash-climate-bar--sky span {
+  background: var(--sun-400);
+}
+
+.dash-climate-bar--soil span {
+  background: #a87440;
+}
+
+
+/* Kotak "Matahari hari ini" — info ringkas (kiri) + kubah langit (kanan) */
+.dash-sun-panel {
+  display: grid;
+  grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+  gap: 28px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+  /* Tanpa warna latar: menyatu dengan kartu, hanya garis tepi tipis */
+  background: transparent;
+}
+
+.dash-sun-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dash-sun-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.dash-sun-title svg {
+  color: var(--sun-400);
+}
+
+.dash-sun-remain {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.dash-climate-suntime strong {
-  font-size: 0.92rem;
-  font-weight: 600;
+.dash-sun-remain strong {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
-.dash-climate-suntime span {
+.dash-sun-remain span {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.dash-sun-stats {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.dash-sun-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dash-sun-stats dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.dash-sun-stats dt svg {
+  color: var(--sun-400);
+}
+
+.dash-sun-stats dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dash-sun-sky {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dash-sun-arc-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 150px;
+  margin-bottom: 18px;
+}
+
+.dash-sun-arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-soft);
+  overflow: visible;
+}
+
+.dash-sun-dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe08a 0%, #f5b82e 60%, #e89a12 100%);
+  box-shadow:
+    0 0 0 6px rgba(245, 184, 46, 0.16),
+    0 0 0 14px rgba(245, 184, 46, 0.07),
+    0 0 26px 8px rgba(245, 184, 46, 0.35);
+}
+
+.dash-sun-tick {
+  position: absolute;
+  top: calc(100% * 130 / 150 + 8px);
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.dash-sun-tick::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  opacity: 0.45;
+}
+
+.dash-sun-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0;
   font-size: 0.78rem;
   color: var(--ink-soft);
 }
 
-.dash-climate-suntime--right {
-  text-align: right;
+.dash-sun-tip svg {
+  color: var(--water-700);
+  flex-shrink: 0;
 }
 
-.dash-climate-arc {
-  width: 100%;
-  height: 52px;
+.dash-sun-tip strong {
+  color: var(--ink);
+}
+
+@media (max-width: 1000px) {
+  .dash-sun-panel {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .dash-sun-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: end;
+    gap: 10px 24px;
+  }
+
+  .dash-sun-title {
+    grid-column: 1 / -1;
+  }
+
+  .dash-sun-stats {
+    border-top: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .dash-sun-stats > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  /* Satu kolom: busur setinggi tetap agar tidak menyisakan ruang kosong */
+  .dash-sun-arc-wrap {
+    flex: none;
+    height: 140px;
+    min-height: 0;
+  }
+}
+
+/* ---- Kotak matahari: animasi & interaksi ---- */
+.dash-sun-sky-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.dash-sun-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.dash-sun-phase--water {
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-sun-phase--hot {
+  background: rgba(242, 86, 43, 0.12);
+  color: var(--tomato-btn);
+}
+
+.dash-sun-phase--night {
+  background: var(--surface-2);
   color: var(--ink-soft);
+}
+
+.dash-sun-hint {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.dash-sun-arc-wrap {
+  cursor: crosshair;
+  touch-action: pan-y;
   overflow: visible;
+}
+
+/* Matahari: cincin cahaya berdenyut */
+.dash-sun-dot::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 184, 46, 0.45);
+  animation: dashSunPulse 2.6s ease-out infinite;
+}
+
+/* Matahari bayangan saat busur digeser */
+.dash-sun-ghost {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  border: 2px solid #f5b82e;
+  background: var(--surface);
+  box-shadow: 0 0 0 4px rgba(245, 184, 46, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dash-sun-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-2);
+  z-index: 3;
+}
+
+.dash-sun-tooltip strong {
+  margin-right: 4px;
+}
+
+.dash-sun-tooltip--water strong {
+  color: #8fd0ff;
+}
+
+.dash-sun-tooltip--sun strong {
+  color: #ffd36b;
+}
+
+.dash-sun-tooltip--hot strong {
+  color: #ff9a76;
+}
+
+/* Awan tipis melayang */
+.dash-sun-cloud {
+  position: absolute;
+  color: var(--ink-soft);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.dash-sun-cloud--a {
+  top: 18%;
+  left: 18%;
+  animation: dashCloudDrift 26s ease-in-out infinite alternate;
+}
+
+.dash-sun-cloud--b {
+  top: 40%;
+  left: 62%;
+  animation: dashCloudDrift 34s ease-in-out infinite alternate-reverse;
+}
+
+.dash-sun-title-icon {
+  animation: dashSunSpin 18s linear infinite;
+}
+
+/* Kotak metrik: muncul bergantian, bar tumbuh dari kiri */
+.dash-climate-metric {
+  animation: dashTileIn 0.5s var(--ease-out) backwards;
+}
+
+.dash-climate-metric:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.dash-climate-metric:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.dash-climate-metric:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.dash-climate-bar span {
+  transform-origin: left center;
+  animation: dashBarGrow 1s var(--ease-out) backwards;
+  animation-delay: 250ms;
+}
+
+.dash-climate-chip {
+  transition: transform var(--dur-fast) ease;
+}
+
+.dash-climate-metric:hover .dash-climate-chip {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+@keyframes dashSunPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes dashCloudDrift {
+  from {
+    transform: translateX(-30px);
+  }
+
+  to {
+    transform: translateX(60px);
+  }
+}
+
+@keyframes dashSunSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dashTileIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dashBarGrow {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-sun-dot::after,
+  .dash-sun-cloud,
+  .dash-sun-title-icon,
+  .dash-climate-metric,
+  .dash-climate-bar span {
+    animation: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dash-sun-hint {
+    display: none;
+  }
+}
+
+/* Beranda: kondisi kebun (4 metrik 2x2) bersebelahan dengan tugas kebun, sama tinggi */
+.dash-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.dash-metrics-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dash-tasks-card {
+  min-width: 0;
+}
+
+.dash-metrics-card .dash-climate-metrics {
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+
+@media (max-width: 1100px) {
+  .dash-split-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dash-climate-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .kpi-card {
@@ -2142,6 +2751,11 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+/* Jumlah tile ganjil: tile terakhir melebar penuh agar grid tetap rapi */
+.mobile-more-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .mobile-more-tile {
@@ -3108,6 +3722,7 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .plants-filter-btn {
@@ -3124,6 +3739,22 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Tombol aksi detail tanaman: ukuran sama, tanpa bayangan berlebih */
+.plants-detail-btn {
+  min-height: 40px;
+  padding: 7px 15px;
+  font-size: 0.86rem;
+  box-shadow: none;
+}
+
+.plants-seg-tabs .seg-tab {
+  white-space: nowrap;
+}
+
+.plants-search-box {
+  min-height: 38px;
 }
 
 @media (max-width: 768px) {
@@ -3210,18 +3841,27 @@ textarea {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  /* Kolom daftar & panel detail sama tinggi agar tepi bawah rata */
+  align-items: stretch;
 }
 
+@media (max-width: 1280px) {
+  .plants-layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+/* Daftar tanaman dibungkus satu kartu yang tingginya mengikuti panel detail */
 .plants-list-col {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: sticky;
-  top: 84px;
-  max-height: calc(100dvh - 110px);
-  overflow-y: auto;
-  padding-right: 2px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--card-hairline, var(--line));
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
 }
 
 .plant-row-btn {
@@ -3253,6 +3893,132 @@ textarea {
   background: var(--surface-accent);
   border-color: var(--leaf-600);
   box-shadow: var(--shadow-1);
+}
+
+.plant-row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--leaf-600);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.plant-row-btn.active .plant-row-icon {
+  background: var(--leaf-600);
+  color: #ffffff;
+}
+
+.plant-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plant-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plant-row-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.plant-row-pill {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  padding: 2px 9px;
+}
+
+.plant-row-meta {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Strip 3 metrik ringkas tanaman: tinggi & tipografi seragam */
+.plant-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.plant-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  text-align: left;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+
+button.plant-stat {
+  cursor: pointer;
+}
+
+.plant-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.plant-stat-value {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.plant-stat-value--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 560px) {
+  .plant-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Di HP: label kiri, nilai kanan — satu baris ringkas */
+  .plant-stat {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .plant-stat-label {
+    flex-shrink: 0;
+  }
+
+  .plant-stat-value {
+    font-size: 0.92rem;
+    text-align: right;
+    min-width: 0;
+  }
 }
 
 /* Stepper Fase Pertumbuhan Tanaman (5 Langkah Visual) */
@@ -3287,12 +4053,184 @@ textarea {
   box-shadow: 0 4px 12px rgba(69, 150, 106, 0.24);
 }
 
+/* Keterangan AI hemat token (halaman Scan) */
+.scan-token-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.scan-token-note strong {
+  color: var(--ink);
+}
+
+.scan-token-note-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--ok-bg);
+  color: var(--leaf-700);
+  flex-shrink: 0;
+}
+
+.scan-token-note-title {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.scan-token-note-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 2px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* Kartu Hitung Mundur Panen (Kalender) */
+.harvest-countdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface-accent);
+}
+
+.harvest-countdown-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.harvest-countdown-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--leaf-600);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.harvest-countdown-kicker {
+  color: var(--leaf-700);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.66rem;
+}
+
+.harvest-countdown-title {
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.harvest-countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.harvest-countdown-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 4px 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.harvest-countdown-num {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.harvest-countdown-unit {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.harvest-countdown-due {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--warn-bg);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.harvest-countdown-due > span {
+  flex: 1 1 180px;
+}
+
+.harvest-countdown-due > button {
+  min-height: 36px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  box-shadow: none;
+}
+
+.harvest-countdown-note {
+  line-height: 1.45;
+}
+
+.harvest-countdown-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.harvest-countdown-actions > button {
+  min-height: 40px;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  box-shadow: none;
+}
+
 /* Tata Letak Halaman Kalender Panen */
+/* Grid 2×2: kartu dalam satu baris sama tinggi, tepi atas & bawah rata */
 .calendar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.calendar-layout > .card {
+  min-width: 0;
+}
+
+/* Tombol aksi/form menempel di dasar kartu saat kartu direntangkan */
+.calendar-layout .harvest-countdown-actions,
+.calendar-layout > .card > form:last-child {
+  margin-top: auto;
 }
 
 .cal-day-cell {
@@ -3399,13 +4337,6 @@ textarea {
   flex: 1 1 260px;
 }
 
-.sim3d-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .sim3d-heading {
   font-size: 1.125rem;
 }
@@ -3433,8 +4364,75 @@ textarea {
   height: 34px;
 }
 
-.sim3d-fs-btn--mobile {
-  display: none;
+/* Mode contoh tahap busuk: label di atas tanaman 3D + daftar gejala di panel */
+.sim3d-stage-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 4px;
+  border-radius: 999px;
+  background: rgba(12, 32, 27, 0.82);
+  color: #f4fbf7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  z-index: 6;
+}
+
+.sim3d-stage-tag b,
+.sim3d-stage-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.sim3d-stage-tag--0 b, .sim3d-stage-dot--0 { background: #2f9e4f; }
+.sim3d-stage-tag--1 b, .sim3d-stage-dot--1 { background: #c9a10b; }
+.sim3d-stage-tag--2 b, .sim3d-stage-dot--2 { background: #e07a12; }
+.sim3d-stage-tag--3 b, .sim3d-stage-dot--3 { background: #c62f36; }
+.sim3d-stage-tag--4 b, .sim3d-stage-dot--4 { background: #5b3a1f; }
+
+.sim3d-stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border-radius: var(--r-ctl);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.sim3d-stage-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sim3d-stage-list li > div {
+  display: grid;
+  gap: 1px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.sim3d-stage-list strong {
+  color: var(--ink);
+}
+
+.sim3d-stage-list span:not(.sim3d-stage-dot) {
+  color: var(--ink-soft);
 }
 
 .sim3d-toolbar {
@@ -3471,19 +4469,6 @@ textarea {
   font-size: 0.76rem;
   border-radius: 999px;
   box-shadow: none;
-}
-
-.sim3d-play-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.sim3d-ctrl-btn {
-  min-height: 32px;
-  padding: 4px 11px;
-  font-size: 0.76rem;
-  border-radius: 999px;
 }
 
 @media (max-width: 768px) {
@@ -3534,14 +4519,6 @@ textarea {
     display: none;
   }
 
-  .sim3d-fs-btn--mobile {
-    display: grid;
-  }
-
-  .sim3d-fs-btn--desktop {
-    display: none;
-  }
-
   .sim3d-tabs-wrap {
     width: 100%;
   }
@@ -3586,17 +4563,6 @@ textarea {
     font-size: 0.74rem;
   }
 
-  .sim3d-play-group {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 6px;
-    width: 100%;
-  }
-
-  .sim3d-ctrl-btn {
-    min-height: 32px;
-    font-size: 0.74rem;
-  }
 }
 
 .sim3d-viewport {
@@ -3611,6 +4577,106 @@ textarea {
 
 .sim3d-viewport--full {
   height: min(64dvh, 560px);
+}
+
+/* Halaman Simulasi 3D tersendiri: panggung 3D lebih tinggi & mengikuti tinggi layar */
+.sim3d-viewport.sim3d-viewport--page {
+  height: clamp(400px, calc(100dvh - 300px), 720px);
+}
+
+@media (max-width: 960px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(320px, 56dvh, 560px);
+  }
+}
+
+@media (max-width: 480px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(280px, 50dvh, 440px);
+  }
+}
+
+/* Pembacaan langsung di halaman Simulasi 3D */
+.sim-live-card {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-live-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.sim-page-desc {
+  min-width: 0;
+  white-space: normal;
+}
+
+/* 6 pembacaan: 3 kolom × 2 baris (desktop/tablet), 2 kolom × 3 baris (HP) — tidak ada kotak yatim */
+.sim-live-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sim-live-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.sim-live-value {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.14rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sim-live-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-live-pill {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .sim-live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Kotak seragam: ikon + status di baris atas, angka & label di bawah */
+  .sim-live-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .sim-live-pill {
+    position: absolute;
+    top: 11px;
+    right: 11px;
+    margin-left: 0;
+  }
+
+  .sim-live-label {
+    white-space: normal;
+  }
 }
 
 @media (max-width: 960px) {
@@ -3631,6 +4697,7 @@ textarea {
   }
 
   .plant-row-btn {
+    width: 250px;
     min-width: 220px;
     flex-shrink: 0;
   }
@@ -3896,11 +4963,6 @@ textarea {
     flex: 1;
   }
 
-  .dash-harvest-card {
-    background: var(--cream-warm) !important;
-    border-color: var(--cream-border) !important;
-  }
-
   /* Ruang konten mobile identik dengan AppScaffold padding (16px + ruang bottom nav & FAB Scan) */
   .main-content-pad {
     padding: 6px 16px calc(120px + env(safe-area-inset-bottom, 0px));
@@ -3976,9 +5038,27 @@ textarea {
     height: 275px;
   }
 
-  .phase-grid-5,
-  .growth-stepper {
+  .phase-grid-5 {
     grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  }
+
+  /* 5 fase tetap satu baris di HP agar "Panen" tidak turun sendirian */
+  .growth-stepper {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .growth-step {
+    padding: 8px 2px;
+  }
+
+  .growth-step .t-micro {
+    font-size: 0.66rem;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .solar-res-grid {
@@ -4194,5 +5274,1180 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   HALAMAN SIMULASI 3D — TATA LETAK RAPI
+   Header 1 baris · toolbar kamera + lapisan · kontrol waktu & notifikasi di dalam 3D ·
+   panel samping 3 bagian seragam · tinggi panggung 3D = tinggi panel (sejajar)
+   ============================================================================ */
+@media (min-width: 769px) {
+  .sim3d-header {
+    align-items: center;
+  }
+
+  .sim3d-title-block {
+    gap: 2px;
+  }
+
+  .sim3d-badges {
+    justify-content: flex-end;
+  }
+
+  .sim3d-toolbar {
+    gap: 10px 14px;
+  }
+}
+
+.sim3d-heading {
+  font-size: 1.05rem;
+}
+
+.sim3d-cam-label {
+  font-weight: 600;
+}
+
+.sim3d-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+}
+
+.sim3d-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sim3d-panel-section + .sim3d-panel-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.sim3d-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sim3d-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sim3d-opt-btn {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  justify-content: flex-start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sim3d-opt-btn--wide {
+  grid-column: 1 / -1;
+}
+
+.sim3d-opt-btn--center {
+  justify-content: center;
+}
+
+.sim3d-slider {
+  display: grid;
+  gap: 4px;
+}
+
+.sim3d-slider-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.sim3d-slider-head strong {
+  color: var(--ink);
+}
+
+.sim3d-pump-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sim3d-pump-row button {
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.sim3d-overlay-top {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.sim3d-overlay-btn {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sim3d-toast {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: min(360px, calc(100% - 180px));
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  z-index: 11;
+  animation: sim3dToastIn 0.25s ease;
+}
+
+@keyframes sim3dToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Panggung 3D halaman: tinggi tetap (tidak memanjang ke bawah). Panel samping yang menyesuaikan:
+   pembungkusnya tidak ikut menentukan tinggi baris, panel mengisi penuh & isinya bisa digulir. */
+.sim3d-viewport.sim3d-viewport--page {
+  height: clamp(380px, calc(100dvh - 360px), 520px);
+  min-height: 0;
+}
+
+.sim3d-panel-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.sim3d-panel-wrap > .sim3d-panel {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+@media (max-width: 960px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(320px, 56dvh, 520px);
+  }
+
+  .sim3d-panel-wrap > .sim3d-panel {
+    position: static;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  .sim3d-tabs-wrap {
+    display: flex;
+    gap: 8px;
+  }
+
+  .sim3d-seg-tabs {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sim3d-toast {
+    top: 52px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(300px, 52dvh, 440px);
+  }
+}
+
+/* ---- Scan: area ambil foto (drag & drop + tombol) dan kolom contoh foto ---- */
+.scan-pick-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.scan-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px;
+  text-align: center;
+  border: 2px dashed var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.scan-drop--active {
+  border-color: var(--leaf-600);
+  background: var(--ok-bg);
+}
+
+.scan-drop-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+  background: var(--surface);
+  color: var(--leaf-600);
+  border: 1px solid var(--line);
+}
+
+.scan-drop-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.scan-drop-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.scan-drop-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.scan-drop-actions button {
+  min-width: 150px;
+  min-height: 42px;
+  padding: 8px 16px;
+  justify-content: center;
+}
+
+.scan-drop-meta {
+  margin: 6px 0 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+/* Kolom contoh foto: benar di atas, salah di bawah */
+.scan-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scan-examples-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-ex {
+  flex: 1;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+}
+
+.scan-ex--good {
+  background: var(--ok-bg);
+  border-color: rgba(65, 154, 104, 0.35);
+}
+
+.scan-ex--bad {
+  background: rgba(214, 61, 18, 0.06);
+  border-color: rgba(214, 61, 18, 0.22);
+}
+
+.scan-ex-img {
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--leaf-600);
+}
+
+.scan-ex--bad .scan-ex-img {
+  border-color: #d63d12;
+}
+
+/* Gambar kartun: tampil utuh di latar terang */
+.scan-ex-img--plain {
+  background: #f4efe4;
+}
+
+.scan-ex-img--plain img {
+  object-fit: contain;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.scan-ex-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scan-ex figcaption {
+  display: grid;
+  gap: 3px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.scan-ex-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.scan-ex-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: var(--leaf-600);
+  flex-shrink: 0;
+}
+
+.scan-ex--bad .scan-ex-badge {
+  background: #d63d12;
+}
+
+@media (max-width: 860px) {
+  .scan-pick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-examples {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scan-examples-title {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .scan-examples {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-drop-actions,
+  .scan-drop-actions button {
+    width: 100%;
+  }
+}
+
+
+
+/* ============================================================================
+   BATERAI SURYA REALISTIS (halaman Energi surya)
+   ============================================================================ */
+.batt {
+  --batt-a: #3ddc84;
+  --batt-b: #14954c;
+  --batt-glow: rgba(61, 220, 132, 0.45);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.batt--mid {
+  --batt-a: #ffd24a;
+  --batt-b: #e09a07;
+  --batt-glow: rgba(255, 196, 46, 0.45);
+}
+
+.batt--low {
+  --batt-a: #ff7a59;
+  --batt-b: #d6331a;
+  --batt-glow: rgba(255, 92, 60, 0.5);
+}
+
+/* Casing logam gelap */
+.batt-shell {
+  width: 184px;
+  height: 78px;
+  padding: 5px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #4b5a52 0%, #26312b 45%, #121915 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 18px rgba(14, 30, 22, 0.28);
+}
+
+/* Kaca bagian dalam */
+.batt-glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0c1310 0%, #141d18 100%);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* Cairan energi */
+.batt-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: visible;
+  background: linear-gradient(180deg, var(--batt-a) 0%, var(--batt-b) 100%);
+  box-shadow: 0 0 18px var(--batt-glow), inset 0 -6px 10px rgba(0, 0, 0, 0.18);
+  transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.batt-wave {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -8px;
+  width: 9px;
+  background: linear-gradient(180deg, var(--batt-a) 0%, var(--batt-b) 100%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6Q12 10 6 20T6 40H0Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6Q12 10 6 20T6 40H0Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 9px 26px;
+  mask-size: 9px 26px;
+  -webkit-mask-repeat: repeat-y;
+  mask-repeat: repeat-y;
+  animation: battWave 1.4s linear infinite;
+}
+
+/* Kilau menyapu dari kiri ke kanan */
+.batt-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.batt-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 34%;
+  left: -40%;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.38) 50%, transparent 100%);
+  transform: skewX(-18deg);
+  animation: battShine 3.2s ease-in-out infinite;
+}
+
+.batt:not(.batt--charging) .batt-shine::after {
+  animation-duration: 6s;
+  opacity: 0.5;
+}
+
+/* Gelembung energi naik saat mengisi */
+.batt-bubbles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.batt-bubbles i {
+  position: absolute;
+  bottom: -8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+  animation: battBubble 2.1s ease-in infinite;
+}
+
+.batt-bubbles i:nth-child(even) {
+  width: 4px;
+  height: 4px;
+}
+
+/* Garis skala 25 / 50 / 75 % di kaca */
+.batt-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.batt-ticks i {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.batt-ticks i:nth-child(1) {
+  left: 25%;
+}
+
+.batt-ticks i:nth-child(2) {
+  left: 50%;
+}
+
+.batt-ticks i:nth-child(3) {
+  left: 75%;
+}
+
+/* Pantulan kaca di sisi atas */
+.batt-gloss {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  height: 36%;
+  border-radius: 10px 10px 18px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.04) 100%);
+  pointer-events: none;
+}
+
+.batt-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.batt-label b {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.batt-bolt {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+  filter: drop-shadow(0 0 6px var(--batt-glow)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  animation: battBolt 1.6s ease-in-out infinite;
+}
+
+.batt:not(.batt--charging) .batt-bolt {
+  animation: none;
+  opacity: 0.55;
+}
+
+/* Kutub positif logam */
+.batt-cap {
+  width: 10px;
+  height: 30px;
+  margin-left: 3px;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(180deg, #d9e2dd 0%, #8e9b94 50%, #5d6a63 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Mode hemat / rendah: tepi berdenyut merah */
+.batt--low .batt-shell {
+  animation: battLowPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes battWave {
+  from {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+
+  to {
+    -webkit-mask-position: 0 26px;
+    mask-position: 0 26px;
+  }
+}
+
+@keyframes battShine {
+  0% {
+    left: -40%;
+  }
+
+  60%,
+  100% {
+    left: 120%;
+  }
+}
+
+@keyframes battBubble {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-80px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes battBolt {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+@keyframes battLowPulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(14, 30, 22, 0.28),
+      0 0 0 0 rgba(214, 51, 26, 0);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(14, 30, 22, 0.28),
+      0 0 0 4px rgba(214, 51, 26, 0.35);
+  }
+}
+
+/* Baterai tetap beranimasi walau sistem memakai "kurangi gerakan" (gerak kecil & lokal) */
+@media (prefers-reduced-motion: reduce) {
+  .batt-wave {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-shine::after {
+    animation-duration: 3.2s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-bubbles i {
+    animation-duration: 2.1s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt--charging .batt-bolt {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt--low .batt-shell {
+    animation-duration: 1.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-fill {
+    transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+}
+
+/* ============================================================================
+   HASIL SCAN — kartu ringkasan rapi (foto kiri · status, judul, penjelasan, aksi kanan)
+   ============================================================================ */
+.scan-result {
+  --sr-accent: var(--leaf-600);
+  --sr-bg: var(--ok-bg);
+  --sr-fg: var(--ok-fg);
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-result--warn {
+  --sr-accent: #e8ac44;
+  --sr-bg: var(--warn-bg);
+  --sr-fg: var(--warn-fg);
+}
+
+.scan-result--bad {
+  --sr-accent: #c62f36;
+  --sr-bg: rgba(198, 47, 54, 0.1);
+  --sr-fg: #a5262c;
+}
+
+.scan-result--harvest {
+  --sr-accent: var(--tomato-btn);
+  --sr-bg: rgba(242, 86, 43, 0.12);
+  --sr-fg: var(--tomato-btn);
+}
+
+.scan-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.scan-result-photo {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.scan-result-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.scan-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.scan-result-status {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--sr-bg);
+  color: var(--sr-fg);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.scan-result-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.scan-result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scan-result-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.scan-result-tag > span {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.scan-result-tag--warn {
+  border-color: rgba(232, 172, 68, 0.55);
+  background: var(--warn-bg);
+}
+
+.scan-result-confidence {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.scan-result-confidence strong {
+  color: var(--ink);
+}
+
+.scan-result-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.scan-result-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sr-accent);
+}
+
+.scan-result-text {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border-left: 4px solid var(--sr-accent);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.scan-result-findings {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-result-findings-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.scan-result-findings ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.scan-result-findings li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--ink-soft);
+}
+
+.scan-result-findings li svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--sr-accent);
+}
+
+.scan-result-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--warn-fg);
+}
+
+.scan-result-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.scan-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.scan-result-actions button {
+  min-height: 40px;
+  padding: 7px 14px;
+  font-size: 0.84rem;
+}
+
+.scan-result-foot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  .scan-result-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .scan-result-actions button {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+  }
+}
+
+/* Hasil scan: tabel perbandingan jenis & langkah selanjutnya */
+.scan-compare {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+  overflow: hidden;
+  font-size: 0.82rem;
+}
+
+.scan-compare-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.scan-compare-row + .scan-compare-row {
+  border-top: 1px solid var(--line);
+}
+
+.scan-compare-row > span {
+  padding: 8px 10px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.scan-compare-head > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  text-transform: capitalize;
+}
+
+.scan-compare-aspect {
+  font-weight: 700;
+  background: var(--surface-2);
+}
+
+.scan-compare-head > span:first-child {
+  background: var(--surface-2);
+}
+
+.scan-compare-photo {
+  background: var(--warn-bg);
+}
+
+.scan-compare-target {
+  background: var(--ok-bg);
+}
+
+.scan-next {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-next ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.scan-next strong {
+  color: var(--ink);
+}
+
+@media (max-width: 480px) {
+  .scan-compare {
+    font-size: 0.76rem;
+  }
+
+  .scan-compare-row {
+    grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .scan-compare-row > span {
+    padding: 7px 8px;
+  }
+}
+
+/* Baris lebar penuh di bawah foto + ringkasan (tabel perbandingan & langkah selanjutnya) */
+.scan-result-wide {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.scan-result-wide .scan-next {
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .scan-result-wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hasil scan: laporan kondisi tanaman (panen · penyakit · hara · catatan lain) */
+.scan-result-wide.scan-report {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.scan-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scan-report-card {
+  --rc-accent: var(--leaf-600);
+  --rc-bg: var(--ok-bg);
+  --rc-fg: var(--ok-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--rc-accent);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.scan-report-card--warn {
+  --rc-accent: #e8ac44;
+  --rc-bg: var(--warn-bg);
+  --rc-fg: var(--warn-fg);
+}
+
+.scan-report-card--bad {
+  --rc-accent: #c62f36;
+  --rc-bg: rgba(198, 47, 54, 0.1);
+  --rc-fg: #a5262c;
+}
+
+.scan-report-card--neutral {
+  --rc-accent: var(--ink-soft);
+  --rc-bg: var(--surface);
+  --rc-fg: var(--ink-soft);
+}
+
+.scan-report-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-report-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--rc-bg);
+  color: var(--rc-fg);
+}
+
+.scan-report-label {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.scan-report-reason {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.scan-report-notes {
+  display: grid;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px dashed var(--line);
+}
+
+.scan-report-notes-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-report-notes ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .scan-report-grid {
+    grid-template-columns: 1fr;
   }
 }

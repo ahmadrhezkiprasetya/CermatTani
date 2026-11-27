@@ -229,18 +229,11 @@ export const LandingScreen: React.FC = () => {
 
               <div style={{ position: 'relative', zIndex: 2, maxWidth: 700, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div className="hero-stagger-1" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span
-                    className="pill"
-                    style={{
-                      background: 'rgba(250, 245, 232, 0.92)',
-                      color: 'var(--leaf-700)',
-                      border: '1px solid rgba(255, 255, 255, 0.6)',
-                    }}
-                  >
-                    Computer Vision + IoT Surya
+                  <span className="hero-badge">
+                    <Sparkles size={13} /> Computer Vision + IoT Surya
                   </span>
-                  <span className="pill" style={{ background: 'rgba(255,255,255,0.2)', color: '#FFFFFF' }}>
-                    Untuk Petani Lahan &amp; Urban Farming
+                  <span className="hero-badge">
+                    <Sprout size={13} /> Untuk Petani Lahan &amp; Urban Farming
                   </span>
                 </div>
 
@@ -255,38 +248,30 @@ export const LandingScreen: React.FC = () => {
                 </p>
 
                 <div className="hero-stagger-4" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                  <button type="button" className="ct-btn-dark" onClick={enterDashboard}>
-                    <span>{authUser ? 'Masuk ke Dasbor Kebun' : 'Login / Daftar Akun'}</span>
-                    <span className="ct-btn-dark-circle">
-                      {authUser ? <ArrowUpRight size={18} /> : <LogIn size={16} />}
-                    </span>
-                  </button>
-                  <button type="button" className="btn-tomato" onClick={enterScan}>
+                  <button type="button" className="btn-tomato hero-cta-main" onClick={enterScan}>
                     <Camera size={19} /> Coba Scan Tanaman
+                  </button>
+                  <button type="button" className="hero-cta-ghost" onClick={enterDashboard}>
+                    {authUser ? 'Masuk ke Dasbor Kebun' : 'Login / Daftar Akun'}
+                    {authUser ? <ArrowUpRight size={17} /> : <LogIn size={16} />}
                   </button>
                 </div>
               </div>
 
               {/* Bawah Hero: 3 Chip Statistik Kiri (sorot --lime-300) + Kartu Pratinjau Kaca Kanan */}
               <div className="landing-hero-bottom hero-stagger-4">
-                <div className="stat-chip-row">
-                  <div className="stat-chip stat-chip--butter">
-                    <span className="stat-chip-num">5 dtk</span>
-                    <span className="t-micro t-soft">
-                      Keputusan dari 1 foto
-                    </span>
+                <div className="hero-stats">
+                  <div className="hero-stat">
+                    <span className="hero-stat-num">±5 dtk</span>
+                    <span className="hero-stat-label">Hasil dari 1 foto</span>
                   </div>
-                  <div className="stat-chip">
-                    <span className="stat-chip-num">13</span>
-                    <span className="t-micro t-soft">
-                      Fitur AI &amp; IoT surya
-                    </span>
+                  <div className="hero-stat">
+                    <span className="hero-stat-num">−78%</span>
+                    <span className="hero-stat-label">Token AI per scan</span>
                   </div>
-                  <div className="stat-chip">
-                    <span className="stat-chip-num">100%</span>
-                    <span className="t-micro t-soft">
-                      Solusi organik lebih dulu
-                    </span>
+                  <div className="hero-stat">
+                    <span className="hero-stat-num">100%</span>
+                    <span className="hero-stat-label">Saran organik lebih dulu</span>
                   </div>
                 </div>
 

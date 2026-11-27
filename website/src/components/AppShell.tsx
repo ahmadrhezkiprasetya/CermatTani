@@ -42,6 +42,7 @@ import {
   ScreenId,
 } from '../types/cermattani';
 import { CermoMascot } from './CermoMascot';
+import { AddFarmModal } from './AddFarmModal';
 
 type NavEntry = {
   id: Exclude<ScreenId, 'landing' | 'login'>;
@@ -162,6 +163,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [showFarmSheet, setShowFarmSheet] = useState(false);
+  const [showAddFarm, setShowAddFarm] = useState(false);
   const [notifTab, setNotifTab] = useState<'peringatan' | 'jadwal'>('peringatan');
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [newSchedLabel, setNewSchedLabel] = useState('');
@@ -411,9 +413,20 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </button>
 
         <div className="sidebar-farm-box">
-          <label htmlFor="farm-switcher" className="sidebar-farm-label">
-            Kebun Aktif
-          </label>
+          <div className="sidebar-farm-head">
+            <label htmlFor="farm-switcher" className="sidebar-farm-label">
+              Kebun Aktif
+            </label>
+            <button
+              type="button"
+              className="sidebar-farm-add"
+              onClick={() => setShowAddFarm(true)}
+              aria-label="Tambah kebun baru"
+              title="Tambah kebun baru"
+            >
+              <Plus size={13} strokeWidth={2.4} /> Tambah
+            </button>
+          </div>
           <select
             id="farm-switcher"
             className="sidebar-farm-select"
@@ -1066,10 +1079,27 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   </button>
                 );
               })}
+              <button
+                type="button"
+                className="mobile-farm-option mobile-farm-add"
+                onClick={() => {
+                  setShowFarmSheet(false);
+                  setShowAddFarm(true);
+                }}
+              >
+                <span className="mobile-farm-option-icon">
+                  <Plus size={20} color="var(--leaf-600)" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontWeight: 700, fontSize: '0.94rem', color: 'var(--leaf-700)' }}>
+                  Tambah kebun baru
+                </span>
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {showAddFarm && <AddFarmModal onClose={() => setShowAddFarm(false)} />}
 
       {/* Floating Live Alert Snackbar — Ringkas, 1 Alert Sekaligus, Anti Tumpang Tindih */}
       {activeAlerts.length > 0 && (() => {

@@ -123,7 +123,7 @@ function adjustHarvestRangeFromHistory(
 }
 
 export async function runTomatoScanAnalysis(params: {
-  plant: Plant;
+  plant: Plant | null;
   bagian?: PlantPart | 'auto';
   fotoUrl: string;
   originalKb?: number;
@@ -138,7 +138,7 @@ export async function runTomatoScanAnalysis(params: {
 
 /* Analisis Vision 100% nyata lewat /api/scan (Gemini AI + Dataset Agronomi v2.1, auto-deteksi konteks) */
 export async function runSmartPlantScan(params: {
-  plant: Plant;
+  plant: Plant | null;
   bagian?: PlantPart | 'auto';
   fotoUrl: string;
   originalKb?: number;
@@ -207,7 +207,7 @@ export async function runSmartPlantScan(params: {
     temuanVisual: Array.isArray(data.temuanVisual) ? data.temuanVisual : [],
     record: {
       id,
-      plantId: plant.id,
+      plantId: plant?.id ?? '',
       waktu,
       bagian: detectedPart,
       fokusOutput: s.fokusOutput,
@@ -234,6 +234,12 @@ export async function runSmartPlantScan(params: {
       pakaiDataSensor: sensorAvailable,
       tanpaBuahTerdeteksi: s.tanpaBuahTerdeteksi,
       diluarKonteksTanaman: s.diluarKonteksTanaman,
+      objekTeridentifikasi: s.objekTeridentifikasi || undefined,
+      jenisTidakSesuai: Boolean(s.jenisTidakSesuai),
+      penjelasanJenis: s.penjelasanJenis || undefined,
+      perbandinganJenis: Array.isArray(s.perbandinganJenis) ? s.perbandinganJenis : undefined,
+      saranJenis: s.saranJenis || undefined,
+      laporanKondisi: s.laporanKondisi || null,
       aiModel,
       ringkasanAi: data.ringkasanSingkat || data.alasanTidakTerdeteksi || undefined,
       temuanVisual: Array.isArray(data.temuanVisual) ? data.temuanVisual : undefined,

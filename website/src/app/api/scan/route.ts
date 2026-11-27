@@ -10,6 +10,17 @@ import {
 import type { PlantPart, RipenessStage, ScanOutputFocus } from '@/types/cermattani';
 
 interface ParsedGeminiScan {
+  objekTeridentifikasi?: string;
+  sesuaiTanamanDipilih?: boolean;
+  penjelasanJenis?: string;
+  perbandinganJenis?: Array<{ aspek?: string; diFoto?: string; tanamanTarget?: string }>;
+  saranJenis?: string;
+  laporanKondisi?: {
+    kesiapanPanen?: { status?: string; label?: string; alasan?: string };
+    risikoPenyakit?: { level?: string; label?: string; alasan?: string };
+    kondisiHara?: { status?: string; label?: string; alasan?: string };
+    catatanLain?: string[];
+  };
   bagianTerdeteksi?: PlantPart;
   fokusOutput?: ScanOutputFocus;
   diluarKonteksTanaman?: boolean;
@@ -84,12 +95,16 @@ export async function POST(request: Request) {
       body.bagian === 'buah' || body.bagian === 'daun' || body.bagian === 'batang'
         ? body.bagian
         : 'auto';
-    const plant = body.plant || {
-      nama: 'Tanaman',
-      varietas: 'Servo F1',
-      fase: 'Berbuah',
-      bobotRataBuahGram: 85,
-    };
+    // Tanpa tanaman target (pilihan "Tanaman lain / tidak ada di kebun"): AI mengenali jenisnya sendiri
+    const adaTarget = Boolean(body.plant && body.plant.nama);
+    const plant = adaTarget
+      ? body.plant
+      : {
+          nama: 'Tidak dipilih',
+          varietas: 'Tidak dipilih',
+          fase: 'Tidak diketahui',
+          bobotRataBuahGram: 85,
+        };
     const sensorAvailable = Boolean(body.sensorAvailable);
     const lowConfidenceThreshold = Number(body.lowConfidenceThreshold ?? 60);
 
@@ -121,6 +136,18 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
      * "diluarKonteksTanaman": true (jika bukan tanaman) atau false (jika tanaman tapi buram/gelap)
      * "tanpaBuahTerdeteksi": true, "boxes": [], "anjuranPanen": "Perlu foto ulang", "keyakinan": 15–40
      * "alasanTidakTerdeteksi": penjelasan sopan apa yang tampak & saran cara foto ulang.
+2B. IDENTIFIKASI & VERIFIKASI JENIS TANAMAN (SELALU DIISI):
+   - "objekTeridentifikasi": nama umum objek utama di foto dalam bahasa Indonesia, singkat (misal "Buah mangga", "Daun cabai", "Buah tomat", "Kucing", "Gambar kartun").
+   - Jika pengguna memilih tanaman target, bandingkan JENIS objek di foto dengan tanaman target (lihat nama & varietas).
+     * Jika jenisnya SAMA (misal target tomat, foto buah/daun/batang tomat) → "sesuaiTanamanDipilih": true, "penjelasanJenis": "".
+     * Jika foto memperlihatkan TANAMAN/BUAH LAIN (misal target tomat tetapi foto buah mangga) → "sesuaiTanamanDipilih": false, dan:
+       - "penjelasanJenis": TEPAT 1 kalimat jelas, format "Foto ini bukan <jenis tanaman target>, melainkan <objek>." (pakai nama jenis umum, misal "tomat", bukan kode/nomor tanaman).
+       - "perbandinganJenis": 3–4 baris perbandingan ciri yang TERLIHAT, aspek dipilih dari "Bentuk", "Warna kulit", "Permukaan kulit", "Ukuran", "Tangkai / kelopak", "Daun". Tiap baris: "diFoto" = ciri objek di foto (singkat, maks 8 kata), "tanamanTarget" = ciri khas tanaman target (singkat, maks 8 kata).
+       - "saranJenis": 1 kalimat saran praktis (misal pilih "Tanaman lain" lalu pindai ulang, atau foto <tanaman target> yang benar).
+       - Untuk kasus ini set "fokusOutput": "tidak_terdeteksi", "diluarKonteksTanaman": false, "boxes": [].
+     * Selain kasus jenis berbeda: "perbandinganJenis": [] dan "saranJenis": "".
+   - Jika tanaman target "Tidak dipilih": "sesuaiTanamanDipilih": true, "penjelasanJenis": satu kalimat singkat jenis tanaman yang dikenali beserta cirinya, lalu lanjutkan analisis seperti biasa.
+   - Jika foto bukan tanaman sama sekali: "sesuaiTanamanDipilih": false, "penjelasanJenis": "".
 3. PILIH SATU "fokusOutput" PALING TEPAT SECARA OTOMATIS:
    - KASUS A — BUAH BUSUK / BUAH BERJAMUR / BUAH SAKIT BERAT / DAUN ATAU BATANG BERPENYAKIT:
      * Jika buah terlihat busuk, berjamur, lembek berair, cekung hitam (blossom end rot), patek/antraknosa, atau berpenyakit berat — ATAU foto daun/batang menunjukkan penyakit/hama:
@@ -136,6 +163,15 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
      * "ringkasanSingkat" fokus ke kondisi kematangan buah saja.
    - KASUS C — GEJALA KEKURANGAN HARA MURNI (misal daun menguning pucat/tepi terbakar/antar-tulang kuning tanpa penyakit jamur/bakteri dominan):
      * Set "fokusOutput": "hara", "adaGejalaHara": true, "dugaanHaraId" ke ID hara resmi (bukan "cukup"), "boxes": [], "tahapDominan": null, "anjuranPanen": "Fokus daun/batang".
+3B. SAYURAN DAUN & TANAMAN TANPA BUAH (selada, sawi, pakcoy, bayam, kangkung, seledri, dll):
+   - Bagian yang dipanen adalah DAUN/BATANG. JANGAN pernah set "fokusOutput": "tidak_terdeteksi" hanya karena tidak ada buah.
+   - Jika tanaman tampak jelas: pilih "penyakit" (dengan "penyakitUtamaId": "sehat" bila sehat) atau "hara" bila ada gejala kekurangan hara. "tanpaBuahTerdeteksi": false.
+3C. LAPORAN KONDISI ("laporanKondisi") — WAJIB DIISI untuk setiap tanaman yang terlihat jelas, jawab sejelas mungkin untuk petani:
+   - "kesiapanPanen": "status" salah satu "siap" | "hampir" | "belum" | "lewat" | "tidak_dinilai"; "label" singkat (misal "Siap panen sekarang", "Belum siap · ±7–10 hari lagi", "Lewat panen · segera petik"); "alasan" 1 kalimat dari ciri yang terlihat (untuk sayuran daun nilai dari ukuran, jumlah & kerapatan daun; untuk buah dari warna & ukuran).
+   - "risikoPenyakit": "level" salah satu "rendah" | "sedang" | "tinggi"; "label" (misal "Risiko rendah · tidak tampak gejala" atau nama penyakit yang dicurigai); "alasan" 1 kalimat gejala yang terlihat atau tidak terlihat.
+   - "kondisiHara": "status" "cukup" | "kurang"; "label" (misal "Hara cukup" atau "Diduga kurang nitrogen"); "alasan" 1 kalimat.
+   - "catatanLain": 0–3 kalimat singkat hal penting lain yang terlihat (hama, kotoran/tanah menempel, kualitas untuk dijual, penanganan setelah panen, kualitas foto). Kosongkan bila tidak ada.
+   - Jika foto bukan tanaman / jenis tidak sesuai: isi status "tidak_dinilai", level "rendah", status hara "cukup", label & alasan "" dan catatanLain [].
 4. DETEKSI GEJALA HARA ("adaGejalaHara"):
    - Set "adaGejalaHara": true HANYA jika benar-benar tampak gejala kekurangan hara (termasuk busuk_ujung_buah yang terkait kurang_kalsium) dan "dugaanHaraId" != "cukup". Jika tidak ada gejala hara, set "adaGejalaHara": false dan "dugaanHaraId": "cukup".
 5. PENYAKIT TOP-3:
@@ -145,8 +181,7 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
 7. Jawab HANYA objek JSON valid tanpa markdown fence.`;
 
     const userPrompt = `Analisis foto nyata ini sesuai Dataset Khusus CermatTani v2.1:
-- Nama tanaman: ${plant.nama}
-- Varietas: ${plant.varietas}
+- Tanaman target dipilih pengguna: ${adaTarget ? `${plant.nama} (varietas ${plant.varietas})` : 'Tidak dipilih — kenali sendiri jenis tanamannya'}
 - Fase tumbuh: ${plant.fase}
 - Petunjuk bagian (jika ada): ${hintBagian}
 - Data sensor lahan tersedia: ${sensorAvailable ? 'Ya' : 'Tidak'}
@@ -156,6 +191,56 @@ Kembalikan tepat JSON sesuai skema.`;
     const responseSchema = {
       type: 'OBJECT',
       properties: {
+        objekTeridentifikasi: { type: 'STRING' },
+        sesuaiTanamanDipilih: { type: 'BOOLEAN' },
+        penjelasanJenis: { type: 'STRING' },
+        perbandinganJenis: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              aspek: { type: 'STRING' },
+              diFoto: { type: 'STRING' },
+              tanamanTarget: { type: 'STRING' },
+            },
+            required: ['aspek', 'diFoto', 'tanamanTarget'],
+          },
+        },
+        saranJenis: { type: 'STRING' },
+        laporanKondisi: {
+          type: 'OBJECT',
+          properties: {
+            kesiapanPanen: {
+              type: 'OBJECT',
+              properties: {
+                status: { type: 'STRING', enum: ['siap', 'hampir', 'belum', 'lewat', 'tidak_dinilai'] },
+                label: { type: 'STRING' },
+                alasan: { type: 'STRING' },
+              },
+              required: ['status', 'label', 'alasan'],
+            },
+            risikoPenyakit: {
+              type: 'OBJECT',
+              properties: {
+                level: { type: 'STRING', enum: ['rendah', 'sedang', 'tinggi'] },
+                label: { type: 'STRING' },
+                alasan: { type: 'STRING' },
+              },
+              required: ['level', 'label', 'alasan'],
+            },
+            kondisiHara: {
+              type: 'OBJECT',
+              properties: {
+                status: { type: 'STRING', enum: ['cukup', 'kurang'] },
+                label: { type: 'STRING' },
+                alasan: { type: 'STRING' },
+              },
+              required: ['status', 'label', 'alasan'],
+            },
+            catatanLain: { type: 'ARRAY', items: { type: 'STRING' } },
+          },
+          required: ['kesiapanPanen', 'risikoPenyakit', 'kondisiHara', 'catatanLain'],
+        },
         bagianTerdeteksi: { type: 'STRING', enum: ['buah', 'daun', 'batang'] },
         fokusOutput: {
           type: 'STRING',
@@ -220,6 +305,12 @@ Kembalikan tepat JSON sesuai skema.`;
         },
       },
       required: [
+        'objekTeridentifikasi',
+        'sesuaiTanamanDipilih',
+        'penjelasanJenis',
+        'perbandinganJenis',
+        'saranJenis',
+        'laporanKondisi',
         'bagianTerdeteksi',
         'fokusOutput',
         'diluarKonteksTanaman',
@@ -276,6 +367,21 @@ Kembalikan tepat JSON sesuai skema.`;
     }
 
     const diluarKonteks = Boolean(parsed.diluarKonteksTanaman);
+    const objekTeridentifikasi = String(parsed.objekTeridentifikasi || '').trim();
+    const penjelasanJenis = String(parsed.penjelasanJenis || '').trim();
+    // Jenis tanaman di foto berbeda dari tanaman yang dipilih (misal pilih tomat, foto mangga)
+    const jenisTidakSesuai = adaTarget && !diluarKonteks && parsed.sesuaiTanamanDipilih === false;
+    const perbandinganJenis = jenisTidakSesuai && Array.isArray(parsed.perbandinganJenis)
+      ? parsed.perbandinganJenis
+          .map((r) => ({
+            aspek: String(r?.aspek || '').trim(),
+            diFoto: String(r?.diFoto || '').trim(),
+            tanamanTarget: String(r?.tanamanTarget || '').trim(),
+          }))
+          .filter((r) => r.aspek && (r.diFoto || r.tanamanTarget))
+          .slice(0, 5)
+      : [];
+    const saranJenis = jenisTidakSesuai ? String(parsed.saranJenis || '').trim() : '';
     const bagian: PlantPart =
       parsed.bagianTerdeteksi === 'buah' ||
       parsed.bagianTerdeteksi === 'daun' ||
@@ -335,7 +441,8 @@ Kembalikan tepat JSON sesuai skema.`;
         ? parsed.fokusOutput
         : 'kematangan';
 
-    if (diluarKonteks || parsed.tanpaBuahTerdeteksi) {
+    // Catatan: "tanpaBuahTerdeteksi" TIDAK lagi memaksa "tidak terdeteksi" — sayuran daun (selada, sawi) memang tak berbuah
+    if (diluarKonteks || jenisTidakSesuai) {
       fokusOutput = 'tidak_terdeteksi';
     } else if (FRUIT_ROT_IDS.has(utamaId) || (utamaId !== 'sehat' && fokusOutput !== 'kematangan')) {
       // Buah busuk / berpenyakit berat WAJIB murni fokus penyakit — NOL kematangan!
@@ -373,11 +480,37 @@ Kembalikan tepat JSON sesuai skema.`;
             })
         : [];
 
+    // Fokus kematangan tanpa kotak buah: tampilkan sebagai pemeriksaan kesehatan, bukan "tidak terdeteksi"
     if (fokusOutput === 'kematangan' && safeBoxes.length === 0 && !parsed.tahapDominan) {
-      fokusOutput = 'tidak_terdeteksi';
+      fokusOutput = 'penyakit';
     }
 
     const tanpaObjek = fokusOutput === 'tidak_terdeteksi';
+
+    const lk = parsed.laporanKondisi || {};
+    const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
+      allowed.includes(v as T) ? (v as T) : fallback;
+    const txt = (v: unknown) => String(v || '').trim();
+    const laporanKondisi = tanpaObjek
+      ? null
+      : {
+          kesiapanPanen: {
+            status: pick(lk.kesiapanPanen?.status, ['siap', 'hampir', 'belum', 'lewat', 'tidak_dinilai'] as const, 'tidak_dinilai'),
+            label: txt(lk.kesiapanPanen?.label),
+            alasan: txt(lk.kesiapanPanen?.alasan),
+          },
+          risikoPenyakit: {
+            level: pick(lk.risikoPenyakit?.level, ['rendah', 'sedang', 'tinggi'] as const, 'rendah'),
+            label: txt(lk.risikoPenyakit?.label),
+            alasan: txt(lk.risikoPenyakit?.alasan),
+          },
+          kondisiHara: {
+            status: pick(lk.kondisiHara?.status, ['cukup', 'kurang'] as const, 'cukup'),
+            label: txt(lk.kondisiHara?.label),
+            alasan: txt(lk.kondisiHara?.alasan),
+          },
+          catatanLain: Array.isArray(lk.catatanLain) ? lk.catatanLain.map(txt).filter(Boolean).slice(0, 3) : [],
+        };
 
     // Penyakit ringan (hanya catatan kecil di bawah kematangan buah segar)
     const rawRingan = parsed.penyakitRinganId || '';
@@ -501,6 +634,12 @@ Kembalikan tepat JSON sesuai skema.`;
         pakaiDataSensor: sensorAvailable,
         tanpaBuahTerdeteksi: tanpaObjek,
         diluarKonteksTanaman: diluarKonteks,
+        objekTeridentifikasi,
+        jenisTidakSesuai,
+        penjelasanJenis,
+        perbandinganJenis,
+        saranJenis,
+        laporanKondisi,
         aiModel: aiRes.model,
         ringkasanAi,
         temuanVisual,

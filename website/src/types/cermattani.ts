@@ -68,6 +68,13 @@ export interface DiseasePrediction {
   confidence: number; // 0..100
 }
 
+export interface ScanConditionReport {
+  kesiapanPanen: { status: 'siap' | 'hampir' | 'belum' | 'lewat' | 'tidak_dinilai'; label: string; alasan: string };
+  risikoPenyakit: { level: 'rendah' | 'sedang' | 'tinggi'; label: string; alasan: string };
+  kondisiHara: { status: 'cukup' | 'kurang'; label: string; alasan: string };
+  catatanLain: string[];
+}
+
 export interface ScanRecord {
   id: string;
   plantId: string;
@@ -107,6 +114,15 @@ export interface ScanRecord {
   // Foto gagal deteksi buah / di luar objek tanaman (F1.5)
   tanpaBuahTerdeteksi?: boolean;
   diluarKonteksTanaman?: boolean;
+  // Identifikasi jenis objek & kecocokan dengan tanaman yang dipilih (misal pilih tomat, foto mangga)
+  objekTeridentifikasi?: string;
+  jenisTidakSesuai?: boolean;
+  penjelasanJenis?: string;
+  /** Perbandingan ciri objek di foto vs tanaman yang dipilih (hanya bila jenis tidak sesuai). */
+  perbandinganJenis?: { aspek: string; diFoto: string; tanamanTarget: string }[];
+  saranJenis?: string;
+  /** Laporan kondisi ringkas untuk petani: panen, penyakit, hara & catatan lain. */
+  laporanKondisi?: ScanConditionReport | null;
   // Metadata hasil nyata model AI
   aiModel?: string;
   ringkasanAi?: string;

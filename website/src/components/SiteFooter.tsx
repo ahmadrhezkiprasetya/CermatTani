@@ -12,7 +12,6 @@ const FOOTER_COLUMNS = [
   {
     title: 'Produk',
     links: [
-      { label: '13 fitur CermatTani', href: '#fitur-lengkap' },
       { label: 'Cek hama & penyakit', href: '/scan' },
       { label: 'Tanaman kebun', href: '/tanaman' },
       { label: 'Kalender panen', href: '/kalender' },
@@ -259,8 +258,6 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({ authenticated, onStart }
               <a href="mailto:bantuan@cermattani.id?subject=Kebijakan%20Privasi">Privasi</a>
               <span aria-hidden="true">·</span>
               <a href="mailto:bantuan@cermattani.id?subject=Syarat%20dan%20Ketentuan">Syarat</a>
-              <span aria-hidden="true">·</span>
-              <a href="#fitur-lengkap">Peta situs</a>
             </nav>
             <span className="ct-footer-made">Dibuat dengan <span aria-label="semangat">🌱</span> untuk petani Indonesia</span>
           </div>

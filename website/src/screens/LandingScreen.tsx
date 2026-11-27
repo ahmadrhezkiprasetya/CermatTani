@@ -31,7 +31,6 @@ const NAV_SECTIONS = [
   { id: 'bukti-angka', label: 'Bukti Data' },
   { id: 'cara-kerja', label: 'Cara Kerja' },
   { id: 'nilai-kami', label: 'Nilai Kami' },
-  { id: 'fitur-lengkap', label: '13 Fitur' },
 ] as const;
 
 const VALUE_CARDS = [
@@ -70,37 +69,6 @@ const PAK_CERMAT_SHOWCASE: { pose: PakCermatPose; label: string; desc: string }[
   { pose: 'catat', label: 'Catat Timeline', desc: 'Menyusun jejak pertumbuhan, kalender panen, dan laporan CSV.' },
   { pose: 'analisis', label: 'Evaluasi Kebun', desc: 'Membantu menimbang keputusan panen dan pencegahan di musim lembap.' },
   { pose: 'jempol', label: 'Siap Panen', desc: 'Menandai hasil pemeriksaan sehat dan jadwal panen yang tersimpan.' },
-];
-
-const PHOTO_FEATURES: {
-  code: string;
-  title: string;
-  desc: string;
-  target: ScreenId;
-  icon: React.FC<{ size?: number }>;
-}[] = [
-  { code: 'F1', title: 'Kematangan & Hari Panen', desc: 'Deteksi buah mentah, setengah matang, dan matang lengkap dengan estimasi hari petik.', target: 'scan', icon: Sparkles },
-  { code: 'F2', title: 'Deteksi Penyakit Daun', desc: 'Peringkat 3 kemungkinan teratas dengan solusi organik lebih dulu & opsi kimia terakhir.', target: 'scan', icon: ShieldCheck },
-  { code: 'F3', title: 'Dugaan Hara & Pupuk', desc: 'Rekomendasi takaran per fase tumbuh dengan label dugaan visual vs data sensor.', target: 'scan', icon: Leaf },
-  { code: 'F4', title: 'Timeline per Tanaman', desc: 'Jejak scan bergelombang per petak dengan penanda merah saat penyakit pertama muncul.', target: 'tanaman', icon: Sprout },
-  { code: 'F5', title: 'Tanya Cermo AI', desc: 'Chatbot bahasa petani terhubung ke konteks scan terbaru dengan tag saran jujur.', target: 'cermo', icon: MessageCircle },
-  { code: 'F6', title: 'Perkiraan Hasil Panen', desc: 'Estimasi bobot kasar per panen dari jumlah buah terdeteksi × bobot rata-rata varietas.', target: 'beranda', icon: CheckCircle2 },
-  { code: 'F7', title: 'Kalender & Bot Telegram', desc: 'Jadwal panen bulanan otomatis terhubung pengingat harian via Bot Telegram.', target: 'kalender', icon: CalendarDays },
-];
-
-const LAND_FEATURES: {
-  code: string;
-  title: string;
-  desc: string;
-  target: ScreenId;
-  icon: React.FC<{ size?: number }>;
-}[] = [
-  { code: 'F8', title: 'Sensor Iklim & Tanah IoT', desc: 'Pantau kelembapan tanah, suhu DHT22, kelembapan udara, cahaya BH1750, dan NPK.', target: 'lahan', icon: Droplets },
-  { code: 'F9', title: 'Kalkulator Tenaga Surya', desc: 'Hitung kebutuhan energi harian (Wh), kapasitas baterai, dan ukuran panel surya (Wp).', target: 'energi', icon: Sun },
-  { code: 'F10', title: 'Irigasi Otomatis Aman', desc: 'Pompa menyala/mati otomatis sesuai ambang bawah-atas dengan batas durasi aman.', target: 'lahan', icon: Droplets },
-  { code: 'F11', title: 'Peringatan Risiko Jamur', desc: 'Peringatan dini saat kelembapan udara tinggi rawan memicu busuk daun Phytophthora.', target: 'lahan', icon: ShieldCheck },
-  { code: 'F12', title: 'Monitor Level Air Tandon', desc: 'Sensor ultrasonik mencegah pompa berjalan kering saat air tandon turun < 20%.', target: 'lahan', icon: Droplets },
-  { code: 'F13', title: 'Monitor Daya INA219', desc: 'Pembacaan tegangan, arus, daya, dan mode hemat baterai otomatis saat mendung.', target: 'energi', icon: Sun },
 ];
 
 const STACKED_DEMO = [
@@ -179,17 +147,6 @@ export const LandingScreen: React.FC = () => {
     } else {
       openScanWith('buah');
     }
-  };
-
-  const enterFeature = (target: ScreenId) => {
-    if (!authUser) {
-      openLogin(target);
-      return;
-    }
-    if (!state.onboarded) {
-      completeOnboarding({ goToScan: target === 'scan' });
-    }
-    setActiveScreen(target);
   };
 
   const visibleValues = [
@@ -843,95 +800,6 @@ export const LandingScreen: React.FC = () => {
                           Standar CermatTani
                         </div>
                       </article>
-                    );
-                  })}
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </section>
-
-        {/* SEKSI 7: 13 FITUR LENGKAP — Bento Seragam: Foto (F1–F7) & Lahan (F8–F13) */}
-        <section id="fitur-lengkap" className="landing-section">
-          <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-            <Reveal>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
-                <div>
-                  <span className="t-eyebrow" style={{ color: 'var(--leaf-600)' }}>
-                    Ekosistem Fitur Lengkap
-                  </span>
-                  <h2 className="t-editorial-sub" style={{ color: 'var(--ink)', marginTop: 4 }}>
-                    <strong>13 fitur terpadu</strong> dari kamera ponsel hingga sensor surya.
-                  </h2>
-                </div>
-                <button type="button" className="ct-btn-dark" onClick={enterDashboard}>
-                  <span>{authUser ? 'Jelajahi di Dasbor' : 'Login untuk Mulai'}</span>
-                  <span className="ct-btn-dark-circle">
-                    {authUser ? <ArrowUpRight size={18} /> : <LogIn size={16} />}
-                  </span>
-                </button>
-              </div>
-            </Reveal>
-
-            {/* Grup 1: Foto & AI (F1–F7) */}
-            <Reveal delay={60}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span className="pill pill-ok">Foto &amp; Computer Vision (F1–F7)</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-                  {PHOTO_FEATURES.map((f) => {
-                    const Icon = f.icon;
-                    return (
-                      <button
-                        key={f.code}
-                        type="button"
-                        onClick={() => enterFeature(f.target)}
-                        className="card card-interactive"
-                        style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span className="pill pill-ok">{f.code}</span>
-                          <span style={{ color: 'var(--leaf-600)' }}>
-                            <Icon size={20} />
-                          </span>
-                        </div>
-                        <h3 className="t-h3" style={{ color: 'var(--ink)' }}>{f.title}</h3>
-                        <p className="t-small t-soft">{f.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Grup 2: Lahan, Irigasi & Surya (F8–F13) */}
-            <Reveal delay={120}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span className="pill pill-water">Lahan, Irigasi &amp; Energi Surya (F8–F13)</span>
-                  <span className="pill pill-sim">Simulasi</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-                  {LAND_FEATURES.map((f) => {
-                    const Icon = f.icon;
-                    return (
-                      <button
-                        key={f.code}
-                        type="button"
-                        onClick={() => enterFeature(f.target)}
-                        className="card card-interactive"
-                        style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span className="pill pill-water">{f.code}</span>
-                          <span style={{ color: 'var(--water-700)' }}>
-                            <Icon size={20} />
-                          </span>
-                        </div>
-                        <h3 className="t-h3" style={{ color: 'var(--ink)' }}>{f.title}</h3>
-                        <p className="t-small t-soft">{f.desc}</p>
-                      </button>
                     );
                   })}
                 </div>

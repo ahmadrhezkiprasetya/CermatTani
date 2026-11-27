@@ -6451,3 +6451,69 @@ button.plant-stat {
     grid-template-columns: 1fr;
   }
 }
+
+/* Kotak matahari — mode malam: bulan sabit, bintang berkelip, kubah biru malam */
+.dash-moon-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset -7px 3px 0 0 #f0dc84;
+  transform: rotate(-20deg);
+  animation: dashMoonGlow 3.6s ease-in-out infinite;
+}
+
+.dash-moon-title-icon {
+  color: #6f82cf;
+}
+
+.dash-night-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #7d8fdc;
+  box-shadow: 0 0 6px 1px rgba(125, 143, 220, 0.7);
+  pointer-events: none;
+  animation: dashStarTwinkle 2.4s ease-in-out infinite;
+}
+
+.dash-sun-panel--night .dash-sun-title svg,
+.dash-sun-panel--night .dash-sun-stats dt svg {
+  color: #6f82cf;
+}
+
+.dash-sun-panel--night .dash-sun-ghost {
+  border-color: #9fb0f0;
+  box-shadow: 0 0 0 4px rgba(159, 176, 240, 0.2);
+}
+
+:root[data-theme="dark"] .dash-night-star {
+  background: #e6ebff;
+}
+
+@keyframes dashMoonGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(240, 220, 132, 0.55));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 12px rgba(240, 220, 132, 0.95));
+  }
+}
+
+@keyframes dashStarTwinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}

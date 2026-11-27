@@ -1,12 +1,27 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Cloud, Clock, Droplets, Sun, Sunrise, Sunset } from 'lucide-react';
+import { Cloud, Clock, Droplets, Moon, Sun, Sunrise, Sunset } from 'lucide-react';
 
 /* Jam terbit/terbenam rata-rata Jawa Barat (menit sejak 00.00) */
 const SUNRISE = 5 * 60 + 45;
 const SUNSET = 17 * 60 + 55;
 const DAY_SPAN = SUNSET - SUNRISE;
+/* Malam: dari terbenam sampai terbit esok hari (busur yang sama dipakai bulan) */
+const NIGHT_SPAN = 24 * 60 - DAY_SPAN;
+/** Menit sejak matahari terbenam (0 … NIGHT_SPAN). */
+const nightElapsed = (m: number) => (m >= SUNSET ? m - SUNSET : m + 24 * 60 - SUNSET);
+
+/* Posisi bintang di kubah malam (persen) */
+const STARS = [
+  { x: 14, y: 30, d: 0 },
+  { x: 27, y: 14, d: 1.2 },
+  { x: 41, y: 36, d: 0.6 },
+  { x: 58, y: 10, d: 1.8 },
+  { x: 69, y: 32, d: 0.3 },
+  { x: 82, y: 18, d: 1.5 },
+  { x: 90, y: 40, d: 0.9 },
+];
 
 /* Busur matahari: Bezier kuadrat (16,130) → kontrol (200,-40) → (384,130) pada viewBox 400×150 */
 const ARC_PATH = 'M 16 130 Q 200 -40 384 130';
@@ -57,7 +72,8 @@ export const SunArcPanel: React.FC = () => {
 
   const mins = now.getHours() * 60 + now.getMinutes();
   const isDay = mins >= SUNRISE && mins <= SUNSET;
-  const targetT = clamp01((mins - SUNRISE) / DAY_SPAN);
+  // Siang: matahari di busur terbit→terbenam. Malam: bulan di busur terbenam→terbit.
+  const targetT = isDay ? clamp01((mins - SUNRISE) / DAY_SPAN) : clamp01(nightElapsed(mins) / NIGHT_SPAN);
 
   // Animasi masuk: matahari meluncur dari titik terbit ke posisi sekarang saat kotak terlihat
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -124,22 +140,32 @@ export const SunArcPanel: React.FC = () => {
 
   const sun = bez(animT);
   const hover = hoverT !== null ? bez(hoverT) : null;
-  const hoverMins = hoverT !== null ? Math.round(SUNRISE + hoverT * DAY_SPAN) : null;
+  const hoverMins =
+    hoverT !== null
+      ? isDay
+        ? Math.round(SUNRISE + hoverT * DAY_SPAN)
+        : Math.round(SUNSET + hoverT * NIGHT_SPAN) % (24 * 60)
+      : null;
   const hoverPhase = hoverMins !== null ? lightPhase(hoverMins) : null;
   const phaseNow = lightPhase(mins);
 
-  const remainLabel = isDay ? fmtDur(Math.max(0, SUNSET - mins)) : mins < SUNRISE ? fmtDur(SUNRISE - mins) : 'Malam';
-  const remainCaption = isDay
-    ? 'sisa siang hari ini'
-    : mins < SUNRISE
-      ? 'menuju matahari terbit'
-      : 'matahari sudah terbenam';
+  const remainLabel = isDay ? fmtDur(Math.max(0, SUNSET - mins)) : fmtDur(NIGHT_SPAN - nightElapsed(mins));
+  const remainCaption = isDay ? 'sisa siang hari ini' : 'menuju matahari terbit';
+  const ticks = isDay ? [6, 9, 12, 15] : [18, 21, 0, 3];
 
   return (
-    <div className="dash-sun-panel">
+    <div className={`dash-sun-panel ${isDay ? '' : 'dash-sun-panel--night'}`}>
       <div className="dash-sun-info">
         <span className="dash-sun-title">
-          <Sun size={15} className="dash-sun-title-icon" /> Matahari hari ini
+          {isDay ? (
+            <>
+              <Sun size={15} className="dash-sun-title-icon" /> Matahari hari ini
+            </>
+          ) : (
+            <>
+              <Moon size={15} className="dash-moon-title-icon" /> Malam hari ini
+            </>
+          )}
         </span>
         <div className="dash-sun-remain">
           <strong className="tabular-nums">{remainLabel}</strong>
@@ -182,25 +208,39 @@ export const SunArcPanel: React.FC = () => {
           onPointerDown={handlePointer}
           onPointerLeave={() => setHoverT(null)}
           role="img"
-          aria-label={`Posisi matahari pukul ${fmtClock(mins)}, ${phaseNow.label}`}
+          aria-label={`Posisi ${isDay ? 'matahari' : 'bulan'} pukul ${fmtClock(mins)}, ${phaseNow.label}`}
         >
-          {/* Awan tipis melayang pelan */}
-          <span className="dash-sun-cloud dash-sun-cloud--a" aria-hidden="true">
-            <Cloud size={30} strokeWidth={1.4} />
-          </span>
-          <span className="dash-sun-cloud dash-sun-cloud--b" aria-hidden="true">
-            <Cloud size={22} strokeWidth={1.4} />
-          </span>
+          {isDay ? (
+            <>
+              {/* Awan tipis melayang pelan */}
+              <span className="dash-sun-cloud dash-sun-cloud--a" aria-hidden="true">
+                <Cloud size={30} strokeWidth={1.4} />
+              </span>
+              <span className="dash-sun-cloud dash-sun-cloud--b" aria-hidden="true">
+                <Cloud size={22} strokeWidth={1.4} />
+              </span>
+            </>
+          ) : (
+            /* Bintang berkelip di langit malam */
+            STARS.map((st) => (
+              <span
+                key={`${st.x}-${st.y}`}
+                className="dash-night-star"
+                style={{ left: `${st.x}%`, top: `${st.y}%`, animationDelay: `${st.d}s` }}
+                aria-hidden="true"
+              />
+            ))
+          )}
 
           <svg className="dash-sun-arc" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="ctSkyDome" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#F5B82E" stopOpacity="0.16" />
-                <stop offset="100%" stopColor="#F5B82E" stopOpacity="0.02" />
+                <stop offset="0%" stopColor={isDay ? '#F5B82E' : '#3B4A8C'} stopOpacity={isDay ? 0.16 : 0.3} />
+                <stop offset="100%" stopColor={isDay ? '#F5B82E' : '#3B4A8C'} stopOpacity={isDay ? 0.02 : 0.05} />
               </linearGradient>
               <linearGradient id="ctArcStroke" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#F5B82E" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#F5B82E" stopOpacity="1" />
+                <stop offset="0%" stopColor={isDay ? '#F5B82E' : '#9FB0F0'} stopOpacity="0.25" />
+                <stop offset="100%" stopColor={isDay ? '#F5B82E' : '#C9D3FF'} stopOpacity="1" />
               </linearGradient>
             </defs>
             <path d={`${ARC_PATH} Z`} fill="url(#ctSkyDome)" />
@@ -215,7 +255,7 @@ export const SunArcPanel: React.FC = () => {
               strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
             />
-            {isDay && animT > 0.005 && (
+            {animT > 0.005 && (
               <path
                 d={subPath(animT)}
                 fill="none"
@@ -249,13 +289,12 @@ export const SunArcPanel: React.FC = () => {
             />
           </svg>
 
-          {isDay && (
-            <span
-              className="dash-sun-dot"
-              style={{ left: `${(sun.x / 400) * 100}%`, top: `${(sun.y / 150) * 100}%` }}
-              aria-hidden="true"
-            />
-          )}
+          {/* Siang: matahari · Malam: bulan sabit */}
+          <span
+            className={isDay ? 'dash-sun-dot' : 'dash-moon-dot'}
+            style={{ left: `${(sun.x / 400) * 100}%`, top: `${(sun.y / 150) * 100}%` }}
+            aria-hidden="true"
+          />
 
           {hover && hoverPhase && hoverMins !== null && (
             <>
@@ -276,8 +315,8 @@ export const SunArcPanel: React.FC = () => {
             </>
           )}
 
-          {[6, 9, 12, 15].map((h) => {
-            const t = (h * 60 - SUNRISE) / DAY_SPAN;
+          {ticks.map((h) => {
+            const t = isDay ? (h * 60 - SUNRISE) / DAY_SPAN : nightElapsed(h * 60) / NIGHT_SPAN;
             return (
               <span key={h} className="dash-sun-tick" style={{ left: `${(bez(t).x / 400) * 100}%` }} aria-hidden="true">
                 {String(h).padStart(2, '0')}.00
@@ -289,8 +328,17 @@ export const SunArcPanel: React.FC = () => {
         <p className="dash-sun-tip">
           <Droplets size={14} />
           <span>
-            Waktu siram terbaik <strong>sebelum 09.00</strong> atau <strong>setelah 16.00</strong>, saat penguapan
-            masih rendah.
+            {isDay ? (
+              <>
+                Waktu siram terbaik <strong>sebelum 09.00</strong> atau <strong>setelah 16.00</strong>, saat penguapan
+                masih rendah.
+              </>
+            ) : (
+              <>
+                Malam hari pompa siaga. Siram lagi besok <strong>sebelum 09.00</strong> agar daun tidak lembap
+                semalaman.
+              </>
+            )}
           </span>
         </p>
       </div>

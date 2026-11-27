@@ -6731,3 +6731,209 @@ button.plant-stat {
     grid-template-columns: 1fr;
   }
 }
+
+/* Landing — Bukti dalam angka: peta bedengan interaktif */
+.lp-bedmap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.lp-bedmap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lp-bedmap-head > span:first-child {
+  display: grid;
+  gap: 1px;
+}
+
+.lp-bedmap-head strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.lp-bedmap-head small {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-beds {
+  display: grid;
+  gap: 8px;
+}
+
+.lp-bedmap-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-bedmap-bed-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* Bedengan tanah: strip coklat dengan alur halus */
+.lp-bedmap-soil {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-items: center;
+  padding: 7px 8px;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #8a6141 0%, #6f4c32 100%);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* Tanaman: lingkaran daun hijau + buah berwarna sesuai status */
+.lp-bedmap-plant {
+  --fruit: #4aa25f;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: radial-gradient(circle at 35% 30%, #5fbf6e 0%, #2f8a45 70%);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lp-bedmap-fruit {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fruit);
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.lp-bedmap-plant--siap {
+  --fruit: #e2553a;
+}
+
+.lp-bedmap-plant--setengah {
+  --fruit: #efa93a;
+}
+
+.lp-bedmap-plant--mentah {
+  --fruit: #a6d86a;
+}
+
+.lp-bedmap-plant--cek {
+  --fruit: #e2553a;
+  border-color: #ffd36b;
+  box-shadow: 0 0 0 3px rgba(255, 211, 107, 0.45);
+  animation: lpBedCheck 1.8s ease-in-out infinite;
+}
+
+.lp-bedmap-plant:hover,
+.lp-bedmap-plant:focus-visible,
+.lp-bedmap-plant.is-active {
+  transform: scale(1.18);
+  outline: none;
+  box-shadow: 0 0 0 3px #ffffff, 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.lp-bedmap-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.lp-bedmap-info > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.lp-bedmap-info strong {
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.lp-bedmap-info small {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #4aa25f;
+}
+
+.lp-bedmap-dot--siap {
+  background: #e2553a;
+}
+
+.lp-bedmap-dot--setengah {
+  background: #efa93a;
+}
+
+.lp-bedmap-dot--mentah {
+  background: #a6d86a;
+}
+
+.lp-bedmap-dot--cek {
+  background: #ffd36b;
+  box-shadow: 0 0 0 2px rgba(226, 85, 58, 0.6);
+}
+
+.lp-bedmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-bedmap-legend b {
+  color: var(--ink);
+}
+
+@keyframes lpBedCheck {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(255, 211, 107, 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 211, 107, 0.15);
+  }
+}

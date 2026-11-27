@@ -21,8 +21,8 @@ import {
 import { useApp } from '../state/AppContext';
 import { PakCermatMascot, PakCermatPose } from '../components/PakCermatMascot';
 import { StackedBarChart, StripedProgressBar } from '../components/Charts';
-import { GardenLandscapeIllustration } from '../components/Illustrations';
 import { Reveal } from '../components/Reveal';
+import { BedMapPreview } from '../components/BedMapPreview';
 import { SiteFooter } from '../components/SiteFooter';
 import { ScreenId } from '../types/cermattani';
 
@@ -456,9 +456,8 @@ export const LandingScreen: React.FC = () => {
                       dipublikasikan.
                     </p>
 
-                    <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: 'var(--shadow-1)' }}>
-                      <GardenLandscapeIllustration height={148} />
-                    </div>
+                    {/* Peta bedengan interaktif: status tiap tanaman (sorot/ketuk untuk detail) */}
+                    <BedMapPreview />
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <StripedProgressBar

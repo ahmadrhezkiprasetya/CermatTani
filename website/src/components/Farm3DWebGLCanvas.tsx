@@ -7,7 +7,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 export type SimLayer3D = 'normal' | 'kelembapan' | 'kesehatan' | 'panen';
 export type WeatherMode3D = 'cerah' | 'berawan' | 'hujan' | 'kering';
 export type HotspotId3D = 'bedengan' | 'tandon' | 'pompa' | 'surya' | null;
-export type CameraPreset3D = 'overview' | 'tanaman' | 'irigasi' | 'surya';
+export type CameraPreset3D = 'overview' | 'tanaman' | 'irigasi' | 'surya' | 'contoh';
+
+/** Tingkat keparahan tiap tanaman pada mode "Contoh tanaman busuk" (bedengan depan, kiri → kanan). */
+export const ROT_SHOWCASE_LEVELS = [0, 0.3, 0.56, 0.84, 1.2] as const;
 
 export interface LiveSimState3D {
   moisture: number;
@@ -26,10 +29,22 @@ export interface LiveSimState3D {
   weather: WeatherMode3D;
   selectedHotspot: HotspotId3D;
   autoOrbit?: boolean;
+  /** Simulasi busuk buah (0–1): fraksi buah terserang kapang/busuk. */
+  fruitRot?: number;
+  /** Simulasi busuk daun (0–1): fraksi helai daun bercak/hawar, mulai dari daun bawah. */
+  leafRot?: number;
+  /** Mode contoh: 5 tanaman bedengan depan berjajar dari sehat sampai mati busuk. */
+  rotShowcase?: boolean;
 }
 
 export interface ProjectedLabel3D {
   id: Exclude<HotspotId3D, null>;
+  x: number;
+  y: number;
+  visible: boolean;
+}
+
+export interface ShowcaseLabel3D {
   x: number;
   y: number;
   visible: boolean;
@@ -41,6 +56,8 @@ interface Farm3DWebGLCanvasProps {
   zoomCommand: { delta: number; seq: number };
   onLabelsUpdate: (labels: ProjectedLabel3D[]) => void;
   onHotspotSelect: (id: HotspotId3D) => void;
+  /** Posisi layar label tahap busuk (hanya terisi saat mode contoh aktif). */
+  onShowcaseLabels?: (labels: ShowcaseLabel3D[]) => void;
 }
 
 /* ============================================================================
@@ -53,6 +70,12 @@ function seededRand(seed: number): () => number {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 4294967296;
   };
+}
+
+/* Hash deterministik 0..1 per (tanaman, organ) agar pola busuk stabil antar frame */
+function organHash(a: number, b: number): number {
+  const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return v - Math.floor(v);
 }
 
 function terrainHeightAt(x: number, z: number): number {
@@ -371,36 +394,119 @@ function createSolarTexture(maxAniso: number): THREE.CanvasTexture {
   return tex;
 }
 
-function createLeafTexture(maxAniso: number): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const ctx = c.getContext('2d')!;
+/* ---------------------------------------------------------------------------
+   DAUN MAJEMUK TOMAT HD: 1 anak daun ujung + 3 pasang anak daun bergerigi di
+   tangkai (rachis). Latar transparan → dipotong alphaTest jadi siluet daun asli.
+   --------------------------------------------------------------------------- */
+const LEAF_TEX = 512;
 
-  const g = ctx.createLinearGradient(0, 0, 0, 128);
-  g.addColorStop(0, '#44a853');
-  g.addColorStop(0.55, '#2f8a42');
-  g.addColorStop(1, '#236b32');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
+interface LeafletSpec {
+  x: number;
+  y: number;
+  ang: number;
+  len: number;
+  wid: number;
+}
 
-  // Tulang daun utama & tulang samping
-  ctx.strokeStyle = 'rgba(174, 234, 148, 0.55)';
-  ctx.lineWidth = 3;
+const LEAFLETS: LeafletSpec[] = [
+  { x: 256, y: 176, ang: 0, len: 156, wid: 62 },
+  { x: 256, y: 236, ang: -0.95, len: 150, wid: 52 },
+  { x: 256, y: 236, ang: 0.95, len: 150, wid: 52 },
+  { x: 256, y: 344, ang: -1.08, len: 128, wid: 46 },
+  { x: 256, y: 344, ang: 1.08, len: 128, wid: 46 },
+  { x: 256, y: 432, ang: -1.22, len: 62, wid: 24 },
+  { x: 256, y: 432, ang: 1.22, len: 62, wid: 24 },
+];
+
+function leafletHalfWidth(t: number, wid: number): number {
+  const body = Math.pow(Math.sin(Math.PI * Math.pow(t, 0.82)), 0.78) * wid;
+  // Tepi bergerigi halus khas daun tomat
+  return body * (1 - 0.085 * Math.abs(Math.sin(t * Math.PI * 8.5)));
+}
+
+/** Path satu anak daun di koordinat lokal: pangkal (0,0), ujung (0,-len). */
+function traceLeaflet(ctx: CanvasRenderingContext2D, len: number, wid: number, wobble: () => number) {
+  const N = 46;
   ctx.beginPath();
-  ctx.moveTo(64, 124);
-  ctx.lineTo(64, 8);
-  ctx.stroke();
+  ctx.moveTo(0, 0);
+  for (let i = 1; i < N; i++) {
+    const t = i / N;
+    ctx.lineTo(leafletHalfWidth(t, wid) * (0.97 + wobble() * 0.05), -t * len);
+  }
+  ctx.lineTo(0, -len);
+  for (let i = N - 1; i >= 1; i--) {
+    const t = i / N;
+    ctx.lineTo(-leafletHalfWidth(t, wid) * (0.97 + wobble() * 0.05), -t * len);
+  }
+  ctx.closePath();
+}
 
-  ctx.lineWidth = 1.6;
-  for (let y = 26; y <= 108; y += 18) {
+function drawLeafVeins(ctx: CanvasRenderingContext2D, len: number, wid: number, color: string) {
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -len * 0.94);
+  ctx.stroke();
+  ctx.lineWidth = 1.4;
+  for (let t = 0.14; t < 0.86; t += 0.11) {
+    const w = leafletHalfWidth(t + 0.08, wid) * 0.82;
     ctx.beginPath();
-    ctx.moveTo(64, y);
-    ctx.lineTo(18, y - 16);
-    ctx.moveTo(64, y);
-    ctx.lineTo(110, y - 16);
+    ctx.moveTo(0, -t * len);
+    ctx.quadraticCurveTo(w * 0.45, -(t + 0.03) * len, w, -(t + 0.1) * len);
+    ctx.moveTo(0, -t * len);
+    ctx.quadraticCurveTo(-w * 0.45, -(t + 0.03) * len, -w, -(t + 0.1) * len);
     ctx.stroke();
   }
+}
+
+function createLeafTexture(maxAniso: number): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = LEAF_TEX;
+  c.height = LEAF_TEX;
+  const ctx = c.getContext('2d')!;
+  const rand = seededRand(911);
+
+  // Tangkai daun (rachis)
+  ctx.strokeStyle = '#3f8a3c';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(256, 508);
+  ctx.lineTo(256, 160);
+  ctx.stroke();
+
+  LEAFLETS.forEach((lf, idx) => {
+    ctx.save();
+    ctx.translate(lf.x, lf.y);
+    ctx.rotate(lf.ang);
+    traceLeaflet(ctx, lf.len, lf.wid, rand);
+    const g = ctx.createLinearGradient(-lf.wid, 0, lf.wid, -lf.len);
+    g.addColorStop(0, idx % 2 ? '#2f8a40' : '#338f44');
+    g.addColorStop(0.5, '#3f9e4c');
+    g.addColorStop(1, '#2a7a39');
+    ctx.fillStyle = g;
+    ctx.fill();
+    // Mikro-tekstur jaringan daun (bintik stomata/rambut halus)
+    ctx.save();
+    ctx.clip();
+    for (let s = 0; s < 260; s++) {
+      ctx.fillStyle = s % 2 ? 'rgba(18, 70, 30, 0.10)' : 'rgba(170, 225, 140, 0.08)';
+      ctx.fillRect((rand() - 0.5) * lf.wid * 2, -rand() * lf.len, 2, 2);
+    }
+    // Bayangan lembut sepanjang tulang daun (permukaan daun sedikit berlekuk)
+    const sh = ctx.createLinearGradient(-lf.wid, 0, lf.wid, 0);
+    sh.addColorStop(0, 'rgba(10, 50, 20, 0.18)');
+    sh.addColorStop(0.45, 'rgba(10, 50, 20, 0)');
+    sh.addColorStop(0.55, 'rgba(10, 50, 20, 0)');
+    sh.addColorStop(1, 'rgba(10, 50, 20, 0.14)');
+    ctx.fillStyle = sh;
+    ctx.fillRect(-lf.wid, -lf.len, lf.wid * 2, lf.len);
+    drawLeafVeins(ctx, lf.len, lf.wid, 'rgba(176, 230, 150, 0.6)');
+    ctx.restore();
+    ctx.restore();
+  });
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -470,48 +576,383 @@ function createOledTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-/** Geometri helai daun melengkung organik (bukan bola gepeng!) */
+/* Tekstur daun busuk/hawar: siluet daun majemuk yang sama, tetapi menguning-coklat,
+   tepi gosong (nekrosis tepi), bercak konsentris "target spot" berhalo kuning, dan
+   jaringan mati yang sobek berlubang. */
+function createRotLeafTexture(maxAniso: number): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = LEAF_TEX;
+  c.height = LEAF_TEX;
+  const ctx = c.getContext('2d')!;
+  const rand = seededRand(4242);
+
+  ctx.strokeStyle = '#6b5326';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(256, 508);
+  ctx.lineTo(256, 160);
+  ctx.stroke();
+
+  LEAFLETS.forEach((lf, idx) => {
+    // Anak daun busuk mengerut & menyempit
+    const wid = lf.wid * (0.78 + rand() * 0.14);
+    const len = lf.len * (0.9 + rand() * 0.08);
+    ctx.save();
+    ctx.translate(lf.x, lf.y);
+    ctx.rotate(lf.ang + (rand() - 0.5) * 0.12);
+    traceLeaflet(ctx, len, wid, rand);
+    const g = ctx.createLinearGradient(0, 0, 0, -len);
+    g.addColorStop(0, idx % 3 === 0 ? '#9a8a3a' : '#a8953f');
+    g.addColorStop(0.55, '#b59a43');
+    g.addColorStop(1, '#8a6a2a');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+
+    // Tepi daun gosong coklat tua
+    traceLeaflet(ctx, len, wid, rand);
+    ctx.strokeStyle = 'rgba(62, 38, 14, 0.85)';
+    ctx.lineWidth = 16;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(120, 82, 30, 0.6)';
+    ctx.lineWidth = 30;
+    ctx.stroke();
+
+    // Bercak konsentris (hawar awal / Alternaria) dengan halo kuning
+    const spots = 2 + Math.floor(rand() * 3);
+    for (let s = 0; s < spots; s++) {
+      const sx = (rand() - 0.5) * wid * 0.9;
+      const sy = -(0.18 + rand() * 0.66) * len;
+      const r = 9 + rand() * 14;
+      const halo = ctx.createRadialGradient(sx, sy, r * 0.6, sx, sy, r * 1.9);
+      halo.addColorStop(0, 'rgba(232, 210, 80, 0.75)');
+      halo.addColorStop(1, 'rgba(232, 210, 80, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 1.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3a2410';
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(120, 84, 40, 0.9)';
+      ctx.lineWidth = 1.6;
+      for (let ring = 0.35; ring < 1; ring += 0.22) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, r * ring, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    drawLeafVeins(ctx, len, wid, 'rgba(70, 48, 18, 0.55)');
+    ctx.restore();
+
+    // Jaringan mati sobek berlubang (transparan → tembus pandang di 3D)
+    ctx.globalCompositeOperation = 'destination-out';
+    const holes = 1 + Math.floor(rand() * 3);
+    for (let h = 0; h < holes; h++) {
+      ctx.beginPath();
+      ctx.ellipse(
+        (rand() - 0.5) * wid * 0.8,
+        -(0.25 + rand() * 0.6) * len,
+        5 + rand() * 9,
+        4 + rand() * 7,
+        rand() * Math.PI,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  });
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAniso;
+  return tex;
+}
+
+/** Geometri daun HD: grid 7×12 melengkung (cekung di tengah, ujung terkulai) untuk tekstur alpha daun majemuk. */
 function createCurvedLeafGeometry(): THREE.BufferGeometry {
-  const positions = new Float32Array([
-    // Pangkal tangkai
-    0.0, 0.0, 0.0,
-    // Kiri tengah
-    -0.13, 0.035, 0.14,
-    // Tengah tulang daun
-    0.0, 0.055, 0.17,
-    // Kanan tengah
-    0.13, 0.035, 0.14,
-    // Kiri atas
-    -0.09, 0.015, 0.29,
-    // Kanan atas
-    0.09, 0.015, 0.29,
-    // Ujung daun runcing melengkung turun
-    0.0, -0.055, 0.42,
-  ]);
-  const uvs = new Float32Array([
-    0.5, 0.0,
-    0.05, 0.38,
-    0.5, 0.42,
-    0.95, 0.38,
-    0.18, 0.74,
-    0.82, 0.74,
-    0.5, 1.0,
-  ]);
-  const indices = [
-    0, 1, 2,
-    0, 2, 3,
-    1, 4, 2,
-    2, 5, 3,
-    4, 6, 2,
-    2, 6, 5,
-  ];
+  const cols = 7;
+  const rows = 12;
+  const W = 0.36;
+  const L = 0.46;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (let r = 0; r <= rows; r++) {
+    for (let col = 0; col <= cols; col++) {
+      const u = col / cols;
+      const v = r / rows;
+      const x = (u - 0.5) * W;
+      const z = v * L;
+      // Lengkung: punggung daun naik di tengah panjang, ujung terkulai, tepi sedikit menangkup
+      const y = Math.sin(Math.PI * v) * 0.05 - v * v * 0.075 + x * x * 1.3;
+      positions.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let col = 0; col < cols; col++) {
+      const a = r * (cols + 1) + col;
+      const b = a + 1;
+      const cIdx = a + cols + 1;
+      const d = cIdx + 1;
+      indices.push(a, cIdx, b, b, cIdx, d);
+    }
+  }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
 }
+
+/* ---------------------------------------------------------------------------
+   BUAH HD: tomat bergelombang (5 ruang biji) dengan cekungan pangkal, kelopak
+   bintang hijau, buah busuk keriput & kapang Botrytis berbulu.
+   --------------------------------------------------------------------------- */
+function createTomatoGeometry(): THREE.BufferGeometry {
+  const g = new THREE.SphereGeometry(0.105, 40, 28);
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const ny = v.y / 0.105;
+    const theta = Math.atan2(v.z, v.x);
+    const side = 1 - ny * ny;
+    const rib = 1 + 0.045 * Math.cos(theta * 5) * side;
+    v.x *= rib * 1.06;
+    v.z *= rib * 1.06;
+    v.y *= 0.9;
+    // Cekungan pangkal tangkai di bahu atas
+    if (ny > 0.78) v.y -= ((ny - 0.78) / 0.22) * 0.024;
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Bola bergelombang acak (buah keriput / gumpalan kapang). */
+function createLumpySphere(radius: number, seed: number, amp: number, wrinkle: number): THREE.BufferGeometry {
+  const g = new THREE.SphereGeometry(radius, 36, 26);
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  const k1 = 3 + (seed % 3);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const n = v.clone().normalize();
+    const lump =
+      Math.sin(n.x * k1 * 2.1 + seed) * Math.cos(n.y * 4.3 - seed * 0.7) * 0.55 +
+      Math.sin(n.z * 5.7 + n.y * 3.1 + seed * 1.3) * 0.45;
+    const fine = Math.sin(n.x * 17 + n.z * 13) * Math.sin(n.y * 15 + seed) * wrinkle;
+    v.multiplyScalar(1 + lump * amp + fine);
+    v.y *= 0.88;
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Kelopak (calyx) bintang 5 helai + tangkai pendek, menempel di puncak buah. */
+function createCalyxGeometry(): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  const points = 10;
+  for (let i = 0; i <= points; i++) {
+    const a = (i / points) * Math.PI * 2 + Math.PI / 2;
+    const r = i % 2 === 0 ? 0.072 : 0.016;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  const star = new THREE.ShapeGeometry(shape, 3);
+  star.rotateX(-Math.PI / 2);
+  const sp = star.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < sp.count; i++) {
+    const d = Math.hypot(sp.getX(i), sp.getZ(i));
+    // Helai kelopak melengkung turun memeluk bahu buah
+    sp.setY(i, -d * d * 5.2);
+  }
+  star.translate(0, 0.078, 0);
+  star.computeVertexNormals();
+  const stalk = new THREE.CylinderGeometry(0.008, 0.011, 0.05, 8, 1, false);
+  stalk.translate(0, 0.1, 0);
+  // Samakan atribut sebelum digabung
+  const starNi = star.toNonIndexed();
+  const stalkNi = stalk.toNonIndexed();
+  const merged = new THREE.BufferGeometry();
+  const total = starNi.attributes.position.count + stalkNi.attributes.position.count;
+  const mPos = new Float32Array(total * 3);
+  const mNor = new Float32Array(total * 3);
+  mPos.set(starNi.attributes.position.array as Float32Array, 0);
+  mPos.set(stalkNi.attributes.position.array as Float32Array, starNi.attributes.position.count * 3);
+  mNor.set(starNi.attributes.normal.array as Float32Array, 0);
+  mNor.set(stalkNi.attributes.normal.array as Float32Array, starNi.attributes.position.count * 3);
+  merged.setAttribute('position', new THREE.BufferAttribute(mPos, 3));
+  merged.setAttribute('normal', new THREE.BufferAttribute(mNor, 3));
+  [star, stalk, starNi, stalkNi].forEach((gg) => gg.dispose());
+  return merged;
+}
+
+/** Kulit buah busuk: lesi cekung coklat-hitam bercincin, kulit keriput & retak. Warna dasar terang agar warna instance tetap terbaca. */
+function createRotFruitTexture(maxAniso: number): { map: THREE.CanvasTexture; bump: THREE.CanvasTexture } {
+  const W = 512;
+  const H = 256;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d')!;
+  const b = document.createElement('canvas');
+  b.width = W;
+  b.height = H;
+  const bctx = b.getContext('2d')!;
+  const rand = seededRand(777);
+
+  ctx.fillStyle = '#e9dcc6';
+  ctx.fillRect(0, 0, W, H);
+  bctx.fillStyle = '#9a9a9a';
+  bctx.fillRect(0, 0, W, H);
+
+  // Keriput kulit
+  for (let i = 0; i < 140; i++) {
+    const x = rand() * W;
+    const y = rand() * H;
+    const l = 10 + rand() * 30;
+    const a = rand() * Math.PI;
+    ctx.strokeStyle = 'rgba(90, 60, 30, 0.18)';
+    bctx.strokeStyle = 'rgba(40, 40, 40, 0.55)';
+    [ctx, bctx].forEach((cc) => {
+      cc.lineWidth = 1.4;
+      cc.beginPath();
+      cc.moveTo(x, y);
+      cc.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + 4, y + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l);
+      cc.stroke();
+    });
+  }
+
+  // Lesi cekung bercincin (antraknosa) — digambar 2× di tepi agar menyambung di jahitan UV
+  const lesions = 9;
+  for (let i = 0; i < lesions; i++) {
+    const x = rand() * W;
+    const y = 40 + rand() * (H - 80);
+    const r = 16 + rand() * 30;
+    [x, x - W, x + W].forEach((lx) => {
+      const halo = ctx.createRadialGradient(lx, y, r * 0.7, lx, y, r * 1.6);
+      halo.addColorStop(0, 'rgba(120, 80, 40, 0.55)');
+      halo.addColorStop(1, 'rgba(120, 80, 40, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(lx, y, r * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2b1a0c';
+      ctx.beginPath();
+      ctx.arc(lx, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150, 110, 60, 0.75)';
+      ctx.lineWidth = 2;
+      for (let ring = 0.3; ring < 1; ring += 0.24) {
+        ctx.beginPath();
+        ctx.arc(lx, y, r * ring, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Titik spora oranye-merah muda di tengah lesi
+      for (let s = 0; s < 14; s++) {
+        ctx.fillStyle = 'rgba(214, 120, 70, 0.8)';
+        ctx.fillRect(lx + (rand() - 0.5) * r, y + (rand() - 0.5) * r, 2, 2);
+      }
+      const bg = bctx.createRadialGradient(lx, y, 0, lx, y, r * 1.2);
+      bg.addColorStop(0, '#202020');
+      bg.addColorStop(0.8, '#505050');
+      bg.addColorStop(1, 'rgba(154,154,154,0)');
+      bctx.fillStyle = bg;
+      bctx.beginPath();
+      bctx.arc(lx, y, r * 1.2, 0, Math.PI * 2);
+      bctx.fill();
+    });
+  }
+
+  // Retakan kulit
+  ctx.strokeStyle = 'rgba(40, 22, 8, 0.85)';
+  bctx.strokeStyle = '#111111';
+  for (let i = 0; i < 6; i++) {
+    let x = rand() * W;
+    let y = 30 + rand() * (H - 60);
+    [ctx, bctx].forEach((cc) => {
+      cc.lineWidth = 2;
+      cc.beginPath();
+      cc.moveTo(x, y);
+    });
+    for (let s = 0; s < 6; s++) {
+      x += (rand() - 0.5) * 22;
+      y += 6 + rand() * 8;
+      ctx.lineTo(x, y);
+      bctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    bctx.stroke();
+  }
+
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = maxAniso;
+  map.wrapS = THREE.RepeatWrapping;
+  const bump = new THREE.CanvasTexture(b);
+  bump.anisotropy = maxAniso;
+  bump.wrapS = THREE.RepeatWrapping;
+  return { map, bump };
+}
+
+/** Kapang Botrytis: miselium abu-abu keputihan berbulu, bergerombol (alpha-cut). */
+function createMoldTexture(): THREE.CanvasTexture {
+  const W = 512;
+  const H = 256;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d')!;
+  const rand = seededRand(1337);
+  const clusters = 22;
+  for (let k = 0; k < clusters; k++) {
+    const cx = rand() * W;
+    const cy = rand() * H;
+    const spread = 20 + rand() * 34;
+    for (let i = 0; i < 420; i++) {
+      const a = rand() * Math.PI * 2;
+      const d = Math.pow(rand(), 0.7) * spread;
+      const x = (cx + Math.cos(a) * d + W) % W;
+      const y = cy + Math.sin(a) * d * 0.8;
+      const shade = 190 + Math.floor(rand() * 60);
+      ctx.fillStyle = `rgba(${shade}, ${shade - 4}, ${shade - 14}, ${0.65 + rand() * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 1 + rand() * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Hifa halus (rambut) mencuat
+      if (i % 9 === 0) {
+        ctx.strokeStyle = `rgba(${shade}, ${shade}, ${shade - 10}, 0.8)`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (rand() - 0.5) * 8, y + (rand() - 0.5) * 8);
+        ctx.stroke();
+      }
+      // Kepala spora gelap kecil
+      if (i % 23 === 0) {
+        ctx.fillStyle = 'rgba(95, 92, 84, 0.9)';
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
+}
+
 
 /* ============================================================================
    KOMPONEN CANVAS WEBGL THREE.JS — AGRITECH DIORAMA HD 60 FPS
@@ -523,6 +964,7 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
   zoomCommand,
   onLabelsUpdate,
   onHotspotSelect,
+  onShowcaseLabels,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -530,11 +972,13 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
   const targetGoalRef = useRef<{ pos: THREE.Vector3; look: THREE.Vector3 } | null>(null);
   const onLabelsRef = useRef(onLabelsUpdate);
   const onHotspotRef = useRef(onHotspotSelect);
+  const onShowcaseRef = useRef(onShowcaseLabels);
 
   useEffect(() => {
     onLabelsRef.current = onLabelsUpdate;
     onHotspotRef.current = onHotspotSelect;
-  }, [onLabelsUpdate, onHotspotSelect]);
+    onShowcaseRef.current = onShowcaseLabels;
+  }, [onLabelsUpdate, onHotspotSelect, onShowcaseLabels]);
 
   // Preset terbang kamera 3D halus
   useEffect(() => {
@@ -544,6 +988,8 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       tanaman: { pos: [4.6, 3.1, 5.1], look: [0.65, 1.05, 0.0] },
       irigasi: { pos: [-7.6, 4.1, 5.4], look: [-4.05, 1.65, -0.75] },
       surya: { pos: [8.1, 3.5, 5.4], look: [4.8, 1.35, 1.75] },
+      // Dekat bedengan depan: 5 tanaman contoh tahap busuk berjajar kiri → kanan
+      contoh: { pos: [0.65, 2.75, 7.7], look: [0.65, 0.95, 2.25] },
     };
     const p = presets[cameraPreset.id];
     targetGoalRef.current = {
@@ -559,7 +1005,7 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     const ctrl = controlsRef.current;
     const dir = new THREE.Vector3().subVectors(cam.position, ctrl.target);
     const len = dir.length();
-    const nextLen = Math.max(4.8, Math.min(23, len * (zoomCommand.delta > 0 ? 0.84 : 1.18)));
+    const nextLen = Math.max(3.2, Math.min(23, len * (zoomCommand.delta > 0 ? 0.84 : 1.18)));
     dir.setLength(nextLen);
     targetGoalRef.current = {
       pos: ctrl.target.clone().add(dir),
@@ -596,11 +1042,17 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     const isMobileGpu = width < 640;
     const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileGpu ? 1.35 : 2.0));
+    // Resolusi mengikuti layar (maks 1.25×); tepi tetap halus lewat MSAA. Diturunkan otomatis ke 1× bila GPU berat.
+    const dpr = window.devicePixelRatio || 1;
+    const pixelRatio = Math.min(dpr, 1.25);
+    renderer.setPixelRatio(pixelRatio);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.06;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Peta bayangan tidak dihitung ulang tiap frame (diatur manual di loop: tiap 2 frame)
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     mount.appendChild(renderer.domElement);
 
     // Environment Map PBR Prosedural (memberi pantulan langit nyata di panel surya, air, logam & buah!)
@@ -631,11 +1083,31 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     envSun.geometry.dispose();
     (envSun.material as THREE.Material).dispose();
 
+    // Kualitas adaptif: 1 = resolusi penuh, 0 = resolusi 1× (bila fps rata-rata < ~45)
+    let qualityLevel = pixelRatio > 1 ? 1 : 0;
+    mount.dataset.quality = String(qualityLevel);
+    let perfFrames = 0;
+    let perfTime = 0;
+    let warmupFrames = 0;
+    const lowerQuality = () => {
+      if (qualityLevel === 1) {
+        renderer.setPixelRatio(1);
+        renderer.setSize(Math.max(280, mount.clientWidth), Math.max(240, mount.clientHeight));
+        qualityLevel = 0;
+        mount.dataset.quality = '0';
+      }
+    };
+    // Batasi 60 fps: monitor 120/144 Hz tidak merender dua kali lebih banyak tanpa beda terlihat
+    const MIN_FRAME_MS = 1000 / 60 - 2;
+    let frameCount = 0;
+    let lastLabelKey = '';
+    let lastShowcaseKey = '';
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.065;
     controls.enablePan = false;
-    controls.minDistance = 4.8;
+    controls.minDistance = 3.2;
     controls.maxDistance = 22.5;
     controls.minPolarAngle = 0.28;
     controls.maxPolarAngle = Math.PI / 2.15;
@@ -1067,6 +1539,11 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     const bedLen = 5.85;
     const bedWid = 1.48;
     const bedH = 0.44;
+    // Tinggi permukaan tanah gundukan bedengan (selaras dengan lengkung moundGeo di bawah)
+    const soilTopAt = (x: number, z: number, bedZ: number) => {
+      const lz = (z - bedZ) / ((bedWid - 0.08) / 2);
+      return bedH + 0.02 + Math.max(0, 1 - lz * lz) * 0.09 + Math.sin((x - bedCenterX) * 3.1) * 0.015;
+    };
 
     const dripPipeMat = new THREE.MeshStandardMaterial({
       color: '#1e293b',
@@ -1203,36 +1680,68 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       }
     });
 
-    // Batang utama + cabang samping (15 batang utama + 60 cabang samping)
-    const stemGeo = new THREE.CylinderGeometry(0.024, 0.044, 1.18, 7);
+    // Batang utama + cabang samping (15 batang utama + 75 cabang samping), warna per-tanaman (layu → coklat)
+    const stemGeo = new THREE.CylinderGeometry(0.022, 0.044, 1.18, 12, 6);
     stemGeo.translate(0, 0.59, 0);
-    const stemMat = new THREE.MeshStandardMaterial({ color: '#2b7739', roughness: 0.74 });
+    const stemMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.78 });
     const stemInst = new THREE.InstancedMesh(stemGeo, stemMat, plants.length);
     stemInst.castShadow = true;
     stemInst.receiveShadow = true;
     scene.add(stemInst);
 
-    const branchGeo = new THREE.CylinderGeometry(0.012, 0.02, 0.36, 5);
+    const branchGeo = new THREE.CylinderGeometry(0.011, 0.02, 0.36, 8);
     branchGeo.translate(0, 0.18, 0);
     const branchesPerPlant = 5;
     const branchInst = new THREE.InstancedMesh(branchGeo, stemMat, plants.length * branchesPerPlant);
     branchInst.castShadow = true;
     scene.add(branchInst);
+    const stemHealthyCol = new THREE.Color('#2f7a3a');
+    const stemDeadCol = new THREE.Color('#5e4a2a');
 
-    // Helai daun melengkung organik (15 tanaman × 28 helai daun = 420 daun berurat nyata!)
+    // Daun majemuk tomat HD alpha-cut (15 tanaman × 28 helai). Bayangan ikut siluet daun (customDepthMaterial).
     const curvedLeafGeo = createCurvedLeafGeometry();
     const leafMat = new THREE.MeshStandardMaterial({
       map: leafTex,
       color: '#ffffff',
-      roughness: 0.54,
-      metalness: 0.02,
+      roughness: 0.58,
+      metalness: 0.0,
+      alphaTest: 0.5,
       side: THREE.DoubleSide,
+    });
+    const leafDepthMat = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking,
+      map: leafTex,
+      alphaTest: 0.5,
     });
     const leavesPerPlant = isMobileGpu ? 22 : 28;
     const leafInst = new THREE.InstancedMesh(curvedLeafGeo, leafMat, plants.length * leavesPerPlant);
+    leafInst.customDepthMaterial = leafDepthMat;
     leafInst.castShadow = true;
     leafInst.receiveShadow = true;
     scene.add(leafInst);
+
+    // Daun busuk dirender di mesh terpisah bertekstur hawar (tekstur daun sehat hijau tak bisa diwarnai coklat)
+    const rotLeafTex = createRotLeafTexture(maxAniso);
+    const rotLeafMat = new THREE.MeshStandardMaterial({
+      map: rotLeafTex,
+      color: '#ffffff',
+      roughness: 0.86,
+      metalness: 0,
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+    });
+    // Tiap daun busuk punya slot cadangan untuk "rontok ke tanah" — jumlah instance sama dengan daun sehat
+    const rotLeafInst = new THREE.InstancedMesh(curvedLeafGeo, rotLeafMat, plants.length * leavesPerPlant);
+    rotLeafInst.customDepthMaterial = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking,
+      map: rotLeafTex,
+      alphaTest: 0.5,
+    });
+    rotLeafInst.castShadow = true;
+    rotLeafInst.receiveShadow = true;
+    rotLeafInst.visible = false;
+    scene.add(rotLeafInst);
+    const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 
     const leafLocal = Array.from({ length: leavesPerPlant }, (_, i) => {
       const frac = i / leavesPerPlant;
@@ -1241,9 +1750,10 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       const rad = 0.035 + (1 - frac * 0.6) * 0.12;
       // Daun bawah melengkung keluar, daun pucuk atas lebih tegak ke cahaya
       const pitch = 0.16 + (1 - frac) * 0.36;
-      const sc = (0.76 + (1 - Math.abs(frac - 0.42)) * 0.58) * (i % 3 === 0 ? 1.12 : 0.96);
-      const shade = i % 3 === 0 ? '#55b95b' : i % 3 === 1 ? '#3ea048' : '#2e883e';
-      return { h, ang, rad, pitch, sc, shade };
+      const sc = (0.78 + (1 - Math.abs(frac - 0.42)) * 0.6) * (i % 3 === 0 ? 1.12 : 0.96);
+      const shade = i % 3 === 0 ? '#9fe0a0' : i % 3 === 1 ? '#d8f2cf' : '#ffffff';
+      const roll = (organHash(i + 3, 17) - 0.5) * 0.5;
+      return { h, ang, rad, pitch, sc, shade, roll };
     });
 
     // Inisialisasi warna variasi tiap helai daun satu kali (deterministik di semua frame)
@@ -1271,20 +1781,51 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     const blossomInst = new THREE.InstancedMesh(blossomGeo, blossomMat, plants.length * blossomsPerPlant);
     scene.add(blossomInst);
 
-    // Buah PBR mengilap dengan clearcoat (15 tanaman × 5 buah = 75 buah: tomat merah/jingga + cabai/terung variasi!)
-    const fruitGeo = new THREE.SphereGeometry(0.105, 14, 12);
-    fruitGeo.scale(1.06, 0.94, 1.06);
+    // Buah PBR HD: tomat beralur 5 ruang + clearcoat kulit mengilap (15 tanaman × 5 buah = 75 buah)
+    const fruitGeo = createTomatoGeometry();
     const fruitMat = new THREE.MeshPhysicalMaterial({
       color: '#ffffff',
-      roughness: 0.14,
-      metalness: 0.04,
-      clearcoat: 0.9,
-      clearcoatRoughness: 0.12,
+      roughness: 0.2,
+      metalness: 0.0,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+      sheen: 0.25,
+      sheenRoughness: 0.5,
+      sheenColor: new THREE.Color('#ffd9c9'),
     });
     const fruitsPerPlant = 5;
     const fruitInst = new THREE.InstancedMesh(fruitGeo, fruitMat, plants.length * fruitsPerPlant);
     fruitInst.castShadow = true;
+    fruitInst.receiveShadow = true;
     scene.add(fruitInst);
+
+    // Kelopak bintang hijau + tangkai di puncak tiap buah (layu coklat saat busuk)
+    const calyxMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.7, side: THREE.DoubleSide });
+    const calyxInst = new THREE.InstancedMesh(createCalyxGeometry(), calyxMat, plants.length * fruitsPerPlant);
+    calyxInst.castShadow = true;
+    scene.add(calyxInst);
+    const calyxGreen = new THREE.Color('#3f8f3a');
+    const calyxDead = new THREE.Color('#4b3a1e');
+
+    // Buah busuk: kulit keriput kusam dengan lesi cekung bercincin & retak (mesh terpisah, tanpa kilap)
+    const rotFruitTex = createRotFruitTexture(maxAniso);
+    const rotFruitMat = new THREE.MeshStandardMaterial({
+      map: rotFruitTex.map,
+      bumpMap: rotFruitTex.bump,
+      bumpScale: 2.2,
+      color: '#ffffff',
+      roughness: 0.74,
+      metalness: 0,
+    });
+    const rotFruitInst = new THREE.InstancedMesh(
+      createLumpySphere(0.105, 5, 0.075, 0.018),
+      rotFruitMat,
+      plants.length * fruitsPerPlant
+    );
+    rotFruitInst.castShadow = true;
+    rotFruitInst.receiveShadow = true;
+    rotFruitInst.visible = false;
+    scene.add(rotFruitInst);
 
     const fruitLocal = Array.from({ length: fruitsPerPlant }, (_, i) => ({
       h: 0.38 + (i % 3) * 0.22 + Math.floor(i / 3) * 0.08,
@@ -1292,6 +1833,39 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       rad: 0.21 + (i % 2) * 0.09,
       stage: i % 3, // 0=matang, 1=setengah, 2=mentah
     }));
+
+    // Kapang Botrytis abu-abu berbulu: gumpalan bergelombang ber-alpha yang "menyembul" dari kulit buah
+    // seiring keparahan (skala tumbuh dari dalam buah → menutupi sebagian lalu seluruh buah)
+    const moldTex = createMoldTexture();
+    const moldGeo = createLumpySphere(0.108, 11, 0.09, 0.03);
+    const moldMat = new THREE.MeshStandardMaterial({
+      map: moldTex,
+      color: '#ddd6c6',
+      emissive: '#4a4234',
+      emissiveIntensity: 0.35,
+      envMapIntensity: 0.25,
+      roughness: 1,
+      metalness: 0,
+      alphaTest: 0.45,
+      side: THREE.DoubleSide,
+    });
+    const moldInst = new THREE.InstancedMesh(moldGeo, moldMat, plants.length * fruitsPerPlant);
+    moldInst.visible = false;
+    scene.add(moldInst);
+
+    // Kunci busuk per organ: daun bawah & buah tua terserang lebih dulu (realistis untuk hawar/busuk)
+    const leafRotKey = plants.map((_, pi) =>
+      Array.from({ length: leavesPerPlant }, (__, li) => 0.55 * organHash(pi + 1, li + 1) + 0.45 * (li / leavesPerPlant))
+    );
+    const fruitRotKey = plants.map((_, pi) =>
+      Array.from({ length: fruitsPerPlant }, (__, fi) => 0.7 * organHash(pi + 31, fi + 7) + 0.3 * (fruitLocal[fi].stage / 2))
+    );
+    const leafHealthyCol = new THREE.Color();
+    const leafChloroticCol = new THREE.Color('#f2e27a');
+    const leafNecroticCol = new THREE.Color('#4a3216');
+    const fruitRotCol = new THREE.Color('#6b4524');
+    let lastRotSig = '';
+    let lastPlantLayer: SimLayer3D | null = null;
 
     // ------------------------------------------------------------------------
     // 4. MENARA TANDON AIR 500L BERANGKA SILANG BESI + TANGGA + PIPA KATUP
@@ -1673,7 +2247,7 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     }));
 
     // Hujan 3D
-    const rainCount = isMobileGpu ? 150 : 280;
+    const rainCount = isMobileGpu ? 90 : 170;
     const rainGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.62, 4);
     const rainMat = new THREE.MeshBasicMaterial({
       color: '#cfefff',
@@ -1779,13 +2353,23 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
     let lastNow = performance.now();
     let elapsed = 0;
     let labelFrameCounter = 0;
+    let showcaseLabelsSent = false;
+    const showcaseAnchors = plants
+      .filter((pl) => pl.bedIdx === 2)
+      .sort((a, b) => a.slotIdx - b.slotIdx)
+      .map((pl) => new THREE.Vector3(pl.x, pl.y + 1.45, pl.z));
 
     const animate = (now: number) => {
       rafId = window.requestAnimationFrame(animate);
-      if (!isVisible || document.hidden) return;
+      if (!isVisible || document.hidden) {
+        lastNow = now;
+        return;
+      }
+      if (now - lastNow < MIN_FRAME_MS) return;
 
       const dt = Math.min(0.05, (now - lastNow) / 1000);
       lastNow = now;
+      frameCount++;
       elapsed += dt;
 
       const st = liveStateRef.current;
@@ -1852,7 +2436,7 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
         soilMat.roughness = 0.92 - mNorm * 0.64;
       }
 
-      // Animasi angin & layu pada 15 tanaman berdaun nyata (batang, cabang, 420 daun melengkung, bunga, 75 buah)
+      // Animasi angin & layu pada 15 tanaman (batang, cabang, 420 daun majemuk, bunga, 75 buah) + simulasi busuk per tanaman
       const windAmp = st.weather === 'hujan' ? 0.085 : 0.032;
       const droopFactor = st.moisture < 30 ? 0.24 : 0;
       const isRiskLeaf = st.layer === 'kesehatan' && st.humidity >= st.diseaseRh;
@@ -1862,92 +2446,208 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       let leafIdx = 0;
       let blossomIdx = 0;
       let fruitIdx = 0;
+      const showcase = Boolean(st.rotShowcase);
+      const leafRotG = Math.max(0, Math.min(1, st.leafRot ?? 0));
+      const fruitRotG = Math.max(0, Math.min(1, st.fruitRot ?? 0));
+      const rotSig = showcase ? 'contoh' : `${leafRotG.toFixed(3)}|${fruitRotG.toFixed(3)}`;
+      const rotChanged = rotSig !== lastRotSig;
+      const anyLeafRot = showcase || leafRotG > 0;
+      const anyFruitRot = showcase || fruitRotG > 0;
 
-      for (let i = 0; i < plants.length; i++) {
-        const p = plants[i];
-        const swayX = Math.sin(elapsed * 1.85 + p.phase) * windAmp;
-        const swayZ = Math.cos(elapsed * 1.45 + p.phase) * windAmp * 0.62;
+      // Tanaman dianimasikan 30×/detik (gerak angin tetap halus), render tetap 60 fps → beban CPU separuh
+      const updatePlants = frameCount % 2 === 0 || rotChanged || st.layer !== lastPlantLayer;
+      if (updatePlants) {
+      lastPlantLayer = st.layer;
+        for (let i = 0; i < plants.length; i++) {
+          const p = plants[i];
+          // Mode contoh: hanya bedengan depan, tingkat busuk naik dari kiri (sehat) ke kanan (mati)
+          const showLv = showcase && p.bedIdx === 2 ? ROT_SHOWCASE_LEVELS[p.slotIdx] : 0;
+          const pLeafRot = showcase ? showLv : leafRotG;
+          const pFruitRot = showcase ? showLv : fruitRotG;
+          // Keparahan tanaman keseluruhan → batang coklat, melemah, condong & tak lagi bergoyang segar
+          const plantSev = Math.max(0, Math.min(1, (Math.max(pLeafRot, pFruitRot) - 0.45) / 0.6));
+          const leanAng = p.phase * 2.3;
+          const vigor = 1 - plantSev * 0.7;
+          const swayX = Math.sin(elapsed * 1.85 + p.phase) * windAmp * vigor + Math.cos(leanAng) * plantSev * 0.26;
+          const swayZ = Math.cos(elapsed * 1.45 + p.phase) * windAmp * 0.62 * vigor + Math.sin(leanAng) * plantSev * 0.16;
 
-        // Batang utama
-        dummy.rotation.order = 'XYZ';
-        dummy.position.set(p.x, p.y, p.z);
-        dummy.rotation.set(swayZ + droopFactor * 0.16, p.phase, -swayX);
-        dummy.scale.set(1, 1 - droopFactor * 0.1, 1);
-        dummy.updateMatrix();
-        stemInst.setMatrixAt(i, dummy.matrix);
-
-        // Cabang samping (urutan YXZ: yaw radial dulu, baru miring keluar)
-        dummy.rotation.order = 'YXZ';
-        for (let b = 0; b < branchesPerPlant; b++) {
-          const bh = 0.34 + b * 0.18;
-          const bang = b * 2.4 + p.phase;
-          dummy.position.set(p.x + swayX * bh, p.y + bh, p.z + swayZ * bh);
-          dummy.rotation.set(0.62 + droopFactor * 0.35 + swayZ, Math.PI / 2 - bang, swayX);
-          dummy.scale.setScalar(0.85 + (1 - b / branchesPerPlant) * 0.35);
+          // Batang utama
+          dummy.rotation.order = 'XYZ';
+          dummy.position.set(p.x, p.y, p.z);
+          dummy.rotation.set(swayZ + droopFactor * 0.16, p.phase, -swayX);
+          dummy.scale.set(1, 1 - droopFactor * 0.1 - plantSev * 0.12, 1);
           dummy.updateMatrix();
-          branchInst.setMatrixAt(branchIdx++, dummy.matrix);
-        }
-
-        // Helai daun melengkung organik (yaw PI/2 - ang agar ujung daun +Z selalu mekar keluar dari batang!)
-        for (let l = 0; l < leavesPerPlant; l++) {
-          const lf = leafLocal[l];
-          const lx = p.x + Math.cos(lf.ang) * lf.rad + swayX * lf.h * 1.35;
-          const ly = p.y + lf.h * (1 - droopFactor * 0.14);
-          const lz = p.z + Math.sin(lf.ang) * lf.rad + swayZ * lf.h * 1.35;
-          const flutter = Math.sin(elapsed * 2.8 + lf.ang + p.phase) * (windAmp * 1.8);
-          dummy.position.set(lx, ly, lz);
-          dummy.rotation.set(lf.pitch + droopFactor * 0.78 + flutter, Math.PI / 2 - lf.ang, swayX);
-          dummy.scale.setScalar(lf.sc);
-          dummy.updateMatrix();
-          leafInst.setMatrixAt(leafIdx++, dummy.matrix);
-        }
-
-        dummy.rotation.order = 'XYZ';
-
-        // Bunga kuning kecil di tajuk atas
-        for (let bl = 0; bl < blossomsPerPlant; bl++) {
-          const ba = bl * 2.1 + p.phase;
-          const bh = 0.96 + (bl % 2) * 0.16;
-          dummy.position.set(
-            p.x + Math.cos(ba) * 0.2 + swayX * bh,
-            p.y + bh,
-            p.z + Math.sin(ba) * 0.2 + swayZ * bh
-          );
-          dummy.rotation.set(0.3, ba + elapsed * 0.4, 0.2);
-          dummy.scale.setScalar(0.9);
-          dummy.updateMatrix();
-          blossomInst.setMatrixAt(blossomIdx++, dummy.matrix);
-        }
-
-        // Buah mengilap
-        for (let f = 0; f < fruitsPerPlant; f++) {
-          const fr = fruitLocal[f];
-          const fx = p.x + Math.cos(fr.ang) * fr.rad + swayX * fr.h;
-          const fy = p.y + fr.h * (1 - droopFactor * 0.1);
-          const fz = p.z + Math.sin(fr.ang) * fr.rad + swayZ * fr.h;
-          dummy.position.set(fx, fy, fz);
-          dummy.rotation.set(0, fr.ang, 0);
-          // Bedengan tengah berbentuk cabai lonjong, bedengan 1 & 3 buah tomat/terung bulat
-          if (p.bedIdx === 1) {
-            dummy.scale.set(0.56, 1.32, 0.56);
-          } else {
-            dummy.scale.setScalar(0.95 + (f % 2) * 0.14);
+          stemInst.setMatrixAt(i, dummy.matrix);
+          if (rotChanged) {
+            tmpColor.copy(stemHealthyCol).lerp(stemDeadCol, plantSev);
+            stemInst.setColorAt(i, tmpColor);
+            for (let b = 0; b < branchesPerPlant; b++) branchInst.setColorAt(i * branchesPerPlant + b, tmpColor);
           }
-          dummy.updateMatrix();
-          fruitInst.setMatrixAt(fruitIdx, dummy.matrix);
 
-          const stg = st.layer === 'panen' ? p.bedIdx : (fr.stage + p.bedIdx + p.slotIdx) % 3;
-          tmpColor.set(stg === 0 ? '#e63719' : stg === 1 ? '#f59e0b' : '#57bf58');
-          fruitInst.setColorAt(fruitIdx, tmpColor);
-          fruitIdx++;
+          // Cabang samping (urutan YXZ: yaw radial dulu, baru miring keluar)
+          dummy.rotation.order = 'YXZ';
+          for (let b = 0; b < branchesPerPlant; b++) {
+            const bh = 0.34 + b * 0.18;
+            const bang = b * 2.4 + p.phase;
+            dummy.position.set(p.x + swayX * bh, p.y + bh, p.z + swayZ * bh);
+            dummy.rotation.set(0.62 + droopFactor * 0.35 + plantSev * 0.5 + swayZ, Math.PI / 2 - bang, swayX);
+            dummy.scale.setScalar(0.85 + (1 - b / branchesPerPlant) * 0.35);
+            dummy.updateMatrix();
+            branchInst.setMatrixAt(branchIdx++, dummy.matrix);
+          }
+
+          // Daun majemuk (yaw PI/2 - ang agar ujung daun +Z selalu mekar keluar dari batang)
+          for (let l = 0; l < leavesPerPlant; l++) {
+            const lf = leafLocal[l];
+            // Tingkat keparahan busuk daun 0..1 (0 = sehat)
+            const leafSev = pLeafRot > 0 ? Math.max(0, Math.min(1, (pLeafRot - leafRotKey[i][l]) / 0.12)) : 0;
+            const isRotLeaf = leafSev >= 0.3;
+            // Daun mati kering sebagian rontok & tergeletak di permukaan bedengan
+            const fallenLeaf = leafSev >= 0.98 && organHash(i + 7, l + 5) < 0.42;
+            if (fallenLeaf) {
+              const fa = lf.ang * 1.7 + organHash(i + 2, l + 9) * 2;
+              const fd = 0.2 + organHash(l + 4, i + 3) * 0.24;
+              const fx = p.x + Math.cos(fa) * fd;
+              const fz = p.z + Math.sin(fa) * fd;
+              dummy.position.set(fx, soilTopAt(fx, fz, p.z - 0.03) + 0.012, fz);
+              dummy.rotation.set(-0.06 + organHash(l, i) * 0.12, fa, (organHash(i, l + 1) - 0.5) * 0.3);
+              dummy.scale.setScalar(lf.sc * 0.78);
+            } else {
+              const lx = p.x + Math.cos(lf.ang) * lf.rad + swayX * lf.h * 1.35;
+              const ly = p.y + lf.h * (1 - droopFactor * 0.14 - plantSev * 0.1) - leafSev * 0.03;
+              const lz = p.z + Math.sin(lf.ang) * lf.rad + swayZ * lf.h * 1.35;
+              const flutter = Math.sin(elapsed * 2.8 + lf.ang + p.phase) * (windAmp * 1.8) * (1 - leafSev * 0.8);
+              dummy.position.set(lx, ly, lz);
+              // Daun busuk terkulai lemas & menggulung (pitch naik, roll bertambah, ukuran menyusut)
+              dummy.rotation.set(
+                lf.pitch + droopFactor * 0.78 + leafSev * 0.85 + flutter,
+                Math.PI / 2 - lf.ang,
+                swayX + lf.roll * (1 + leafSev * 1.6)
+              );
+              dummy.scale.setScalar(lf.sc * (1 - leafSev * 0.22));
+            }
+            dummy.updateMatrix();
+            if (rotChanged) {
+              // Awal serangan: daun sehat sedikit menguning (klorosis)
+              leafHealthyCol.set(lf.shade);
+              if (leafSev > 0 && !isRotLeaf) leafHealthyCol.lerp(leafChloroticCol, leafSev / 0.3);
+              leafInst.setColorAt(leafIdx, leafHealthyCol);
+              // Busuk lanjut: makin gelap (nekrosis) seiring keparahan
+              tmpColor.set('#ffffff').lerp(leafNecroticCol, Math.max(0, (leafSev - 0.3) / 0.7) * 0.6);
+              rotLeafInst.setColorAt(leafIdx, tmpColor);
+            }
+            if (isRotLeaf) {
+              leafInst.setMatrixAt(leafIdx, zeroMatrix);
+              rotLeafInst.setMatrixAt(leafIdx, dummy.matrix);
+            } else {
+              leafInst.setMatrixAt(leafIdx, dummy.matrix);
+              if (anyLeafRot) rotLeafInst.setMatrixAt(leafIdx, zeroMatrix);
+            }
+            leafIdx++;
+          }
+
+          dummy.rotation.order = 'XYZ';
+
+          // Bunga kuning kecil di tajuk atas (rontok pada tanaman busuk parah)
+          for (let bl = 0; bl < blossomsPerPlant; bl++) {
+            const ba = bl * 2.1 + p.phase;
+            const bh = 0.96 + (bl % 2) * 0.16;
+            dummy.position.set(
+              p.x + Math.cos(ba) * 0.2 + swayX * bh,
+              p.y + bh * (1 - plantSev * 0.1),
+              p.z + Math.sin(ba) * 0.2 + swayZ * bh
+            );
+            dummy.rotation.set(0.3, ba + elapsed * 0.4 * vigor, 0.2);
+            dummy.scale.setScalar(plantSev > 0.35 ? 0 : 0.9);
+            dummy.updateMatrix();
+            blossomInst.setMatrixAt(blossomIdx++, dummy.matrix);
+          }
+
+          // Buah (+ simulasi busuk: bercak → keriput berlesi → berkapang abu-abu → rontok ke bedengan)
+          for (let f = 0; f < fruitsPerPlant; f++) {
+            const fr = fruitLocal[f];
+            const fruitSev = pFruitRot > 0 ? Math.max(0, Math.min(1, (pFruitRot - fruitRotKey[i][f]) / 0.16)) : 0;
+            const fallen = fruitSev > 0.9;
+            const isRotFruit = fruitSev >= 0.22;
+            let fx = p.x + Math.cos(fr.ang) * fr.rad + swayX * fr.h;
+            let fy = p.y + fr.h * (1 - droopFactor * 0.1 - plantSev * 0.1) - fruitSev * 0.05;
+            let fz = p.z + Math.sin(fr.ang) * fr.rad + swayZ * fr.h;
+            if (fallen) {
+              // Buah busuk parah rontok & tergeletak di permukaan bedengan
+              fx = p.x + Math.cos(fr.ang) * (fr.rad + 0.14);
+              fz = p.z + Math.sin(fr.ang) * (fr.rad + 0.14);
+              fy = soilTopAt(fx, fz, p.z - 0.03) + 0.055;
+            }
+            dummy.position.set(fx, fy, fz);
+            dummy.rotation.set(fallen ? 1.2 : fruitSev * 0.4, fr.ang, fallen ? 0.4 : 0);
+            const shrink = 1 - fruitSev * 0.22;
+            // Bedengan tengah berbentuk cabai lonjong, bedengan 1 & 3 buah tomat bulat
+            if (p.bedIdx === 1) {
+              dummy.scale.set(0.56 * shrink, 1.32 * shrink * (1 - fruitSev * 0.14), 0.56 * shrink);
+            } else {
+              const base = (0.95 + (f % 2) * 0.14) * shrink;
+              dummy.scale.set(base, base * (1 - fruitSev * 0.2), base);
+            }
+            dummy.updateMatrix();
+            if (isRotFruit) {
+              fruitInst.setMatrixAt(fruitIdx, zeroMatrix);
+              rotFruitInst.setMatrixAt(fruitIdx, dummy.matrix);
+            } else {
+              fruitInst.setMatrixAt(fruitIdx, dummy.matrix);
+              if (anyFruitRot) rotFruitInst.setMatrixAt(fruitIdx, zeroMatrix);
+            }
+            calyxInst.setMatrixAt(fruitIdx, dummy.matrix);
+
+            // Kapang menyembul dari kulit buah busuk sedang–parah lalu menyelimuti
+            const moldAmt = fruitSev > 0.4 ? (fruitSev - 0.4) / 0.6 : 0;
+            if (moldAmt > 0) {
+              dummy.scale.multiplyScalar(0.9 + moldAmt * 0.17);
+              dummy.updateMatrix();
+              moldInst.setMatrixAt(fruitIdx, dummy.matrix);
+            } else if (anyFruitRot) {
+              moldInst.setMatrixAt(fruitIdx, zeroMatrix);
+            }
+
+            const stg = st.layer === 'panen' ? p.bedIdx : (fr.stage + p.bedIdx + p.slotIdx) % 3;
+            tmpColor.set(stg === 0 ? '#d92d14' : stg === 1 ? '#f08c0a' : '#5cb85a');
+            if (isRotFruit) {
+              tmpColor.lerp(fruitRotCol, 0.3 + fruitSev * 0.6);
+              rotFruitInst.setColorAt(fruitIdx, tmpColor);
+            } else {
+              // Gejala awal: bercak pudar kecoklatan
+              if (fruitSev > 0) tmpColor.lerp(fruitRotCol, fruitSev * 1.4);
+              fruitInst.setColorAt(fruitIdx, tmpColor);
+            }
+            tmpColor.copy(calyxGreen).lerp(calyxDead, Math.min(1, fruitSev * 1.5 + plantSev * 0.6));
+            calyxInst.setColorAt(fruitIdx, tmpColor);
+            fruitIdx++;
+          }
+        }
+        stemInst.instanceMatrix.needsUpdate = true;
+        branchInst.instanceMatrix.needsUpdate = true;
+        leafInst.instanceMatrix.needsUpdate = true;
+        blossomInst.instanceMatrix.needsUpdate = true;
+        fruitInst.instanceMatrix.needsUpdate = true;
+        calyxInst.instanceMatrix.needsUpdate = true;
+        if (fruitInst.instanceColor) fruitInst.instanceColor.needsUpdate = true;
+        if (calyxInst.instanceColor) calyxInst.instanceColor.needsUpdate = true;
+        rotFruitInst.visible = anyFruitRot;
+        moldInst.visible = anyFruitRot;
+        if (anyFruitRot) {
+          rotFruitInst.instanceMatrix.needsUpdate = true;
+          moldInst.instanceMatrix.needsUpdate = true;
+          if (rotFruitInst.instanceColor) rotFruitInst.instanceColor.needsUpdate = true;
+        }
+        rotLeafInst.visible = anyLeafRot;
+        if (anyLeafRot) rotLeafInst.instanceMatrix.needsUpdate = true;
+        if (rotChanged) {
+          if (leafInst.instanceColor) leafInst.instanceColor.needsUpdate = true;
+          if (rotLeafInst.instanceColor) rotLeafInst.instanceColor.needsUpdate = true;
+          if (stemInst.instanceColor) stemInst.instanceColor.needsUpdate = true;
+          if (branchInst.instanceColor) branchInst.instanceColor.needsUpdate = true;
+          lastRotSig = rotSig;
         }
       }
-      stemInst.instanceMatrix.needsUpdate = true;
-      branchInst.instanceMatrix.needsUpdate = true;
-      leafInst.instanceMatrix.needsUpdate = true;
-      blossomInst.instanceMatrix.needsUpdate = true;
-      fruitInst.instanceMatrix.needsUpdate = true;
-      if (fruitInst.instanceColor) fruitInst.instanceColor.needsUpdate = true;
 
       // Update air di tandon 3D + cincin permukaan meniscus
       const isTankCrit = st.tank < st.tankLow;
@@ -2059,7 +2759,22 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
         rainInst.instanceMatrix.needsUpdate = true;
       }
 
+      if (frameCount % 2 === 0) renderer.shadowMap.needsUpdate = true;
       renderer.render(scene, camera);
+
+      // Pantau fps terus-menerus (lewati 60 frame awal saat shader dikompilasi):
+      // rata-rata < ~45 fps selama 1,5 detik → turunkan kualitas satu tingkat
+      if (warmupFrames < 60) {
+        warmupFrames++;
+      } else if (qualityLevel > 0) {
+        perfFrames++;
+        perfTime += dt;
+        if (perfFrames >= 90) {
+          if (perfTime / perfFrames > 1 / 45) lowerQuality();
+          perfFrames = 0;
+          perfTime = 0;
+        }
+      }
 
       // Proyeksikan label HTML tiap 2 frame (anti-tabrakan otomatis)
       labelFrameCounter++;
@@ -2100,7 +2815,34 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
             }
           }
         }
-        onLabelsRef.current(projected);
+        // Kirim ke React hanya bila posisi berubah (kamera diam = tidak ada render ulang panel)
+        const labelKey = projected.map((l) => `${l.x | 0},${l.y | 0},${l.visible ? 1 : 0}`).join('|');
+        if (labelKey !== lastLabelKey) {
+          lastLabelKey = labelKey;
+          onLabelsRef.current(projected);
+        }
+
+        // Label tahap busuk di atas 5 tanaman contoh
+        if (showcase) {
+          const stageLabels: ShowcaseLabel3D[] = showcaseAnchors.map((vec) => {
+            projVec.copy(vec).project(camera);
+            return {
+              x: (projVec.x * 0.5 + 0.5) * cwNow,
+              y: (-projVec.y * 0.5 + 0.5) * chNow,
+              visible: projVec.z < 1 && Math.abs(projVec.x) < 1 && Math.abs(projVec.y) < 1,
+            };
+          });
+          const showcaseKey = stageLabels.map((l) => `${l.x | 0},${l.y | 0},${l.visible ? 1 : 0}`).join('|');
+          if (showcaseKey !== lastShowcaseKey || !showcaseLabelsSent) {
+            lastShowcaseKey = showcaseKey;
+            onShowcaseRef.current?.(stageLabels);
+          }
+          showcaseLabelsSent = true;
+        } else if (showcaseLabelsSent) {
+          onShowcaseRef.current?.([]);
+          showcaseLabelsSent = false;
+          lastShowcaseKey = '';
+        }
       }
     };
 
@@ -2134,6 +2876,12 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
       woodTex.bump.dispose();
       solarTex.dispose();
       leafTex.dispose();
+      rotLeafTex.dispose();
+      rotFruitTex.map.dispose();
+      rotFruitTex.bump.dispose();
+      moldTex.dispose();
+      leafDepthMat.dispose();
+      (rotLeafInst.customDepthMaterial as THREE.Material | undefined)?.dispose();
       oledTex.dispose();
       sunGlowTex.dispose();
       envRT.dispose();
@@ -2153,7 +2901,7 @@ const Farm3DWebGLCanvas: React.FC<Farm3DWebGLCanvasProps> = ({
         cursor: 'grab',
         touchAction: 'none',
       }}
-      aria-label="Kanvas simulasi kebun 3D interaktif WebGL"
+      aria-label="Kebun 3D interaktif"
     />
   );
 };

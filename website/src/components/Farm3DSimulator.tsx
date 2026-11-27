@@ -3,11 +3,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
+  Apple,
   CloudRain,
   Compass,
   Droplets,
   Flame,
   Layers,
+  Leaf,
+  Microscope,
   Maximize2,
   Minimize2,
   Moon,
@@ -16,6 +19,7 @@ import {
   Power,
   RefreshCw,
   RotateCcw,
+  Scissors,
   ShieldAlert,
   Sun,
   Waves,
@@ -28,6 +32,7 @@ import type {
   HotspotId3D,
   LiveSimState3D,
   ProjectedLabel3D,
+  ShowcaseLabel3D,
   SimLayer3D,
   WeatherMode3D,
 } from './Farm3DWebGLCanvas';
@@ -53,8 +58,58 @@ const Farm3DWebGLCanvas = dynamic(() => import('./Farm3DWebGLCanvas'), {
   ),
 });
 
+/* Tahap busuk pada mode contoh (urut kiri → kanan di bedengan depan) */
+const ROT_STAGES = [
+  { name: 'Sehat', desc: 'Daun hijau segar, buah mulus mengilap, bunga masih ada.' },
+  { name: 'Gejala awal', desc: 'Daun bawah menguning, bercak kecil, buah mulai kusam.' },
+  { name: 'Sedang', desc: 'Bercak coklat bercincin berhalo kuning, buah berlesi cekung.' },
+  { name: 'Parah', desc: 'Daun coklat menggulung & sobek, buah keriput berkapang abu-abu.' },
+  { name: 'Mati', desc: 'Batang coklat condong, daun & buah busuk rontok ke bedengan.' },
+] as const;
+
+type ScenarioId = 'cerah' | 'kering' | 'hujan' | 'tandon' | 'hemat';
+
+const SCENARIO_BUTTONS: { id: ScenarioId; label: string; icon: React.ReactNode; wide?: boolean }[] = [
+  { id: 'cerah', label: 'Cerah normal', icon: <Sun size={14} color="#E69A00" /> },
+  { id: 'kering', label: 'Kemarau', icon: <Flame size={14} color="#D63D12" /> },
+  { id: 'hujan', label: 'Hujan lembap', icon: <CloudRain size={14} color="#1F76BD" /> },
+  { id: 'tandon', label: 'Tandon kritis', icon: <ShieldAlert size={14} color="#C62F36" /> },
+  { id: 'hemat', label: 'Mendung · hemat baterai', icon: <Moon size={14} color="#5B4CD6" />, wide: true },
+];
+
+/* Slider seragam panel samping: label kiri, nilai kanan, slider di bawah */
+const SimSlider: React.FC<{
+  label: string;
+  value: number;
+  unit: string;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  ariaLabel: string;
+}> = ({ label, value, unit, min, max, onChange, ariaLabel }) => (
+  <div className="sim3d-slider">
+    <div className="sim3d-slider-head">
+      <span>{label}</span>
+      <strong className="tabular-nums">
+        {value}
+        {unit}
+      </strong>
+    </div>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="range-slider"
+      aria-label={ariaLabel}
+    />
+  </div>
+);
+
 interface Farm3DSimulatorProps {
-  mode?: 'dashboard' | 'lab';
+  /** 'page' = halaman Simulasi 3D tersendiri (viewport lebih tinggi, menyesuaikan layar). */
+  mode?: 'dashboard' | 'lab' | 'page';
   height?: number;
 }
 
@@ -84,6 +139,11 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
   const [fullscreen, setFullscreen] = useState(false);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotId3D>(null);
   const [statusToast, setStatusToast] = useState<string>('');
+  useEffect(() => {
+    if (!statusToast) return;
+    const t = window.setTimeout(() => setStatusToast(''), 6000);
+    return () => window.clearTimeout(t);
+  }, [statusToast]);
   const [cameraPreset, setCameraPreset] = useState<{ id: CameraPreset3D; seq: number }>({
     id: 'overview',
     seq: 0,
@@ -93,6 +153,12 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
     seq: 0,
   });
   const [projectedLabels, setProjectedLabels] = useState<ProjectedLabel3D[]>([]);
+  // Simulasi penyakit busuk (persen organ terserang 0–100)
+  const [fruitRot, setFruitRot] = useState(0);
+  const [leafRot, setLeafRot] = useState(0);
+  // Mode contoh: 5 tanaman bedengan depan dari sehat → mati busuk, lengkap dengan label tahap
+  const [rotShowcase, setRotShowcase] = useState(false);
+  const [showcaseLabels, setShowcaseLabels] = useState<ShowcaseLabel3D[]>([]);
 
   const liveStateRef = useRef<LiveSimState3D>({
     moisture: state.sensor.kelembapanTanah,
@@ -111,12 +177,16 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
     weather: 'cerah',
     selectedHotspot: null,
     autoOrbit: false,
+    fruitRot: 0,
+    leafRot: 0,
+    rotShowcase: false,
   });
 
   // Sinkronkan state live ke mesin WebGL tanpa restart canvas
   useEffect(() => {
+    // Hujan hanya tampil bila dipilih lewat skenario (bukan otomatis dari kelembapan) — default cerah & ringan
     const derivedWeather: WeatherMode3D =
-      state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit
+      weather === 'hujan'
         ? 'hujan'
         : state.sensor.kelembapanTanah < 32 && state.sensor.suhuUdara >= 29
           ? 'kering'
@@ -141,8 +211,25 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
       weather: derivedWeather,
       selectedHotspot,
       autoOrbit,
+      fruitRot: fruitRot / 100,
+      leafRot: leafRot / 100,
+      rotShowcase,
     };
-  }, [state.sensor, state.settings, activeFarmPlants.length, layer, weather, selectedHotspot, autoOrbit]);
+  }, [state.sensor, state.settings, activeFarmPlants.length, layer, weather, selectedHotspot, autoOrbit, fruitRot, leafRot, rotShowcase]);
+
+  // Penyakit busuk menyebar perlahan saat udara lembap melewati ambang risiko jamur (simulasi berjalan)
+  useEffect(() => {
+    if (!simRunning || (fruitRot === 0 && leafRot === 0)) return;
+    const humid = state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit;
+    if (!humid) return;
+    const stepMs = simSpeed === 3 ? 900 : 2400;
+    const timer = window.setInterval(() => {
+      if (!isVisibleRef.current || document.hidden) return;
+      setFruitRot((v) => (v > 0 ? Math.min(100, v + 2) : v));
+      setLeafRot((v) => (v > 0 ? Math.min(100, v + 2) : v));
+    }, stepMs);
+    return () => window.clearInterval(timer);
+  }, [simRunning, simSpeed, fruitRot, leafRot, state.sensor.kelembapanUdara, state.settings.ambangKelembapanRisikoPenyakit]);
 
   // IntersectionObserver untuk jeda loop fisika saat di luar viewport
   useEffect(() => {
@@ -205,7 +292,44 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
   }, [simRunning, simSpeed, updateSensor]);
 
   const applyScenario = useCallback(
-    (id: 'cerah' | 'kering' | 'hujan' | 'tandon' | 'hemat') => {
+    (id: 'cerah' | 'kering' | 'hujan' | 'tandon' | 'hemat' | 'buahBusuk' | 'daunBusuk') => {
+      if (id === 'buahBusuk') {
+        // Klik lagi saat aktif = hentikan simulasi buah busuk
+        if (fruitRot > 0) {
+          setFruitRot(0);
+          setStatusToast('Simulasi buah busuk dihentikan.');
+          return;
+        }
+        setWeather('berawan');
+        updateSettings({ pompaMenyala: false });
+        updateSensor({ kelembapanUdara: 93, suhuUdara: 23.2, kelembapanTanah: 72, cahayaLux: 6800 });
+        setFruitRot(45);
+        setLayer('normal');
+        setCameraPreset((prev) => ({ id: 'tanaman', seq: prev.seq + 1 }));
+        setStatusToast(
+          'Busuk Buah (Botrytis/antraknosa): buah menghitam, mengerut, berkapang abu-abu lalu rontok. Udara lembap 93% mempercepat penyebaran.'
+        );
+        setSimRunning(true);
+        return;
+      }
+      if (id === 'daunBusuk') {
+        if (leafRot > 0) {
+          setLeafRot(0);
+          setStatusToast('Simulasi daun busuk dihentikan.');
+          return;
+        }
+        setWeather('berawan');
+        updateSettings({ pompaMenyala: false });
+        updateSensor({ kelembapanUdara: 91, suhuUdara: 21.8, kelembapanTanah: 74, cahayaLux: 7400 });
+        setLeafRot(40);
+        setLayer('normal');
+        setCameraPreset((prev) => ({ id: 'tanaman', seq: prev.seq + 1 }));
+        setStatusToast(
+          'Busuk Daun (hawar/Phytophthora): bercak kuning lalu coklat kehitaman dari daun bawah, daun terkulai. Lembap 91% mempercepat serangan.'
+        );
+        setSimRunning(true);
+        return;
+      }
       if (id === 'cerah') {
         setWeather('cerah');
         updateSettings({ irigasiOtomatis: true, pompaMenyala: false });
@@ -274,7 +398,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
       }
       setSimRunning(true);
     },
-    [updateSensor, updateSettings]
+    [updateSensor, updateSettings, fruitRot, leafRot]
   );
 
   const handleTogglePump = () => {
@@ -296,6 +420,30 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
     state.sensor.kelembapanUdara >= state.settings.ambangKelembapanRisikoPenyakit;
   const isPowerSave = state.sensor.bateraiPersen <= state.settings.ambangBateraiHemat;
   const isFlowing = state.settings.pompaMenyala && !isTankCrit;
+  const totalFruits = Math.max(1, activeFarmPlants.length) * 5;
+  const rottenFruitCount = Math.round((fruitRot / 100) * totalFruits);
+  const hasRot = fruitRot > 0 || leafRot > 0 || rotShowcase;
+
+  const toggleRotShowcase = () => {
+    if (rotShowcase) {
+      setRotShowcase(false);
+      setStatusToast('Mode contoh ditutup. Tanaman kembali ke kondisi simulasi.');
+      return;
+    }
+    setRotShowcase(true);
+    setLayer('normal');
+    setAutoOrbit(false);
+    setSelectedHotspot(null);
+    setCameraPreset((prev) => ({ id: 'contoh', seq: prev.seq + 1 }));
+    setStatusToast('Contoh tanaman busuk: bedengan depan dari kiri (sehat) ke kanan (mati). Perbesar untuk melihat bercak & kapang.');
+  };
+
+  const handleSanitize = () => {
+    setFruitRot(0);
+    setLeafRot(0);
+    setRotShowcase(false);
+    setStatusToast('Sanitasi kebun: buah & daun busuk dipangkas, dibuang jauh dari bedengan, lalu disemprot fungisida hayati.');
+  };
 
   const hotspotDetail: Record<
     Exclude<HotspotId3D, null>,
@@ -303,9 +451,11 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
   > = {
     bedengan: {
       title: `Bedengan ${activeFarm?.nama || 'Blok A'}`,
-      desc: `Kelembapan tanah ${state.sensor.kelembapanTanah}% · Suhu ${state.sensor.suhuUdara}°C · RH ${state.sensor.kelembapanUdara}%.`,
-      ctaLabel: 'Scan tanaman sekarang',
-      onCta: () => openScanWith('buah'),
+      desc: hasRot
+        ? `Terserang busuk: buah ${fruitRot}% (≈${rottenFruitCount} buah) · daun ${leafRot}%. RH ${state.sensor.kelembapanUdara}% ${isDiseaseRisk ? 'mempercepat penyebaran' : 'aman, penyebaran berhenti'}.`
+        : `Kelembapan tanah ${state.sensor.kelembapanTanah}% · Suhu ${state.sensor.suhuUdara}°C · RH ${state.sensor.kelembapanUdara}%.`,
+      ctaLabel: hasRot ? 'Scan gejala busuk' : 'Scan tanaman sekarang',
+      onCta: () => openScanWith(leafRot > fruitRot ? 'daun' : 'buah'),
     },
     tandon: {
       title: `Tandon Air 500L (${state.sensor.levelTandonPersen}%)`,
@@ -348,6 +498,15 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
         accent: isPowerSave ? '#F59E0B' : undefined,
       };
     }
+    if (rotShowcase && fruitRot === 0 && leafRot === 0) {
+      return { text: 'Contoh busuk', accent: '#F59E0B' };
+    }
+    if (hasRot) {
+      return {
+        text: fruitRot > 0 ? `Busuk ≈${rottenFruitCount} buah` : `Daun busuk ${leafRot}%`,
+        accent: '#EF4444',
+      };
+    }
     return {
       text:
         layer === 'panen'
@@ -379,23 +538,31 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
           : {}),
       }}
     >
-      {/* Header Simulasi 3D */}
+      {/* Header: judul kartu + status aktif */}
       <div className="sim3d-header">
         <div className="sim3d-title-block">
-          <div className="sim3d-title-row">
-            <h3 className="t-h3 sim3d-heading">Simulasi Kebun 3D</h3>
-            <button
-              type="button"
-              className="icon-btn sim3d-fs-btn sim3d-fs-btn--mobile"
-              onClick={() => setFullscreen((v) => !v)}
-              title={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
-              aria-label={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
-            >
-              {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </button>
-          </div>
+          <h3 className="t-h3 sim3d-heading">Kebun 3D interaktif</h3>
+          <p className="t-micro t-soft sim3d-subtitle">
+            Geser untuk memutar 360° · scroll untuk zoom · klik objek untuk melihat detail
+          </p>
+        </div>
+        {(isFlowing || isDiseaseRisk || hasRot) && (
           <div className="sim3d-badges">
-            <span className="pill pill-sim">WebGL 3D · Simulasi</span>
+            {rotShowcase && (
+              <span className="pill pill-warn">
+                <Microscope size={12} /> Contoh tahap busuk
+              </span>
+            )}
+            {fruitRot > 0 && (
+              <span className="pill pill-bad">
+                <Apple size={12} /> Buah busuk {fruitRot}%
+              </span>
+            )}
+            {leafRot > 0 && (
+              <span className="pill pill-bad">
+                <Leaf size={12} /> Daun busuk {leafRot}%
+              </span>
+            )}
             {isFlowing && (
               <span className="pill pill-water">
                 <Droplets size={12} /> Irigasi aktif
@@ -407,9 +574,34 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
               </span>
             )}
           </div>
-          <p className="t-micro t-soft sim3d-subtitle">
-            Geser bebas 360° untuk mengelilingi kebun · Scroll untuk zoom · Klik objek 3D atau sudut kamera di bawah.
-          </p>
+        )}
+      </div>
+
+      {/* Toolbar: sudut kamera (kiri) · lapisan visual + layar penuh (kanan) */}
+      <div className="sim3d-toolbar">
+        <div className="sim3d-cam-group">
+          <span className="t-micro t-soft sim3d-cam-label">
+            <Compass size={13} color="var(--leaf-600)" /> Sudut kamera
+          </span>
+          <div className="sim3d-cam-pills">
+            {(
+              [
+                { id: 'overview', label: 'Udara' },
+                { id: 'tanaman', label: 'Tanaman' },
+                { id: 'irigasi', label: 'Irigasi' },
+                { id: 'surya', label: 'Surya' },
+              ] as const
+            ).map((camBtn) => (
+              <button
+                key={camBtn.id}
+                type="button"
+                onClick={() => flyTo(camBtn.id)}
+                className={`sim3d-cam-btn ${cameraPreset.id === camBtn.id ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                {camBtn.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="sim3d-tabs-wrap">
@@ -434,62 +626,14 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
               </button>
             ))}
           </div>
-
           <button
             type="button"
-            className="icon-btn sim3d-fs-btn sim3d-fs-btn--desktop"
+            className="icon-btn sim3d-fs-btn"
             onClick={() => setFullscreen((v) => !v)}
             title={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
             aria-label={fullscreen ? 'Keluar layar penuh' : 'Perbesar layar penuh'}
           >
             {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Bar Sudut Kamera 3D 1-Klik */}
-      <div className="sim3d-toolbar">
-        <div className="sim3d-cam-group">
-          <span className="t-micro t-soft sim3d-cam-label">
-            <Compass size={13} color="var(--leaf-600)" /> Sudut kamera:
-          </span>
-          <div className="sim3d-cam-pills">
-            {(
-              [
-                { id: 'overview', label: 'Udara' },
-                { id: 'tanaman', label: 'Tanaman' },
-                { id: 'irigasi', label: 'Irigasi' },
-                { id: 'surya', label: 'Surya' },
-              ] as const
-            ).map((camBtn) => (
-              <button
-                key={camBtn.id}
-                type="button"
-                onClick={() => flyTo(camBtn.id)}
-                className={`sim3d-cam-btn ${cameraPreset.id === camBtn.id ? 'btn-primary' : 'btn-secondary'}`}
-              >
-                {camBtn.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="sim3d-play-group">
-          <button
-            type="button"
-            onClick={() => setSimRunning((v) => !v)}
-            className="btn-secondary sim3d-ctrl-btn"
-          >
-            {simRunning ? <Pause size={13} /> : <Play size={13} />}
-            {simRunning ? 'Jalan' : 'Jeda'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSimSpeed((s) => (s === 1 ? 3 : 1))}
-            className="btn-secondary sim3d-ctrl-btn"
-            title="Kecepatan waktu simulasi"
-          >
-            {simSpeed}×
           </button>
         </div>
       </div>
@@ -500,7 +644,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
         style={{
           display: 'grid',
           gridTemplateColumns:
-            mode === 'lab' || fullscreen
+            mode === 'lab' || mode === 'page' || fullscreen
               ? 'minmax(0, 1.7fr) minmax(260px, 0.72fr)'
               : 'minmax(0, 1.72fr) minmax(252px, 0.78fr)',
           gap: 16,
@@ -509,7 +653,7 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
       >
         {/* Viewport WebGL 3D — Bersih, responsif di HP/tablet/desktop */}
         <div
-          className={`sim3d-viewport ${fullscreen ? 'sim3d-viewport--full' : ''}`}
+          className={`sim3d-viewport ${fullscreen ? 'sim3d-viewport--full' : mode === 'page' ? 'sim3d-viewport--page' : ''}`}
           style={!fullscreen && height !== 410 ? { height } : undefined}
         >
           <Farm3DWebGLCanvas
@@ -517,12 +661,15 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
             cameraPreset={cameraPreset}
             zoomCommand={zoomCommand}
             onLabelsUpdate={setProjectedLabels}
+            onShowcaseLabels={setShowcaseLabels}
             onHotspotSelect={(id) => setSelectedHotspot((prev) => (prev === id ? null : id))}
           />
 
           {/* Label 3D Terproyeksi Bebas Tabrakan */}
           {projectedLabels.map((lb) => {
             if (!lb.visible) return null;
+            // Mode contoh: label bedengan disembunyikan agar tak menumpuk label tahap busuk
+            if (rotShowcase && lb.id === 'bedengan') return null;
             const info = labelContent(lb.id);
             const active = selectedHotspot === lb.id;
             return (
@@ -561,6 +708,49 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
               </button>
             );
           })}
+
+          {/* Label tahap busuk di atas 5 tanaman contoh */}
+          {rotShowcase &&
+            showcaseLabels.map((lb, idx) =>
+              lb.visible ? (
+                <span
+                  key={ROT_STAGES[idx].name}
+                  className={`sim3d-stage-tag sim3d-stage-tag--${idx}`}
+                  style={{ left: lb.x, top: lb.y }}
+                >
+                  <b>{idx + 1}</b> {ROT_STAGES[idx].name}
+                </span>
+              ) : null
+            )}
+
+          {/* Pojok kanan atas: jalankan/jeda & kecepatan waktu simulasi */}
+          <div className="sim3d-overlay-top">
+            <button
+              type="button"
+              onClick={() => setSimRunning((v) => !v)}
+              className="glass-surface sim3d-overlay-btn"
+              aria-label={simRunning ? 'Jeda simulasi' : 'Jalankan simulasi'}
+            >
+              {simRunning ? <Pause size={13} /> : <Play size={13} />}
+              {simRunning ? 'Jalan' : 'Jeda'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSimSpeed((sp) => (sp === 1 ? 3 : 1))}
+              className="glass-surface sim3d-overlay-btn"
+              title="Kecepatan waktu simulasi"
+              aria-label={`Kecepatan simulasi ${simSpeed} kali`}
+            >
+              {simSpeed}×
+            </button>
+          </div>
+
+          {/* Notifikasi skenario mengambang (hilang otomatis) — panel samping tak lagi memanjang */}
+          {statusToast && (
+            <div className="glass-surface sim3d-toast" role="status">
+              {statusToast}
+            </div>
+          )}
 
           {/* Pojok Kanan Bawah: Zoom & Reset Kamera */}
           <div
@@ -655,145 +845,120 @@ export const Farm3DSimulator: React.FC<Farm3DSimulatorProps> = ({
           )}
         </div>
 
-        {/* Panel Kontrol Interaktif Samping */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            background: 'var(--surface-2)',
-            border: '1px solid var(--line)',
-            borderRadius: 18,
-            padding: 16,
-          }}
-        >
-          <div>
-            <div className="t-micro" style={{ fontWeight: 700, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Layers size={14} color="var(--leaf-600)" /> Skenario Cuaca &amp; Lahan
+        {/* Panel kontrol samping: 3 bagian seragam. Tingginya mengikuti panggung 3D, isinya bisa digulir */}
+        <div className="sim3d-panel-wrap">
+        <div className="sim3d-panel">
+          <div className="sim3d-panel-section">
+            <div className="sim3d-panel-title">
+              <Layers size={14} color="var(--leaf-600)" /> Skenario cuaca &amp; lahan
             </div>
-            <p className="t-micro t-soft" style={{ marginTop: 2, fontWeight: 500 }}>
-              Rasakan reaksi 3D pompa, hujan, tandon &amp; surya dalam 1 klik:
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 38, padding: '6px 10px', fontSize: '0.78rem', justifyContent: 'flex-start' }}
-              onClick={() => applyScenario('cerah')}
-            >
-              <Sun size={14} color="#E69A00" /> Cerah Normal
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 38, padding: '6px 10px', fontSize: '0.78rem', justifyContent: 'flex-start' }}
-              onClick={() => applyScenario('kering')}
-            >
-              <Flame size={14} color="#D63D12" /> Kemarau
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 38, padding: '6px 10px', fontSize: '0.78rem', justifyContent: 'flex-start' }}
-              onClick={() => applyScenario('hujan')}
-            >
-              <CloudRain size={14} color="#1F76BD" /> Hujan Lembap
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 38, padding: '6px 10px', fontSize: '0.78rem', justifyContent: 'flex-start' }}
-              onClick={() => applyScenario('tandon')}
-            >
-              <ShieldAlert size={14} color="#C62F36" /> Tandon Kritis
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ minHeight: 36, padding: '5px 10px', fontSize: '0.78rem' }}
-            onClick={() => applyScenario('hemat')}
-          >
-            <Moon size={14} color="#5B4CD6" /> Mendung · Mode Hemat Baterai
-          </button>
-
-          <hr className="card-divider" style={{ margin: '2px 0' }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="t-micro t-soft">Kelembapan tanah</span>
-                <strong className="t-micro tabular-nums">{state.sensor.kelembapanTanah}%</strong>
-              </div>
-              <input
-                type="range"
-                min={12}
-                max={88}
-                value={state.sensor.kelembapanTanah}
-                onChange={(e) => updateSensor({ kelembapanTanah: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Atur kelembapan tanah simulasi 3D"
-              />
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="t-micro t-soft">Level air tandon</span>
-                <strong className="t-micro tabular-nums">{state.sensor.levelTandonPersen}%</strong>
-              </div>
-              <input
-                type="range"
-                min={8}
-                max={100}
-                value={state.sensor.levelTandonPersen}
-                onChange={(e) => updateSensor({ levelTandonPersen: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Atur level tandon simulasi 3D"
-              />
+            <div className="sim3d-btn-grid">
+              {SCENARIO_BUTTONS.map((sc) => (
+                <button
+                  key={sc.id}
+                  type="button"
+                  className={`btn-secondary sim3d-opt-btn ${sc.wide ? 'sim3d-opt-btn--wide' : ''}`}
+                  onClick={() => applyScenario(sc.id)}
+                >
+                  {sc.icon} {sc.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginTop: 'auto' }}>
-            <button
-              type="button"
-              className={state.settings.pompaMenyala ? 'btn-danger' : 'btn-primary'}
-              style={{ minHeight: 40, fontSize: '0.82rem', padding: '6px 12px' }}
-              onClick={handleTogglePump}
-              disabled={isTankCrit && !state.settings.pompaMenyala}
-            >
-              <Power size={15} />
-              {state.settings.pompaMenyala ? 'Matikan Pompa' : 'Siram Sekarang'}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 40, padding: '6px 10px', fontSize: '0.8rem' }}
-              onClick={handleRefillTank}
-              title="Isi penuh tandon air"
-            >
-              <Waves size={15} /> Isi
-            </button>
+          {/* Simulasi Penyakit Busuk Buah & Daun */}
+          <div className="sim3d-panel-section">
+            <div className="sim3d-panel-title">
+              <ShieldAlert size={14} color="#C62F36" /> Penyakit busuk
+            </div>
+            <div className="sim3d-btn-grid">
+              <button
+                type="button"
+                className={`${fruitRot > 0 ? 'btn-danger' : 'btn-secondary'} sim3d-opt-btn`}
+                onClick={() => applyScenario('buahBusuk')}
+                aria-pressed={fruitRot > 0}
+                title={fruitRot > 0 ? 'Klik lagi untuk menghentikan' : undefined}
+              >
+                <Apple size={14} /> Buah busuk
+              </button>
+              <button
+                type="button"
+                className={`${leafRot > 0 ? 'btn-danger' : 'btn-secondary'} sim3d-opt-btn`}
+                onClick={() => applyScenario('daunBusuk')}
+                aria-pressed={leafRot > 0}
+                title={leafRot > 0 ? 'Klik lagi untuk menghentikan' : undefined}
+              >
+                <Leaf size={14} /> Daun busuk
+              </button>
+              <button
+                type="button"
+                className={`${rotShowcase ? 'btn-primary' : 'btn-secondary'} sim3d-opt-btn sim3d-opt-btn--wide`}
+                onClick={toggleRotShowcase}
+                aria-pressed={rotShowcase}
+              >
+                <Microscope size={14} /> {rotShowcase ? 'Tutup contoh tanaman busuk' : 'Lihat contoh tanaman busuk'}
+              </button>
+            </div>
+            {rotShowcase && (
+              <ol className="sim3d-stage-list">
+                {ROT_STAGES.map((stage, idx) => (
+                  <li key={stage.name}>
+                    <span className={`sim3d-stage-dot sim3d-stage-dot--${idx}`}>{idx + 1}</span>
+                    <div>
+                      <strong>{stage.name}</strong>
+                      <span>{stage.desc}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <SimSlider label="Buah terserang" value={fruitRot} unit="%" min={0} max={100} onChange={setFruitRot} ariaLabel="Atur persentase buah busuk" />
+            <SimSlider label="Daun terserang" value={leafRot} unit="%" min={0} max={100} onChange={setLeafRot} ariaLabel="Atur persentase daun busuk" />
+            {hasRot && (
+              <button type="button" className="btn-secondary sim3d-opt-btn sim3d-opt-btn--center" onClick={handleSanitize}>
+                <Scissors size={14} color="var(--leaf-600)" /> Pangkas &amp; sanitasi
+              </button>
+            )}
           </div>
 
-          {statusToast && (
-            <div
-              className="t-micro"
-              role="status"
-              style={{
-                padding: '7px 10px',
-                borderRadius: 10,
-                background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                color: 'var(--ink-soft)',
-                lineHeight: 1.4,
-              }}
-            >
-              {statusToast}
+          <div className="sim3d-panel-section">
+            <div className="sim3d-panel-title">
+              <Droplets size={14} color="var(--water-700)" /> Kontrol lahan
             </div>
-          )}
+            <SimSlider
+              label="Kelembapan tanah"
+              value={state.sensor.kelembapanTanah}
+              unit="%"
+              min={12}
+              max={88}
+              onChange={(v) => updateSensor({ kelembapanTanah: v })}
+              ariaLabel="Atur kelembapan tanah simulasi 3D"
+            />
+            <SimSlider
+              label="Level air tandon"
+              value={state.sensor.levelTandonPersen}
+              unit="%"
+              min={8}
+              max={100}
+              onChange={(v) => updateSensor({ levelTandonPersen: v })}
+              ariaLabel="Atur level tandon simulasi 3D"
+            />
+            <div className="sim3d-pump-row">
+              <button
+                type="button"
+                className={state.settings.pompaMenyala ? 'btn-danger' : 'btn-primary'}
+                onClick={handleTogglePump}
+                disabled={isTankCrit && !state.settings.pompaMenyala}
+              >
+                <Power size={15} />
+                {state.settings.pompaMenyala ? 'Matikan pompa' : 'Siram sekarang'}
+              </button>
+              <button type="button" className="btn-secondary" onClick={handleRefillTank} title="Isi penuh tandon air">
+                <Waves size={15} /> Isi tandon
+              </button>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
     </section>

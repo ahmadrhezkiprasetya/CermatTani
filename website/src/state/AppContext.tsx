@@ -592,6 +592,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await hydrateFromSupabaseAccount();
   }, [hydrateFromSupabaseAccount]);
 
+  // Akun yang sudah login dianggap selesai onboarding: data nama & kebun sudah diisi saat daftar.
+  // Ditandai SEBELUM sinkron Supabase agar onboarding tidak muncul lagi walau sinkron gagal/lambat.
+  const signedInUserIdRef = useRef<string | null>(null);
+  const markSignedInOnboarded = useCallback((userId: string) => {
+    signedInUserIdRef.current = userId;
+    setState((prev) => (prev.onboarded ? prev : { ...prev, onboarded: true }));
+  }, []);
+
   // Sinkronkan sesi Auth Supabase saat pertama kali halaman dibuka & saat login/logout terjadi
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -612,6 +620,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const user = data.session?.user;
         if (user) {
           setAuthUser({ id: user.id, email: user.email || '' });
+          markSignedInOnboarded(user.id);
           await hydrateFromSupabaseAccount();
         } else {
           setAuthUser(null);
@@ -626,7 +635,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const user = session?.user;
       if (user) {
         setAuthUser({ id: user.id, email: user.email || '' });
+        // Hanya saat akun baru masuk (bukan refresh token) agar "Ulangi onboarding" tetap bisa dipakai
+        if (signedInUserIdRef.current !== user.id) markSignedInOnboarded(user.id);
       } else {
+        signedInUserIdRef.current = null;
         setAuthUser(null);
       }
     });
@@ -635,7 +647,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, [hydrateFromSupabaseAccount]);
+  }, [hydrateFromSupabaseAccount, markSignedInOnboarded]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -698,13 +710,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await cermatSupabaseRepo.signIn(email, password);
       if (res.user) {
         setAuthUser({ id: res.user.id, email: res.user.email || email });
+        markSignedInOnboarded(res.user.id);
         await hydrateFromSupabaseAccount();
         const dest = postLoginScreen && postLoginScreen !== 'login' ? postLoginScreen : 'beranda';
         setPostLoginScreen(null);
         setActiveScreen(dest);
       }
     },
-    [hydrateFromSupabaseAccount, postLoginScreen, setActiveScreen]
+    [hydrateFromSupabaseAccount, markSignedInOnboarded, postLoginScreen, setActiveScreen]
   );
 
   const registerAccount: AppContextValue['registerAccount'] = useCallback(
@@ -712,6 +725,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await cermatSupabaseRepo.signUp(input.email, input.password, input.nama);
       if (res.session && res.user) {
         setAuthUser({ id: res.user.id, email: res.user.email || input.email });
+        markSignedInOnboarded(res.user.id);
         await hydrateFromSupabaseAccount({
           nama: input.nama,
           namaKebun: input.namaKebun,
@@ -724,11 +738,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { needsEmailConfirmation: true };
     },
-    [hydrateFromSupabaseAccount, postLoginScreen, setActiveScreen]
+    [hydrateFromSupabaseAccount, markSignedInOnboarded, postLoginScreen, setActiveScreen]
   );
 
   const signOutAccount = useCallback(async () => {
     await cermatSupabaseRepo.signOut();
+    signedInUserIdRef.current = null;
     setAuthUser(null);
     setChatContextScan(null);
     setPendingChatQuestion(null);

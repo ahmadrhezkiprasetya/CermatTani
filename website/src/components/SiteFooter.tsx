@@ -47,6 +47,11 @@ const FOOTER_COLUMNS = [
   },
 ];
 
+/* Rumpun tomat di dua baris bedengan bukit depan: [x, y, buah merah?] */
+const FOOTER_CROPS: Array<[number, number, boolean]> = [];
+for (let x = 52; x < 1420; x += 74) FOOTER_CROPS.push([x, 110 + Math.sin(x / 140) * 6, x % 148 < 74]);
+for (let x = 88; x < 1420; x += 74) FOOTER_CROPS.push([x, 146 + Math.sin(x / 160) * 5, x % 222 < 111]);
+
 export const SiteFooter: React.FC<SiteFooterProps> = ({ authenticated, onStart }) => {
   const footerRef = useRef<HTMLElement | null>(null);
   const animationFrame = useRef<number | null>(null);
@@ -130,14 +135,51 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({ authenticated, onStart }
         </div>
 
         <svg className="ct-footer-back-hills" viewBox="0 0 1440 360" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-          <path className="ct-footer-mountain" d="m0 246 100-98 80 66 124-129 148 161 106-74 103 85 146-132 136 115 108-75 105 85 98-78 90 91v97H0Z" />
-          <path className="ct-footer-hill ct-footer-hill--back" d="M0 209c184-76 339 46 508 24 171-22 254-116 422-61 151 49 316-13 510 22v166H0Z" />
-          <path className="ct-footer-hill ct-footer-hill--middle" d="M0 258c180-62 352 39 523 29 185-11 300-88 458-41 148 44 304 2 459 17v97H0Z" />
-          <path className="ct-footer-terrace" d="M62 275c137-41 249-26 362 5m-313 18c150-36 263-13 359 15m443-52c112-35 225-27 352-3m-329 29c118-29 232-20 354 2" />
-          <path className="ct-footer-river" d="M1210 360c-22-56-103-72-75-123 22-41 109-47 117-104 4-28-14-55-39-85" />
-          <path className="ct-footer-river-shine" d="M1210 360c-22-56-103-72-75-123 22-41 109-47 117-104 4-28-14-55-39-85" />
-          <path className="ct-footer-hut" d="M305 268v-34l27-23 27 23v34h-54Zm-8-32 35-30 35 30" />
-          <path className="ct-footer-pine" d="m130 262 18-34 18 34h-11v20h-14v-20h-11Zm1124-32 17-34 18 34h-11v19h-14v-19h-10Z" />
+          <defs>
+            <linearGradient id="ctfMtnFar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8fbea9" />
+              <stop offset="100%" stopColor="#cfe5d9" />
+            </linearGradient>
+            <linearGradient id="ctfMtnNear" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4f8f70" />
+              <stop offset="100%" stopColor="#86b89c" />
+            </linearGradient>
+            <linearGradient id="ctfHillBack" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a8a4f" />
+              <stop offset="100%" stopColor="#11602f" />
+            </linearGradient>
+            <linearGradient id="ctfHillMid" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#36ad62" />
+              <stop offset="100%" stopColor="#1b8442" />
+            </linearGradient>
+          </defs>
+          {/* Gunung jauh & dekat */}
+          <path className="ct-footer-mountain" fill="url(#ctfMtnFar)" d="M0 232 L118 150 L206 196 L330 108 L468 204 L588 150 L702 200 L842 98 L982 190 L1102 140 L1222 200 L1332 128 L1440 188 V360 H0Z" />
+          <path className="ct-footer-mountain ct-footer-mountain--near" fill="url(#ctfMtnNear)" d="M0 264 L148 192 L262 236 L402 172 L540 250 L662 206 L782 256 L930 182 L1062 246 L1182 202 L1302 252 L1440 216 V360 H0Z" />
+          {/* Bukit belakang + terasering */}
+          <path className="ct-footer-hill" fill="url(#ctfHillBack)" d="M0 214c184-70 339 44 508 22 171-22 254-110 422-57 151 47 316-11 510 22v159H0Z" />
+          <path className="ct-footer-terrace" d="M62 278c137-41 249-26 362 5m-313 18c150-36 263-13 359 15m443-52c112-35 225-27 352-3m-329 29c118-29 232-20 354 2" />
+          {/* Pohon rimbun di punggung bukit */}
+          <g className="ct-footer-trees">
+            {[
+              [96, 226, 1.5],
+              [140, 232, 1.15],
+              [452, 226, 1.3],
+              [1236, 212, 1.5],
+              [1282, 222, 1.1],
+              [1376, 220, 1.3],
+            ].map(([x, y, k]) => (
+              <g key={`${x}-${y}`} transform={`translate(${x} ${y}) scale(${k})`}>
+                <rect className="ct-footer-tree-trunk" x="-3" y="-4" width="6" height="18" rx="2" />
+                <circle className="ct-footer-tree-crown" cx="0" cy="-16" r="16" />
+                <circle className="ct-footer-tree-crown ct-footer-tree-crown--light" cx="-7" cy="-21" r="9" />
+              </g>
+            ))}
+          </g>
+          {/* Bukit tengah */}
+          <path className="ct-footer-hill" fill="url(#ctfHillMid)" d="M0 262c180-58 352 37 523 27 185-11 300-84 458-39 148 42 304 2 459 17v93H0Z" />
+          {/* Pondok sawah */}
+          <path className="ct-footer-hut" d="M305 272v-30l27-21 27 21v30h-54Zm-8-28 35-28 35 28" />
         </svg>
 
         <img
@@ -153,7 +195,19 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({ authenticated, onStart }
         />
         <svg className="ct-footer-front-hill" viewBox="0 0 1440 180" preserveAspectRatio="none" aria-hidden="true">
           <path d="M0 77c142-48 257-41 407-5 138 33 279-28 415-21 164 8 278 55 430 25 72-15 131-16 188-5v109H0Z" />
-          <path className="ct-footer-grass" d="m180 75-8-22m16 24 7-27m438 35-6-21m14 22 9-25m413 43-7-25m16 24 8-20" />
+          {/* Alur bedengan */}
+          <path className="ct-footer-rows" d="M0 118c240-22 480-6 720-14s480-24 720-6M0 154c240-18 480-4 720-10s480-20 720-4" />
+          {/* Rumpun tomat berbuah */}
+          {FOOTER_CROPS.map(([x, y, ripe]) => (
+            <g key={`${x}-${y}`} className="ct-footer-crop" transform={`translate(${x} ${y.toFixed(1)})`}>
+              <ellipse className="ct-footer-crop-leaf" cx="0" cy="0" rx="17" ry="9" />
+              <ellipse className="ct-footer-crop-leaf ct-footer-crop-leaf--light" cx="-5" cy="-3" rx="9" ry="5" />
+              <circle className={ripe ? 'ct-footer-fruit' : 'ct-footer-fruit ct-footer-fruit--half'} cx="-6" cy="2" r="3.6" />
+              <circle className="ct-footer-fruit" cx="6" cy="3" r="3.2" />
+            </g>
+          ))}
+          {/* Rumpun daun (pengganti garis rumput) */}
+          <path className="ct-footer-grass" d="M176 70c-2-10-8-16-14-19 8 1 13 6 15 12 1-9 6-15 12-18-4 6-6 13-5 22M640 80c-2-10-8-16-14-19 8 1 13 6 15 12 1-9 6-15 12-18-4 6-6 13-5 22M1056 98c-2-10-8-16-14-19 8 1 13 6 15 12 1-9 6-15 12-18-4 6-6 13-5 22" />
           <path className="ct-footer-leaf ct-footer-leaf--one" d="M245 28c10-15 25-11 27 1-10 12-21 13-27-1Zm955 20c11-15 25-11 27 1-10 12-21 13-27-1Z" />
         </svg>
       </section>

@@ -1086,12 +1086,24 @@
 }
 
 .ct-footer-mountain {
-  fill: #0f5e2d;
-  opacity: 0.25;
+  opacity: 0.9;
 }
 
-.ct-footer-hill--back { fill: #0f5e2d; }
-.ct-footer-hill--middle { fill: #17803f; }
+.ct-footer-mountain--near {
+  opacity: 0.85;
+}
+
+.ct-footer-trees .ct-footer-tree-trunk {
+  fill: #6b4a2e;
+}
+
+.ct-footer-tree-crown {
+  fill: #1c7a40;
+}
+
+.ct-footer-tree-crown--light {
+  fill: #2f9a55;
+}
 
 .ct-footer-terrace {
   fill: none;
@@ -1104,8 +1116,8 @@
   fill: none;
   stroke: var(--ct-water);
   stroke-linecap: round;
-  stroke-width: 18;
-  opacity: 0.78;
+  stroke-width: 12;
+  opacity: 0.85;
 }
 
 .ct-footer-river-shine {
@@ -1125,8 +1137,31 @@
   stroke-width: 8;
 }
 
-.ct-footer-pine {
-  fill: #0a3a32;
+.ct-footer-rows {
+  fill: none;
+  stroke: rgba(10, 80, 38, 0.35);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.ct-footer-crop {
+  transform-box: fill-box;
+}
+
+.ct-footer-crop-leaf {
+  fill: #157a3c;
+}
+
+.ct-footer-crop-leaf--light {
+  fill: #2f9a55;
+}
+
+.ct-footer-fruit {
+  fill: #e2553a;
+}
+
+.ct-footer-fruit--half {
+  fill: #efa93a;
 }
 
 .ct-footer-mascot {
@@ -1167,10 +1202,10 @@
 }
 
 .ct-footer-grass {
-  fill: none;
-  stroke: #d8f36a;
-  stroke-linecap: round;
-  stroke-width: 4;
+  fill: #17803f;
+  stroke: #17803f;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
   transform-box: fill-box;
   transform-origin: 50% 100%;
   animation: ct-footer-grass-sway 4s ease-in-out infinite;

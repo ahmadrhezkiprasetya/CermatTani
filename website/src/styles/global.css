@@ -4146,22 +4146,79 @@ button.plant-stat {
 }
 
 .harvest-countdown-cell {
+  --hc-accent: var(--leaf-600);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   padding: 12px 4px 10px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
   border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+/* Detik: aksen kuning agar jam terasa "hidup" */
+.harvest-countdown-cell--live {
+  --hc-accent: var(--sun-400);
+}
+
+.harvest-countdown-ring {
+  position: relative;
+  width: min(84px, 100%);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.harvest-countdown-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.hc-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 5;
+}
+
+.hc-progress {
+  fill: none;
+  stroke: var(--hc-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s linear;
 }
 
 .harvest-countdown-num {
+  position: relative;
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
   font-weight: 700;
   line-height: 1;
   color: var(--ink);
+  animation: hcTick 0.35s var(--ease-out);
+}
+
+@keyframes hcTick {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harvest-countdown-num {
+    animation: none !important;
+  }
 }
 
 .harvest-countdown-unit {
@@ -4225,6 +4282,12 @@ button.plant-stat {
 
 .calendar-layout > .card {
   min-width: 0;
+}
+
+/* Hitung mundur mengisi ruang kosong kartu yang direntangkan: cincin di tengah */
+.calendar-layout .harvest-countdown-grid {
+  flex: 1;
+  align-content: center;
 }
 
 /* Tombol aksi/form menempel di dasar kartu saat kartu direntangkan */

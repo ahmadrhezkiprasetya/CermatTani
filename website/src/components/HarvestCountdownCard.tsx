@@ -93,12 +93,15 @@ export const HarvestCountdownCard: React.FC<Props> = ({ events, plants, todayYmd
 
   const diffMs = Math.max(0, harvestTarget(next.tanggal) - now);
   const totalSec = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSec / 86400);
+  // max = satu putaran penuh cincin (hari memakai minimal 7 hari agar cincinnya tetap terbaca)
   const parts = [
-    { label: 'Hari', value: Math.floor(totalSec / 86400) },
-    { label: 'Jam', value: Math.floor((totalSec % 86400) / 3600) },
-    { label: 'Menit', value: Math.floor((totalSec % 3600) / 60) },
-    { label: 'Detik', value: totalSec % 60 },
+    { label: 'Hari', value: days, max: Math.max(7, days) },
+    { label: 'Jam', value: Math.floor((totalSec % 86400) / 3600), max: 24 },
+    { label: 'Menit', value: Math.floor((totalSec % 3600) / 60), max: 60 },
+    { label: 'Detik', value: totalSec % 60, max: 60 },
   ];
+  const RING_C = 2 * Math.PI * 27;
 
   return (
     <section className="card harvest-countdown">
@@ -123,12 +126,30 @@ export const HarvestCountdownCard: React.FC<Props> = ({ events, plants, todayYmd
         role="timer"
         aria-label={`${parts[0].value} hari ${parts[1].value} jam ${parts[2].value} menit lagi`}
       >
-        {parts.map((p) => (
-          <div key={p.label} className="harvest-countdown-cell">
-            <span className="harvest-countdown-num tabular-nums">{String(p.value).padStart(2, '0')}</span>
-            <span className="harvest-countdown-unit">{p.label}</span>
-          </div>
-        ))}
+        {parts.map((p, idx) => {
+          const frac = p.max > 0 ? Math.min(1, p.value / p.max) : 0;
+          return (
+            <div key={p.label} className={`harvest-countdown-cell ${idx === 3 ? 'harvest-countdown-cell--live' : ''}`}>
+              {/* Jam lingkaran: cincin terisi sesuai sisa waktu satuan ini */}
+              <div className="harvest-countdown-ring">
+                <svg viewBox="0 0 64 64" aria-hidden="true">
+                  <circle className="hc-track" cx="32" cy="32" r="27" />
+                  <circle
+                    className="hc-progress"
+                    cx="32"
+                    cy="32"
+                    r="27"
+                    style={{ strokeDasharray: RING_C, strokeDashoffset: RING_C * (1 - frac) }}
+                  />
+                </svg>
+                <span key={p.value} className="harvest-countdown-num tabular-nums">
+                  {String(p.value).padStart(2, '0')}
+                </span>
+              </div>
+              <span className="harvest-countdown-unit">{p.label}</span>
+            </div>
+          );
+        })}
       </div>
 
       {next.catatan && <p className="t-small t-soft harvest-countdown-note">{next.catatan}</p>}

@@ -593,7 +593,7 @@ Kembalikan tepat JSON sesuai skema.`;
 
     return NextResponse.json({
       ok: true,
-      aiProvider: 'gemini',
+      aiProvider: aiRes.provider,
       aiModel: aiRes.model,
       datasetVersion: 'CermatTani-Agronomy-v3.0',
       alasanTidakTerdeteksi: String(parsed.alasanTidakTerdeteksi || '').trim(),

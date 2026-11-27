@@ -499,7 +499,7 @@ export const ScanScreen: React.FC = () => {
             <CermoMascot pose="scan" size={58} />
             <div style={{ flex: '1 1 260px' }}>
               <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Sparkles size={13} /> Gemini Vision AI · Dataset Agronomi CermatTani
+                <Sparkles size={13} /> Vision AI · Dataset Agronomi CermatTani
               </span>
               <h2 className="t-h2" style={{ marginTop: 2 }}>Scan foto tanaman</h2>
               <p className="t-small t-soft" style={{ marginTop: 2 }}>
@@ -592,7 +592,7 @@ export const ScanScreen: React.FC = () => {
                 <Zap size={14} />
               </span>
               <span>
-                <strong>AI hemat token:</strong> foto dikompres di perangkat (maks. 960 px, JPEG 82%) · Gemini Flash-Lite ·
+                <strong>AI hemat token:</strong> foto dikompres di perangkat (maks. 960 px, JPEG 82%) · model vision ringan ·
                 jawaban JSON terstruktur.
               </span>
             </p>
@@ -984,7 +984,7 @@ export const ScanScreen: React.FC = () => {
                     </div>
 
                     <div className="scan-result-foot">
-                      <Sparkles size={12} /> Gemini AI · {aiModel || result.aiModel || 'Vision'}
+                      <Sparkles size={12} /> AI · {aiModel || result.aiModel || 'Vision'}
                       {result.fotoUkuranAsliKb && result.fotoUkuranKompresKb
                         ? ` · foto ${result.fotoUkuranAsliKb} KB → ${result.fotoUkuranKompresKb} KB`
                         : ''}

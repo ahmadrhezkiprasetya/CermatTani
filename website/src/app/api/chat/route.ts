@@ -183,7 +183,7 @@ ${groundedDataset}${externalBlock}
     return NextResponse.json({
       reply: aiRes.text,
       disclaimer: 'Saran, bukan keputusan akhir',
-      aiProvider: 'gemini',
+      aiProvider: aiRes.provider,
       aiModel: aiRes.model,
       datasetVersion: 'CermatTani-Agronomy-v3.0',
       externalSource: externalKnowledge

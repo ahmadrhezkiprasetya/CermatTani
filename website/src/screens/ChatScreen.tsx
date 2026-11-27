@@ -141,7 +141,7 @@ export const ChatScreen: React.FC = () => {
 
       if (isOffline) {
         setChatError(
-          'Koneksi sedang offline. Cermo AI membutuhkan jaringan internet untuk menjawab menggunakan model Gemini.'
+          'Koneksi sedang offline. Cermo AI membutuhkan jaringan internet untuk menjawab menggunakan model AI.'
         );
         return;
       }
@@ -182,7 +182,7 @@ export const ChatScreen: React.FC = () => {
         if (!res.ok || !data?.reply) {
           throw new Error(
             data?.error ||
-              `Cermo AI gagal merespons (kode ${res.status}). Pastikan GEMINI_API_KEY di .env aktif dan koneksi stabil.`
+              `Cermo AI gagal merespons (kode ${res.status}). Pastikan KOBOILLM_API_KEY di .env aktif dan koneksi stabil.`
           );
         }
 
@@ -259,7 +259,7 @@ export const ChatScreen: React.FC = () => {
                   Tanya Cermo AI
                 </h2>
                 <span className="pill pill-ok">
-                  {aiModel ? `Gemini · ${aiModel}` : 'Gemini · Dataset Khusus'}
+                  {aiModel ? `AI · ${aiModel}` : 'AI · Dataset Khusus'}
                 </span>
               </div>
               <p className="t-micro t-soft chat-header-desc" style={{ marginTop: 1 }}>
@@ -361,7 +361,7 @@ export const ChatScreen: React.FC = () => {
             <p className="t-small t-soft">
               {scanContextLabel
                 ? `Data hasil scan (${scanContextLabel}) sudah terhubung. Langsung tanyakan detail penanganan atau langkah berikutnya di bawah!`
-                : 'Semua jawaban dihasilkan langsung oleh Gemini AI dengan acuan Dataset Khusus Agronomi CermatTani (Balitsa Kementan RI & FAO IPM).'}
+                : 'Semua jawaban dihasilkan langsung oleh AI (KoboiLLM) dengan acuan Dataset Khusus Agronomi CermatTani (Balitsa Kementan RI & FAO IPM).'}
             </p>
             <div
               style={{

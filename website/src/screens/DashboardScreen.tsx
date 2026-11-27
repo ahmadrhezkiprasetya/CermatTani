@@ -157,7 +157,7 @@ export const DashboardScreen: React.FC = () => {
               {liveAlertCount > 0
                 ? `Ada ${liveAlertCount} kondisi lahan yang perlu dicek sekarang.`
                 : !latestAnyScan
-                  ? 'Siap pindai foto buah atau daun dengan Gemini AI hari ini?'
+                  ? 'Siap pindai foto buah atau daun dengan AI hari ini?'
                   : `Terakhir scan: ${latestAnyScan.penyakitUtamaNama} (${latestAnyScan.keyakinan}%).`}
             </p>
           </div>
@@ -232,7 +232,7 @@ export const DashboardScreen: React.FC = () => {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
               <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Sparkles size={13} /> Analisis AI Gemini · Keputusan dalam 5 detik
+                <Sparkles size={13} /> Analisis AI · Keputusan dalam 5 detik
               </span>
               <h2 className="t-h2" style={{ fontSize: 'clamp(1.125rem, 1.8vw, 1.35rem)', lineHeight: 1.25 }}>
                 {readyToHarvestCount > 0

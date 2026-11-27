@@ -15,7 +15,7 @@ export interface CompressedPhotoResult {
 
 export interface ScanAnalysisOutput {
   record: ScanRecord;
-  aiProvider: 'gemini';
+  aiProvider: 'koboillm' | 'gemini';
   aiModel: string;
   aiNote?: string;
   temuanVisual?: string[];
@@ -179,7 +179,7 @@ export async function runSmartPlantScan(params: {
   if (!res.ok || !data?.ok || !data.scan) {
     throw new Error(
       data?.error ||
-        `Analisis AI belum berhasil (kode ${res.status}). Pastikan koneksi internet aktif dan GEMINI_API_KEY di .env valid.`
+        `Analisis AI belum berhasil (kode ${res.status}). Pastikan koneksi internet aktif dan KOBOILLM_API_KEY di .env valid.`
     );
   }
 
@@ -198,10 +198,10 @@ export async function runSmartPlantScan(params: {
 
   const id = `scan-${Date.now()}`;
   const waktu = new Date().toISOString();
-  const aiModel = String(data.aiModel || s.aiModel || 'gemini');
+  const aiModel = String(data.aiModel || s.aiModel || 'AI');
 
   return {
-    aiProvider: 'gemini',
+    aiProvider: data.aiProvider === 'gemini' ? 'gemini' : 'koboillm',
     aiModel,
     aiNote: data.ringkasanSingkat || data.alasanTidakTerdeteksi || undefined,
     temuanVisual: Array.isArray(data.temuanVisual) ? data.temuanVisual : [],

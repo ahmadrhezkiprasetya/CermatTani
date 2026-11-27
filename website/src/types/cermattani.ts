@@ -8,6 +8,7 @@ export type ScreenId =
   | 'tanaman'
   | 'kalender'
   | 'lahan'
+  | 'simulasi'
   | 'energi'
   | 'cermo'
   | 'pengaturan';

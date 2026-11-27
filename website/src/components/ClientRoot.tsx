@@ -11,6 +11,7 @@ import { ScanScreen } from '@/screens/ScanScreen';
 import { PlantsScreen } from '@/screens/PlantsScreen';
 import { CalendarScreen } from '@/screens/CalendarScreen';
 import { LandScreen } from '@/screens/LandScreen';
+import { SimulationScreen } from '@/screens/SimulationScreen';
 import { SolarScreen } from '@/screens/SolarScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
@@ -23,6 +24,7 @@ const APP_SCREEN_MAP: Record<Exclude<ScreenId, 'landing' | 'login'>, React.Compo
   tanaman: PlantsScreen,
   kalender: CalendarScreen,
   lahan: LandScreen,
+  simulasi: SimulationScreen,
   energi: SolarScreen,
   cermo: ChatScreen,
   pengaturan: SettingsScreen,

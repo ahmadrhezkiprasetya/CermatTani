@@ -112,6 +112,7 @@ export const SCREEN_PATHS: Record<ScreenId, string> = {
   tanaman: '/tanaman',
   kalender: '/kalender',
   lahan: '/lahan',
+  simulasi: '/simulasi',
   energi: '/energi',
   cermo: '/cermo',
   pengaturan: '/pengaturan',

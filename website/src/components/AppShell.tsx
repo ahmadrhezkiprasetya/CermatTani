@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Bell,
   BellRing,
+  Box,
   CalendarDays,
   Camera,
   CheckCircle2,
@@ -56,6 +57,7 @@ const NAV_ITEMS: NavEntry[] = [
   { id: 'tanaman', label: 'Tanaman', pageTitle: 'Tanaman & Timeline', icon: Sprout, group: 'utama' },
   { id: 'kalender', label: 'Kalender panen', pageTitle: 'Kalender Panen', icon: CalendarDays, group: 'utama' },
   { id: 'lahan', label: 'Lahan', pageTitle: 'Lahan & Irigasi', icon: Droplets, group: 'lapangan' },
+  { id: 'simulasi', label: 'Simulasi 3D', pageTitle: 'Simulasi Kebun 3D', icon: Box, group: 'lapangan' },
   { id: 'energi', label: 'Energi surya', pageTitle: 'Energi Surya', icon: Sun, group: 'lapangan' },
   { id: 'cermo', label: 'Tanya Cermo', pageTitle: 'Tanya Cermo', icon: MessageCircle, group: 'lapangan' },
   { id: 'pengaturan', label: 'Pengaturan', pageTitle: 'Pengaturan', icon: Settings, group: 'sistem' },
@@ -894,6 +896,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </div>
 
             <div className="mobile-more-grid">
+              <button
+                type="button"
+                className={`mobile-more-tile ${activeScreen === 'simulasi' ? 'active' : ''}`}
+                onClick={() => {
+                  setShowMoreSheet(false);
+                  setActiveScreen('simulasi');
+                }}
+              >
+                <Box size={21} color="var(--leaf-600)" strokeWidth={1.9} />
+                <span>Simulasi 3D</span>
+              </button>
+
               <button
                 type="button"
                 className={`mobile-more-tile ${activeScreen === 'kalender' ? 'active' : ''}`}

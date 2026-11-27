@@ -420,94 +420,73 @@ export const WaterTankVisual: React.FC<{ levelPercent: number; isLow: boolean }>
   );
 };
 
-/* Indikator Baterai Surya Bentuk Baterai Solid (bukan garis-garis tersegmentasi) */
-export const SolarBatteryVisual: React.FC<{ batteryPercent: number; powerSave: boolean }> = ({
+/* Baterai surya realistis: casing logam + kaca, cairan energi bergelombang, gelembung & kilau saat mengisi */
+export const SolarBatteryVisual: React.FC<{ batteryPercent: number; powerSave: boolean; charging?: boolean }> = ({
   batteryPercent,
   powerSave,
+  charging = true,
 }) => {
-  const clamped = Math.max(0, Math.min(100, batteryPercent));
-  const innerMaxWidth = 148;
-  const fillWidth = Math.max(10, Math.round((clamped / 100) * innerMaxWidth));
-  const fillStart = powerSave ? '#F59E0B' : clamped <= 40 ? '#EAB308' : '#2EB66B';
-  const fillEnd = powerSave ? '#D97706' : clamped <= 40 ? '#CA8A04' : '#17803F';
-  const frameStroke = powerSave ? '#B45309' : '#1E4635';
+  const clamped = Math.max(0, Math.min(100, Math.round(batteryPercent)));
+  const tone = powerSave || clamped <= 20 ? 'low' : clamped <= 50 ? 'mid' : 'high';
+  const isCharging = charging && clamped < 100;
+
+  // Angka persen berhitung halus menuju nilai baru
+  const [shown, setShown] = React.useState(clamped);
+  const shownRef = React.useRef(clamped);
+  React.useEffect(() => {
+    const from = shownRef.current;
+    if (from === clamped) return;
+    const start = performance.now();
+    let raf = 0;
+    const step = (ts: number) => {
+      const k = Math.min(1, (ts - start) / 700);
+      const v = Math.round(from + (clamped - from) * (1 - Math.pow(1 - k, 3)));
+      shownRef.current = v;
+      setShown(v);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [clamped]);
 
   return (
-    <svg
-      viewBox="0 0 186 78"
-      width="178"
-      height="74"
-      fill="none"
+    <div
+      className={`batt batt--${tone} ${isCharging ? 'batt--charging' : ''}`}
       role="img"
-      aria-label={`Level baterai surya ${clamped} persen`}
+      aria-label={`Level baterai surya ${clamped} persen${isCharging ? ', sedang mengisi' : ''}${powerSave ? ', mode hemat' : ''}`}
     >
-      <defs>
-        <linearGradient id="cermatBattFill" x1="12" y1="14" x2="160" y2="64" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={fillStart} />
-          <stop offset="100%" stopColor={fillEnd} />
-        </linearGradient>
-        <clipPath id="cermatBattClip">
-          <rect x="11" y="14" width={innerMaxWidth} height="50" rx="10" />
-        </clipPath>
-      </defs>
-
-      {/* Kepala kutub positif baterai (+) */}
-      <rect x="169" y="26" width="11" height="26" rx="5" fill={frameStroke} />
-
-      {/* Badan baterai solid */}
-      <rect
-        x="5"
-        y="8"
-        width="160"
-        height="62"
-        rx="15"
-        fill="var(--surface-2)"
-        stroke={frameStroke}
-        strokeWidth="3"
-      />
-
-      {/* Isi baterai utuh (solid fill mulus tanpa garis-garis) */}
-      <g clipPath="url(#cermatBattClip)">
-        <rect
-          x="11"
-          y="14"
-          width={fillWidth}
-          height="50"
-          rx="9"
-          fill="url(#cermatBattFill)"
-          style={{ transition: 'width 280ms cubic-bezier(.2,.8,.2,1)' }}
-        />
-        {/* Kilau halus di sisi atas agar tampak seperti baterai sungguhan */}
-        <rect
-          x="14"
-          y="17"
-          width={Math.max(0, fillWidth - 6)}
-          height="13"
-          rx="6"
-          fill="rgba(255,255,255,0.22)"
-          style={{ transition: 'width 280ms cubic-bezier(.2,.8,.2,1)' }}
-        />
-      </g>
-
-      {/* Ikon petir pengisian & persentase bersih di tengah baterai */}
-      <g>
-        <path
-          d="M54 27L44 41H52L50 52L61 37H53L54 27Z"
-          fill={clamped >= 42 ? '#FFFFFF' : frameStroke}
-        />
-        <text
-          x="100"
-          y="46"
-          textAnchor="middle"
-          fontSize="21"
-          fontWeight="800"
-          fontFamily="var(--font-display), system-ui, sans-serif"
-          fill={clamped >= 52 ? '#FFFFFF' : frameStroke}
-        >
-          {clamped}%
-        </text>
-      </g>
-    </svg>
+      <div className="batt-shell">
+        <div className="batt-glass">
+          <div className="batt-fill" style={{ width: `${Math.max(6, clamped)}%` }}>
+            {/* Permukaan cairan bergelombang di tepi kanan */}
+            <span className="batt-wave" aria-hidden="true" />
+            <span className="batt-shine" aria-hidden="true" />
+            {isCharging && (
+              <span className="batt-bubbles" aria-hidden="true">
+                <i style={{ left: '12%', animationDelay: '0s' }} />
+                <i style={{ left: '34%', animationDelay: '0.9s' }} />
+                <i style={{ left: '56%', animationDelay: '0.4s' }} />
+                <i style={{ left: '74%', animationDelay: '1.4s' }} />
+                <i style={{ left: '88%', animationDelay: '0.7s' }} />
+              </span>
+            )}
+          </div>
+          <span className="batt-ticks" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="batt-gloss" aria-hidden="true" />
+          <span className="batt-label">
+            <svg className="batt-bolt" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+            </svg>
+            <b className="tabular-nums">{shown}%</b>
+          </span>
+        </div>
+      </div>
+      <span className="batt-cap" aria-hidden="true" />
+    </div>
   );
 };
 

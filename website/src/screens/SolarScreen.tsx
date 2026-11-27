@@ -137,7 +137,11 @@ export const SolarScreen: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <SolarBatteryVisual batteryPercent={sensor.bateraiPersen} powerSave={isPowerSave} />
+            <SolarBatteryVisual
+              batteryPercent={sensor.bateraiPersen}
+              powerSave={isPowerSave}
+              charging={sensor.cahayaLux >= 1000}
+            />
             <div style={{ flex: '1 1 180px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <strong className="t-small" style={{ color: 'var(--ink)' }}>Kapasitas baterai surya</strong>

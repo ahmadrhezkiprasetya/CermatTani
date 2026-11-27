@@ -238,7 +238,14 @@ export const OnboardingScreen: React.FC = () => {
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                  gap: 12,
+                  alignItems: 'end',
+                }}
+              >
                 <div className="field-group">
                   <label htmlFor="ob-plant" className="field-label">
                     Nama tanaman / petak
@@ -254,7 +261,7 @@ export const OnboardingScreen: React.FC = () => {
 
                 <div className="field-group">
                   <label htmlFor="ob-var" className="field-label">
-                    Jenis / varietas tanaman (bisa semua tanaman)
+                    Jenis / varietas tanaman
                   </label>
                   <PlantSearchInput
                     id="ob-var"

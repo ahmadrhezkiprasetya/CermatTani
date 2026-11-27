@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { callGeminiServer, type GeminiContent } from '@/lib/gemini';
+import { AI_BUSY_MESSAGE, callGeminiServer, logAiFailure, type GeminiContent } from '@/lib/gemini';
 import {
   buildGroundedChatDatasetContext,
   DATASET_CROPS,
@@ -174,10 +174,8 @@ ${groundedDataset}${externalBlock}
     });
 
     if (!aiRes.ok) {
-      return NextResponse.json(
-        { error: aiRes.error },
-        { status: aiRes.statusCode >= 400 ? aiRes.statusCode : 503 }
-      );
+      logAiFailure('chat', aiRes.error, aiRes.statusCode);
+      return NextResponse.json({ error: AI_BUSY_MESSAGE.chat }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -196,14 +194,7 @@ ${groundedDataset}${externalBlock}
       waktu: new Date().toISOString(),
     });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? `Gagal menghubungi Cermo AI: ${err.message}`
-            : 'Gagal memproses pesan ke Cermo AI.',
-      },
-      { status: 500 }
-    );
+    logAiFailure('chat', err, 500);
+    return NextResponse.json({ error: AI_BUSY_MESSAGE.chat }, { status: 503 });
   }
 }

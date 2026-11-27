@@ -263,10 +263,11 @@ export const ScanScreen: React.FC = () => {
     } catch (err) {
       setStage('pick');
       setResult(null);
+      // TypeError = jaringan putus ("Failed to fetch"): tampilkan pemberitahuan ramah, bukan pesan teknis
       setUploadError(
-        err instanceof Error
+        err instanceof Error && !(err instanceof TypeError)
           ? err.message
-          : 'Analisis AI gagal diproses. Pastikan internet aktif dan coba unggah atau foto ulang.'
+          : 'Cermo belum bisa dihubungi. Periksa koneksi internetmu lalu coba pindai ulang ya.'
       );
     }
   };

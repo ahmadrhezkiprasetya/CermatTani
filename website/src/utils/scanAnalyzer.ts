@@ -179,7 +179,7 @@ export async function runSmartPlantScan(params: {
   if (!res.ok || !data?.ok || !data.scan) {
     throw new Error(
       data?.error ||
-        `Analisis AI belum berhasil (kode ${res.status}). Pastikan koneksi internet aktif dan KOBOILLM_API_KEY di .env valid.`
+        'Cermo sedang sibuk memeriksa banyak foto. Coba pindai ulang dalam beberapa saat ya.'
     );
   }
 

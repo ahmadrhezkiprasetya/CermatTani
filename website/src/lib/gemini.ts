@@ -38,6 +38,21 @@ export interface GeminiCallOptions {
 
 export type AiProvider = 'koboillm' | 'gemini';
 
+/**
+ * Pemberitahuan ramah untuk pengguna saat AI gagal. Sengaja TIDAK menyebut kunci API, saldo,
+ * nama penyedia, atau kode error — detail aslinya hanya dicatat ke log server (lihat logAiFailure).
+ */
+export const AI_BUSY_MESSAGE = {
+  scan: 'Cermo sedang sibuk memeriksa banyak foto. Coba pindai ulang dalam beberapa saat ya.',
+  chat: 'Cermo sedang istirahat sebentar. Coba kirim pertanyaanmu lagi dalam beberapa saat ya.',
+} as const;
+
+/** Catat detail kegagalan AI hanya di log server (terminal dev / Vercel → Logs). */
+export function logAiFailure(context: string, detail: unknown, statusCode?: number) {
+  const msg = detail instanceof Error ? detail.message : String(detail ?? '');
+  console.error(`[AI ${context}] gagal${statusCode ? ` (${statusCode})` : ''}: ${msg}`);
+}
+
 export type GeminiCallResult =
   | {
       ok: true;

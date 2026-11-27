@@ -182,7 +182,7 @@ export const ChatScreen: React.FC = () => {
         if (!res.ok || !data?.reply) {
           throw new Error(
             data?.error ||
-              `Cermo AI gagal merespons (kode ${res.status}). Pastikan KOBOILLM_API_KEY di .env aktif dan koneksi stabil.`
+              'Cermo sedang istirahat sebentar. Coba kirim pertanyaanmu lagi dalam beberapa saat ya.'
           );
         }
 
@@ -198,9 +198,9 @@ export const ChatScreen: React.FC = () => {
         });
       } catch (err) {
         setChatError(
-          err instanceof Error
+          err instanceof Error && !(err instanceof TypeError)
             ? err.message
-            : 'Gagal terhubung ke model AI Cermo. Silakan coba kirim ulang.'
+            : 'Cermo belum bisa dihubungi. Periksa koneksi internetmu lalu coba kirim ulang ya.'
         );
       } finally {
         setIsTyping(false);

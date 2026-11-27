@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { callGeminiServer } from '@/lib/gemini';
+import { AI_BUSY_MESSAGE, callGeminiServer, logAiFailure } from '@/lib/gemini';
 import {
   buildGroundedVisionDatasetPrompt,
   DATASET_DISEASES,
@@ -347,10 +347,8 @@ Kembalikan tepat JSON sesuai skema.`;
     });
 
     if (!aiRes.ok) {
-      return NextResponse.json(
-        { ok: false, error: aiRes.error },
-        { status: aiRes.statusCode >= 400 ? aiRes.statusCode : 503 }
-      );
+      logAiFailure('scan', aiRes.error, aiRes.statusCode);
+      return NextResponse.json({ ok: false, error: AI_BUSY_MESSAGE.scan }, { status: 503 });
     }
 
     let parsed: ParsedGeminiScan;
@@ -360,7 +358,7 @@ Kembalikan tepat JSON sesuai skema.`;
       return NextResponse.json(
         {
           ok: false,
-          error: 'Model AI mengembalikan format analisis yang tidak terbaca. Silakan coba pindai ulang.',
+          error: 'Cermo belum bisa membaca hasil pemeriksaan foto ini. Coba pindai ulang ya.',
         },
         { status: 502 }
       );
@@ -646,15 +644,7 @@ Kembalikan tepat JSON sesuai skema.`;
       },
     });
   } catch (err) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          err instanceof Error
-            ? `Gagal memproses permintaan scan AI: ${err.message}`
-            : 'Gagal memproses permintaan scan AI di server.',
-      },
-      { status: 500 }
-    );
+    logAiFailure('scan', err, 500);
+    return NextResponse.json({ ok: false, error: AI_BUSY_MESSAGE.scan }, { status: 503 });
   }
 }

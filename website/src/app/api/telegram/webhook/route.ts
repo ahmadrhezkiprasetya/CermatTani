@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     if (!/^\d{6}$/.test(argument)) {
       await reply(
         incoming.chatId,
-        'Untuk menghubungkan akun, buat kode dari menu Kalender → Telegram di website CermatTani, lalu buka tautan bot yang tersedia.'
+        'Untuk menghubungkan akun, buat kode dari menu Pengaturan → Pengingat Telegram di website CermatTani, lalu buka tautan bot yang tersedia.'
       );
       return NextResponse.json({ ok: true });
     }
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       incoming.chatId,
       data
         ? `Akun Telegram sudah terhubung ke CermatTani${data.telegram_username ? ` sebagai @${data.telegram_username}` : ''}.`
-        : 'Chat ini belum terhubung. Buat kode tautan dari menu Kalender → Telegram di website CermatTani.'
+        : 'Chat ini belum terhubung. Buat kode tautan dari menu Pengaturan → Pengingat Telegram di website CermatTani.'
     );
     return NextResponse.json({ ok: true });
   }

@@ -1805,7 +1805,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!chatId) {
       return {
         ok: false,
-        message: 'Akun Telegram belum tertaut. Buka menu Kalender → tab Telegram untuk menyambungkan dulu ya.',
+        message: 'Akun Telegram belum tertaut. Buka menu Pengaturan → Pengingat Telegram untuk menyambungkan dulu ya.',
       };
     }
 

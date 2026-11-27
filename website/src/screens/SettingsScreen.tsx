@@ -2,8 +2,6 @@
 
 import React, { useState } from 'react';
 import {
-  BellRing,
-  Clock,
   Database,
   Download,
   Globe,
@@ -11,20 +9,19 @@ import {
   Moon,
   RotateCcw,
   ShieldCheck,
-  Sliders,
-  Sparkles,
   Sun,
   Trash2,
   User,
-  WifiOff,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
+import { TelegramSettingsCard } from '../components/TelegramSettingsCard';
 import { downloadCsv } from '../utils/scanAnalyzer';
 import { RIPENESS_REFERENCE } from '../data/knowledgeBase';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 
-/* Layar 10: Pengaturan (akun, Telegram, ambang, tema, ekspor, privasi & hapus data) */
+/* Layar 10: Pengaturan (akun, pengingat Telegram, tema, ekspor, privasi & hapus data).
+ * Jadwal pengingat harian diatur dari panel Notifikasi (ikon lonceng). */
 export const SettingsScreen: React.FC = () => {
   const {
     state,
@@ -33,11 +30,6 @@ export const SettingsScreen: React.FC = () => {
     signOutAccount,
     updateUserProfile,
     updateSettings,
-    updateSensor,
-    updateReminderSchedule,
-    triggerTestReminderAlert,
-    requestBrowserNotifications,
-    setActiveScreen,
     reopenOnboarding,
     resetDemoData,
     deleteAllUserData,
@@ -95,7 +87,7 @@ export const SettingsScreen: React.FC = () => {
           <div>
             <h2 className="t-h2" style={{ fontSize: '1.3rem' }}>Pengaturan kebun &amp; akun</h2>
             <p className="t-small t-soft" style={{ marginTop: 2 }}>
-              Kelola profil, tampilan terang/gelap, ambang peringatan, dan data lokalmu.
+              Kelola profil, tampilan, pengingat Telegram, dan data lokalmu.
             </p>
           </div>
         </div>
@@ -199,9 +191,6 @@ export const SettingsScreen: React.FC = () => {
             <button type="submit" className="btn-primary">
               Simpan profil
             </button>
-            <button type="button" className="btn-secondary" onClick={() => setActiveScreen('kalender')}>
-              Atur bot Telegram ({state.user.telegramChatId ? 'Tertaut' : 'Belum tertaut'})
-            </button>
             {savedNotice && <span className="pill pill-ok">Profil diperbarui</span>}
           </div>
         </form>
@@ -246,221 +235,8 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Jadwal Pengingat & Alert Kanan Atas */}
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BellRing size={20} color="var(--leaf-600)" />
-            <div>
-              <h3 className="t-h3">Jadwal pengingat &amp; alert kanan atas</h3>
-              <p className="t-micro t-soft">
-                Atur jam siram, cek daun, pemupukan, dan panen. Peringatan muncul otomatis di pojok kanan atas.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ minHeight: 38, padding: '6px 12px', fontSize: '0.82rem' }}
-            onClick={() => triggerTestReminderAlert()}
-          >
-            <Sparkles size={15} /> Uji alert kanan atas
-          </button>
-        </div>
-
-        <div className="form-grid-2">
-          <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <div>
-              <strong className="t-small" style={{ display: 'block' }}>Alert otomatis sensor</strong>
-              <span className="t-micro t-soft">Tanah kering, tandon rendah, risiko jamur &amp; baterai</span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={state.settings.peringatanOtomatisSensor}
-              aria-label="Toggle alert otomatis sensor"
-              className="alert-switch"
-              onClick={() =>
-                updateSettings({
-                  peringatanOtomatisSensor: !state.settings.peringatanOtomatisSensor,
-                })
-              }
-            >
-              <span className="alert-switch-thumb" />
-            </button>
-          </div>
-
-          <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <div>
-              <strong className="t-small" style={{ display: 'block' }}>Notifikasi perangkat/browser</strong>
-              <span className="t-micro t-soft">Kirim notifikasi sistem saat jadwal tiba</span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={state.settings.notifikasiBrowser}
-              aria-label="Toggle notifikasi browser"
-              className="alert-switch"
-              onClick={() => {
-                if (state.settings.notifikasiBrowser) {
-                  updateSettings({ notifikasiBrowser: false });
-                } else {
-                  void requestBrowserNotifications();
-                }
-              }}
-            >
-              <span className="alert-switch-thumb" />
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
-          {state.settings.jadwalPengingat.map((item) => (
-            <div
-              key={item.id}
-              className={`schedule-row ${!item.aktif ? 'schedule-row--off' : ''}`}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <strong style={{ fontSize: '0.88rem' }}>{item.label}</strong>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={item.aktif}
-                  aria-label={`Aktifkan ${item.label}`}
-                  className="alert-switch"
-                  onClick={() => updateReminderSchedule(item.id, { aktif: !item.aktif })}
-                >
-                  <span className="alert-switch-thumb" />
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={14} color="var(--ink-soft)" />
-                  <input
-                    type="time"
-                    className="time-pill-input"
-                    aria-label={`Jam ${item.label}`}
-                    value={item.jam}
-                    onChange={(e) => updateReminderSchedule(item.id, { jam: e.target.value })}
-                  />
-                  <span className="t-micro t-soft">WIB</span>
-                </div>
-                <button
-                  type="button"
-                  className="alert-toast-action"
-                  onClick={() => triggerTestReminderAlert(item.id)}
-                >
-                  Uji
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Ambang Sistem (F2.4, F10, F11, F12, F13) */}
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Sliders size={20} color="var(--leaf-600)" />
-          <h3 className="t-h3">Ambang peringatan & perangkat</h3>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <label htmlFor="th-conf" className="t-small" style={{ fontWeight: 600 }}>
-              Ambang peringatan keyakinan rendah AI (F2.4)
-            </label>
-            <strong className="tabular-nums">{state.settings.ambangKeyakinanRendah}%</strong>
-          </div>
-          <input
-            id="th-conf"
-            type="range"
-            min={40}
-            max={85}
-            value={state.settings.ambangKeyakinanRendah}
-            onChange={(e) => updateSettings({ ambangKeyakinanRendah: Number(e.target.value) })}
-            className="range-slider"
-          />
-          <p className="t-micro t-soft">
-            Bila keyakinan di bawah nilai ini, Cermo tampilkan peringatan kuning & saran konfirmasi ke penyuluh.
-          </p>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <label htmlFor="th-rh" className="t-small" style={{ fontWeight: 600 }}>
-              Ambang kelembapan udara risiko penyakit (F11.3)
-            </label>
-            <strong className="tabular-nums">{state.settings.ambangKelembapanRisikoPenyakit}% RH</strong>
-          </div>
-          <input
-            id="th-rh"
-            type="range"
-            min={70}
-            max={95}
-            value={state.settings.ambangKelembapanRisikoPenyakit}
-            onChange={(e) => updateSettings({ ambangKelembapanRisikoPenyakit: Number(e.target.value) })}
-            className="range-slider"
-          />
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <label htmlFor="th-tank" className="t-small" style={{ fontWeight: 600 }}>
-              Ambang peringatan level air tandon rendah (F12.2)
-            </label>
-            <strong className="tabular-nums">{state.settings.ambangTandonRendah}%</strong>
-          </div>
-          <input
-            id="th-tank"
-            type="range"
-            min={10}
-            max={40}
-            value={state.settings.ambangTandonRendah}
-            onChange={(e) => updateSettings({ ambangTandonRendah: Number(e.target.value) })}
-            className="range-slider"
-          />
-        </div>
-
-        <hr className="card-divider" />
-
-        {/* Uji koneksi offline PWA & ketersediaan sensor */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <strong className="t-small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <WifiOff size={16} /> Simulasikan koneksi offline (uji antrean PWA)
-              </strong>
-              <p className="t-micro t-soft">
-                Saat aktif, foto scan akan masuk antrean lokal dan otomatis diproses ketika kembali online.
-              </p>
-            </div>
-            <button
-              type="button"
-              className={state.settings.simulasikanOffline ? 'btn-tomato' : 'btn-secondary'}
-              onClick={() => updateSettings({ simulasikanOffline: !state.settings.simulasikanOffline })}
-            >
-              {state.settings.simulasikanOffline ? 'Sedang Offline (Klik online)' : 'Online (Uji offline)'}
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <strong className="t-small">Data sensor untuk rekomendasi pupuk (F3.3)</strong>
-              <p className="t-micro t-soft">
-                Matikan untuk melihat label "Dugaan visual" saat kebun belum memakai perangkat sensor.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => updateSensor({ sensorTersedia: !state.sensor.sensorTersedia })}
-            >
-              {state.sensor.sensorTersedia ? 'Dengan data sensor' : 'Dugaan visual'}
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* Pengingat Telegram (dipindah dari Kalender) */}
+      <TelegramSettingsCard />
 
       {/* Ekspor, Onboarding, Privasi & Hapus Data (PRD §8 & §12) */}
       <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

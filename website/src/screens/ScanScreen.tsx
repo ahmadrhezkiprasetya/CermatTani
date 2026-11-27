@@ -71,7 +71,6 @@ export const ScanScreen: React.FC = () => {
   const [uploadError, setUploadError] = useState<string>('');
   const [queueNotice, setQueueNotice] = useState<string>('');
   const [result, setResult] = useState<ScanRecord | null>(null);
-  const [aiModel, setAiModel] = useState<string>('');
   const [temuanVisual, setTemuanVisual] = useState<string[]>([]);
   const [savedToTimeline, setSavedToTimeline] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -249,7 +248,6 @@ export const ScanScreen: React.FC = () => {
       });
 
       setResult(output.record);
-      setAiModel(output.aiModel);
       setTemuanVisual(output.temuanVisual || []);
       setStage('result');
 
@@ -499,9 +497,6 @@ export const ScanScreen: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
             <CermoMascot pose="scan" size={58} />
             <div style={{ flex: '1 1 260px' }}>
-              <span className="t-micro" style={{ color: 'var(--leaf-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Sparkles size={13} /> Vision AI · Dataset Agronomi CermatTani
-              </span>
               <h2 className="t-h2" style={{ marginTop: 2 }}>Scan foto tanaman</h2>
               <p className="t-small t-soft" style={{ marginTop: 2 }}>
                 Foto buah, daun, atau batang, lalu Cermo memeriksanya dengan panduan dataset agronomi.
@@ -985,10 +980,10 @@ export const ScanScreen: React.FC = () => {
                     </div>
 
                     <div className="scan-result-foot">
-                      <Sparkles size={12} /> AI · {aiModel || result.aiModel || 'Vision'}
+                      <Sparkles size={12} />
                       {result.fotoUkuranAsliKb && result.fotoUkuranKompresKb
-                        ? ` · foto ${result.fotoUkuranAsliKb} KB → ${result.fotoUkuranKompresKb} KB`
-                        : ''}
+                        ? ` Foto ${result.fotoUkuranAsliKb} KB → ${result.fotoUkuranKompresKb} KB`
+                        : ' Hemat token'}
                       {result.dariCache
                         ? ' · 0 token (hasil tersimpan)'
                         : result.tokenAi

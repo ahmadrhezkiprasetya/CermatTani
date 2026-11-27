@@ -32,7 +32,6 @@ export const ChatScreen: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [aiModel, setAiModel] = useState<string>('');
   const [chatError, setChatError] = useState<string>('');
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
@@ -187,9 +186,6 @@ export const ChatScreen: React.FC = () => {
         }
 
         const replyText = String(data.reply);
-        if (data.aiModel) {
-          setAiModel(String(data.aiModel));
-        }
 
         addChatMessage({
           plantId: selectedPlant?.id || null,
@@ -258,9 +254,6 @@ export const ChatScreen: React.FC = () => {
                 <h2 className="t-h3" style={{ fontSize: '1.08rem' }}>
                   Tanya Cermo AI
                 </h2>
-                <span className="pill pill-ok">
-                  {aiModel ? `AI · ${aiModel}` : 'AI · Dataset Khusus'}
-                </span>
               </div>
               <p className="t-micro t-soft chat-header-desc" style={{ marginTop: 1 }}>
                 Fokus budidaya, hasil scan, pupuk organik, &amp; irigasi kebun.

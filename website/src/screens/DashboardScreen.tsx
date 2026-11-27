@@ -266,27 +266,6 @@ export const DashboardScreen: React.FC = () => {
                 <Plus size={18} />
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {(['buah', 'daun', 'batang'] as const).map((part) => (
-                <button
-                  key={part}
-                  type="button"
-                  className="btn-ghost"
-                  style={{
-                    minHeight: 34,
-                    padding: '4px 6px',
-                    fontSize: '0.78rem',
-                    textTransform: 'capitalize',
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 9,
-                  }}
-                  onClick={() => openScanWith(part)}
-                >
-                  {part}
-                </button>
-              ))}
-            </div>
           </div>
         </section>
       )}

@@ -2,31 +2,30 @@
 
 import React, { useMemo, useState } from 'react';
 import {
+  Box,
   Camera,
-  ChevronDown,
-  ChevronUp,
   CloudSun,
   Download,
   Droplets,
   Power,
   ShieldAlert,
-  Sliders,
   Sprout,
   Thermometer,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { CermoMascot } from '../components/CermoMascot';
-import { Farm3DSimulator } from '../components/Farm3DSimulator';
 import { IrrigationSoilVisual, WaterTankVisual } from '../components/Illustrations';
-import { GreenAreaChart, StripedProgressBar } from '../components/Charts';
+import { GreenAreaChart } from '../components/Charts';
 import { downloadCsv } from '../utils/scanAnalyzer';
 
-/* Layar 7: Lahan — Tata letak bersih & rapi: KPI 4 sensor, Irigasi & Tandon, Grafik 24 jam, Simulasi lipat */
+/*
+ * Layar 7: Lahan — fokus pemantauan & kontrol: KPI 4 sensor, Irigasi otomatis & pompa, Tandon, Grafik 24 jam, Riwayat pompa.
+ * Simulasi Kebun 3D & panel uji sensor ESP32 kini punya halaman sendiri (/simulasi).
+ */
 export const LandScreen: React.FC = () => {
-  const { state, updateSettings, updateSensor, triggerManualPump, openScanWith } = useApp();
+  const { state, updateSettings, triggerManualPump, openScanWith, setActiveScreen } = useApp();
   const [chartMetric, setChartMetric] = useState<'tanah' | 'suhu' | 'udara' | 'cahaya'>('tanah');
   const [pumpFeedback, setPumpFeedback] = useState<string>('');
-  const [showSimPanel, setShowSimPanel] = useState(false);
 
   const { sensor, settings } = state;
   const isTankCritical = sensor.levelTandonPersen < settings.ambangTandonRendah;
@@ -93,82 +92,15 @@ export const LandScreen: React.FC = () => {
           <button
             type="button"
             className="btn-secondary land-action-btn"
-            onClick={() => setShowSimPanel((v) => !v)}
+            onClick={() => setActiveScreen('simulasi')}
           >
-            <Sliders size={15} /> Uji sensor {showSimPanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <Box size={15} /> Simulasi 3D
           </button>
           <button type="button" className="btn-secondary land-action-btn" onClick={handleExportSensorCsv}>
             <Download size={15} /> Ekspor CSV
           </button>
         </div>
       </div>
-
-      {/* Panel Lipat Uji Simulasi Sensor ESP32 (tidak memenuhi layar saat tidak dipakai) */}
-      {showSimPanel && (
-        <section className="card step-transition" style={{ display: 'grid', gap: 14, borderColor: 'var(--sim-600)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <div>
-              <h3 className="t-h3">Panel uji simulasi sensor ESP32</h3>
-              <p className="t-micro t-soft">Geser slider untuk menguji otomatisasi pompa, interlock tandon, &amp; peringatan jamur.</p>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ minHeight: 36, padding: '4px 12px', fontSize: '0.8rem' }}
-              onClick={() => updateSensor({ sensorTersedia: !sensor.sensorTersedia })}
-            >
-              Sensor ke pupuk: {sensor.sensorTersedia ? 'Aktif' : 'Nonaktif'}
-            </button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span className="t-small">Kelembapan tanah</span>
-                <strong className="tabular-nums">{sensor.kelembapanTanah}%</strong>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={90}
-                value={sensor.kelembapanTanah}
-                onChange={(e) => updateSensor({ kelembapanTanah: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi kelembapan tanah"
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span className="t-small">Kelembapan udara (DHT22)</span>
-                <strong className="tabular-nums">{sensor.kelembapanUdara}%</strong>
-              </div>
-              <input
-                type="range"
-                min={45}
-                max={98}
-                value={sensor.kelembapanUdara}
-                onChange={(e) => updateSensor({ kelembapanUdara: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi kelembapan udara"
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span className="t-small">Level air tandon</span>
-                <strong className="tabular-nums">{sensor.levelTandonPersen}%</strong>
-              </div>
-              <input
-                type="range"
-                min={5}
-                max={100}
-                value={sensor.levelTandonPersen}
-                onChange={(e) => updateSensor({ levelTandonPersen: Number(e.target.value) })}
-                className="range-slider"
-                aria-label="Simulasi level air tandon"
-              />
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Peringatan Risiko Penyakit (hanya tampil bila ambang terlewati) */}
       {isDiseaseRisk && (
@@ -185,9 +117,6 @@ export const LandScreen: React.FC = () => {
           </button>
         </div>
       )}
-
-      {/* Panggung Utama Simulasi 3D Laboratorium Lahan (Eksklusif di halaman Lahan, responsif HP/Tablet/Desktop) */}
-      <Farm3DSimulator mode="lab" />
 
       {/* Baris KPI 4 Sensor Utama (Seragam & Mudah Dibaca Sekilas) */}
       <section className="kpi-grid-4" aria-label="Pembacaan sensor lahan">
@@ -248,14 +177,14 @@ export const LandScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Bento Utama: Irigasi Otomatis + Level Tandon & Unsur Hara NPK */}
+      {/* Bento Utama: Irigasi Otomatis + Level Tandon */}
       <div className="dashboard-bento-row">
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
             <div>
               <h3 className="t-h3">Irigasi otomatis &amp; pompa</h3>
               <p className="t-micro t-soft" style={{ marginTop: 2 }}>
-                Nyala &lt; {settings.ambangTanahBawah}% · Mati ≥ {settings.ambangTanahAtas}% · Maks {settings.durasiMaksPompaMenit} menit
+                Mati ≥ {settings.ambangTanahAtas}% · Maks {settings.durasiMaksPompaMenit} menit · Tandon min {settings.ambangTandonRendah}%
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -303,72 +232,18 @@ export const LandScreen: React.FC = () => {
           {pumpFeedback && !isTankCritical && (
             <div className="card-subtle t-small" role="status">{pumpFeedback}</div>
           )}
-
-          <div className="card-subtle" style={{ display: 'grid', gap: 10 }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="ambang-bawah" className="t-micro" style={{ fontWeight: 700 }}>Ambang nyala (&lt;)</label>
-                <strong className="t-micro tabular-nums">{settings.ambangTanahBawah}%</strong>
-              </div>
-              <input
-                id="ambang-bawah"
-                type="range"
-                min={15}
-                max={55}
-                value={settings.ambangTanahBawah}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  updateSettings({ ambangTanahBawah: v, ambangTanahAtas: Math.max(v + 10, settings.ambangTanahAtas) });
-                }}
-                className="range-slider"
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="ambang-atas" className="t-micro" style={{ fontWeight: 700 }}>Ambang mati (≥)</label>
-                <strong className="t-micro tabular-nums">{settings.ambangTanahAtas}%</strong>
-              </div>
-              <input
-                id="ambang-atas"
-                type="range"
-                min={45}
-                max={85}
-                value={settings.ambangTanahAtas}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  updateSettings({ ambangTanahAtas: v, ambangTanahBawah: Math.min(v - 10, settings.ambangTanahBawah) });
-                }}
-                className="range-slider"
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label htmlFor="durasi-maks" className="t-micro" style={{ fontWeight: 700 }}>Durasi maks/siklus</label>
-                <strong className="t-micro tabular-nums">{settings.durasiMaksPompaMenit} menit</strong>
-              </div>
-              <input
-                id="durasi-maks"
-                type="range"
-                min={3}
-                max={30}
-                value={settings.durasiMaksPompaMenit}
-                onChange={(e) => updateSettings({ durasiMaksPompaMenit: Number(e.target.value) })}
-                className="range-slider"
-              />
-            </div>
-          </div>
         </section>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Tandon Air */}
-          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="t-h3">Level air tandon</h3>
               <span className={`pill ${isTankCritical ? 'pill-bad' : 'pill-water'}`}>
-                {isTankCritical ? 'Kritis (< 20%)' : 'Aman'}
+                {isTankCritical ? `Kritis (< ${settings.ambangTandonRendah}%)` : `Aman (batas ${settings.ambangTandonRendah}%)`}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap', flex: 1 }}>
               <WaterTankVisual levelPercent={sensor.levelTandonPersen} isLow={isTankCritical} />
               <div style={{ flex: '1 1 160px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div className="font-display tabular-nums" style={{ fontSize: '2.1rem', lineHeight: 1.05 }}>
@@ -384,37 +259,6 @@ export const LandScreen: React.FC = () => {
             </div>
           </section>
 
-          {/* Unsur Hara NPK & Cahaya */}
-          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 13, flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="t-h3">Unsur hara (NPK) &amp; cahaya</h3>
-              <span className="pill pill-sim">Simulasi</span>
-            </div>
-            <StripedProgressBar
-              label="Nitrogen (N)"
-              valueLabel={`${sensor.nitrogenMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.nitrogenMgKg / 80) * 100))}
-              color="var(--leaf-500)"
-            />
-            <StripedProgressBar
-              label="Fosfor (P)"
-              valueLabel={`${sensor.fosforMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.fosforMgKg / 60) * 100))}
-              color="var(--fruit-mid)"
-            />
-            <StripedProgressBar
-              label="Kalium (K)"
-              valueLabel={`${sensor.kaliumMgKg} mg/kg`}
-              percent={Math.min(100, Math.round((sensor.kaliumMgKg / 90) * 100))}
-              color="var(--water)"
-            />
-            <StripedProgressBar
-              label="Cahaya siang (BH1750)"
-              valueLabel={`${(sensor.cahayaLux / 1000).toFixed(1)}k lux`}
-              percent={Math.min(100, Math.round((sensor.cahayaLux / 50000) * 100))}
-              color="var(--fruit-ripe)"
-            />
-          </section>
         </div>
       </div>
 

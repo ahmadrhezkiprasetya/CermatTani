@@ -451,7 +451,7 @@ export const DashboardScreen: React.FC = () => {
 
         return (
           <>
-          <section className="dash-climate-card dash-kpi-desktop stagger-card stagger-1" aria-label="Ringkasan utama kebun">
+          <section className="dash-climate-card stagger-card stagger-1" aria-label="Ringkasan utama kebun">
             {/* Baris atas: lokasi + tanggal (kiri) · kondisi cuaca & suhu (kanan) */}
             <div className="dash-climate-top">
               <div className="dash-climate-place">

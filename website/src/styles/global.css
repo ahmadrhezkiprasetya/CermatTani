@@ -1536,6 +1536,85 @@ textarea {
   }
 }
 
+/* Mobile: cuaca + panel matahari tampil ringkas & bisa digeser dengan jari */
+@media (max-width: 640px) {
+  .dash-climate-card {
+    padding: 16px 14px 14px;
+    gap: 14px;
+    border-radius: 20px;
+  }
+
+  .dash-climate-top {
+    gap: 10px;
+  }
+
+  .dash-climate-loc {
+    font-size: 1rem;
+  }
+
+  .dash-climate-date {
+    font-size: 0.74rem;
+    white-space: normal;
+  }
+
+  .dash-climate-weather {
+    gap: 8px;
+  }
+
+  .dash-climate-cond-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .dash-climate-temp {
+    font-size: 1.6rem;
+  }
+
+  .dash-climate-cond {
+    font-size: 0.7rem;
+    text-align: right;
+  }
+
+  .dash-sun-panel {
+    padding: 14px 12px;
+    gap: 14px;
+  }
+
+  .dash-sun-info {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dash-sun-remain strong {
+    font-size: 1.6rem;
+  }
+
+  .dash-sun-stats {
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .dash-sun-stats dt {
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+
+  .dash-sun-stats dd {
+    font-size: 0.85rem;
+  }
+
+  .dash-sun-arc-wrap {
+    height: 120px;
+  }
+}
+
+/* Geser busur dengan jari: horizontal = lihat jam, vertikal tetap scroll halaman */
+.dash-sun-arc-wrap {
+  touch-action: pan-y;
+}
+
 /* ---- Kotak matahari: animasi & interaksi ---- */
 .dash-sun-sky-head {
   display: flex;

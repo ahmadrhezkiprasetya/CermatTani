@@ -63,8 +63,20 @@ export const ScanScreen: React.FC = () => {
   // '' = "Tanaman lain / tidak ada di kebun" (default) — AI mengenali jenisnya sendiri
   const [selectedPlantId, setSelectedPlantId] = useState<string>(scanPreselectPlantId || '');
   const [stage, setStage] = useState<'pick' | 'camera' | 'scanning' | 'result'>('pick');
+  // Setelah jepret, bawa kartu 'memindai' ke tengah layar (di HP posisi scroll kamera terbawa)
+  const scanningRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (stage === 'scanning') scanningRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [stage]);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraReady, setCameraReady] = useState(false);
+  // Rasio asli frame kamera (HP = potret, laptop = lanskap) agar preview = hasil jepretan
+  const [videoAspect, setVideoAspect] = useState<number | null>(null);
+  const syncVideoAspect = (video: HTMLVideoElement) => {
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      setVideoAspect(video.videoWidth / video.videoHeight);
+    }
+  };
   const [cameraStarting, setCameraStarting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -653,14 +665,17 @@ export const ScanScreen: React.FC = () => {
             </button>
           </div>
 
+          {/* Kotak preview mengikuti rasio asli kamera (tanpa crop): yang terlihat = yang terjepret.
+              Lebar dibatasi agar tinggi maks. 62vh, jadi kamera potret HP tetap muat di layar. */}
           <div
             style={{
               position: 'relative',
-              width: '100%',
+              width: `min(100%, calc(62vh * ${videoAspect ?? 16 / 10}))`,
+              margin: '0 auto',
               borderRadius: 20,
               overflow: 'hidden',
               background: '#0C1713',
-              aspectRatio: '16 / 10',
+              aspectRatio: videoAspect ? String(videoAspect) : '16 / 10',
               display: 'grid',
               placeItems: 'center',
             }}
@@ -670,6 +685,8 @@ export const ScanScreen: React.FC = () => {
               autoPlay
               playsInline
               muted
+              onLoadedMetadata={(e) => syncVideoAspect(e.currentTarget)}
+              onResize={(e) => syncVideoAspect(e.currentTarget)}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
             <div
@@ -735,6 +752,7 @@ export const ScanScreen: React.FC = () => {
       {/* PROSES MEMINDAI */}
       {stage === 'scanning' && (
         <section
+          ref={scanningRef}
           className="card"
           style={{
             display: 'flex',
@@ -745,19 +763,28 @@ export const ScanScreen: React.FC = () => {
             padding: '32px 24px',
           }}
         >
+          {/* Foto tampil utuh (tanpa crop) supaya posisi objek sama persis dengan jepretan */}
           <div
             style={{
               position: 'relative',
-              width: 'min(480px, 100%)',
+              width: 'fit-content',
+              maxWidth: '100%',
               borderRadius: 20,
               overflow: 'hidden',
               boxShadow: 'var(--shadow-card)',
+              lineHeight: 0,
             }}
           >
             <img
               src={previewFoto}
               alt="Sedang memindai foto tanaman"
-              style={{ width: '100%', display: 'block', maxHeight: 320, objectFit: 'cover' }}
+              style={{
+                display: 'block',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: 'min(480px, 100%)',
+                maxHeight: 'min(420px, 52vh)',
+              }}
             />
             <div
               aria-hidden="true"

@@ -855,6 +855,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     state.settings.ambangBateraiHemat,
   ]);
 
+  // Simulasi aliran air (hanya perangkat simulasi): selama pompa menyala, air tandon berkurang
+  // ±5 L (1%) & kelembapan tanah naik 1% tiap 3 detik. Interlock tandon & batas tanah atas di atas
+  // otomatis mematikan pompa; batas durasi maksimum pompa juga ditegakkan di sini.
+  useEffect(() => {
+    if (!hydrated || !state.settings.pompaMenyala || !state.sensor.simulasi) return;
+    const TICK_MS = 3000;
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setState((prev) => {
+        if (!prev.settings.pompaMenyala) return prev;
+        const maxMs = Math.max(1, prev.settings.durasiMaksPompaMenit) * 60_000;
+        if (Date.now() - startedAt >= maxMs) {
+          return { ...prev, settings: { ...prev.settings, pompaMenyala: false } };
+        }
+        const s = prev.sensor;
+        const tinggi = s.tinggiTandonCm || 100;
+        const level = Math.max(0, s.levelTandonPersen - 1);
+        return {
+          ...prev,
+          sensor: {
+            ...s,
+            levelTandonPersen: level,
+            jarakUltrasonikCm: Math.round(tinggi * (1 - level / 100)),
+            kelembapanTanah: Math.min(100, s.kelembapanTanah + 1),
+            waktu: new Date().toISOString(),
+          },
+        };
+      });
+    }, TICK_MS);
+    return () => window.clearInterval(id);
+  }, [hydrated, state.settings.pompaMenyala, state.sensor.simulasi]);
+
   const processOfflineQueue = async (): Promise<number> => {
     if (state.offlineQueue.length === 0) return 0;
     const items = [...state.offlineQueue];

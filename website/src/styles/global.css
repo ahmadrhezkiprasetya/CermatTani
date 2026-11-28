@@ -1536,9 +1536,17 @@ textarea {
   }
 }
 
-/* Mobile: kartu cuaca & matahari tampil paling atas di Beranda */
+/* Mobile Beranda: sapaan -> cuaca & matahari -> 4 kartu metrik -> sisanya */
 @media (max-width: 768px) {
+  .dash-hero-mobile {
+    order: -3;
+  }
+
   .dash-climate-card {
+    order: -2;
+  }
+
+  .dash-kpi-mobile {
     order: -1;
   }
 }

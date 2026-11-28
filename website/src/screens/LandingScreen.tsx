@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,10 +13,13 @@ import {
   LogIn,
   MessageCircle,
   Moon,
+  Pause,
+  Play,
   ShieldCheck,
   Sparkles,
   Sprout,
   Sun,
+  X,
 } from 'lucide-react';
 import { useApp } from '../state/AppContext';
 import { PakCermatMascot, PakCermatPose } from '../components/PakCermatMascot';
@@ -24,39 +27,78 @@ import { StackedBarChart, StripedProgressBar } from '../components/Charts';
 import { Reveal } from '../components/Reveal';
 import { BedMapPreview } from '../components/BedMapPreview';
 import { SiteFooter } from '../components/SiteFooter';
+import GlassFolder, { type FolderFile } from '@/components/ui/glass-folder-cards';
 import { ScreenId } from '../types/cermattani';
 
 const NAV_SECTIONS = [
   { id: 'jalan-kami', label: 'Tentang' },
   { id: 'bukti-angka', label: 'Bukti Data' },
   { id: 'cara-kerja', label: 'Cara Kerja' },
-  { id: 'nilai-kami', label: 'Nilai Kami' },
+  { id: 'fitur-unggulan', label: 'Fitur' },
 ] as const;
 
-const VALUE_CARDS = [
+const FEATURE_CARDS: {
+  id: string;
+  tag: string;
+  title: string;
+  desc: string;
+  cta: string;
+  target: 'scan' | 'dashboard';
+  icon: 'camera' | 'sprout' | 'calendar' | 'sun' | 'chat' | 'droplets';
+}[] = [
   {
-    id: 'honest',
-    title: 'Jujur Soal Batas AI & Sensor',
-    desc: 'Data simulasi selalu berlabel ungu yang jelas, tingkat keyakinan rendah memicu peringatan, dan setiap rekomendasi pupuk mengingatkan bahwa sistem bukan pengganti uji tanah.',
-    tags: ['Lencana Simulasi', 'Transparan', 'Konfirmasi Penyuluh'],
+    id: 'scan-ai',
+    tag: 'Computer Vision',
+    title: 'Scan Kematangan & Penyakit AI',
+    desc: 'Periksa buah, daun, atau batang dari 1 foto untuk mengetahui kesiapan panen, 3 kemungkinan penyakit teratas, dan dugaan unsur hara.',
+    cta: 'Coba Scan',
+    target: 'scan',
+    icon: 'camera',
   },
   {
-    id: 'organic',
-    title: 'Solusi Organik Lebih Dulu',
-    desc: 'Saat gejala penyakit daun atau kekurangan hara terdeteksi, CermatTani selalu mengutamakan sanitasi kebun, agen hayati, dan pupuk organik sebelum opsi kimiawi sebagai langkah terakhir.',
-    tags: ['Organik Utama', 'Aman Lingkungan', 'Baca Label Produk'],
+    id: 'lahan-3d',
+    tag: 'IoT & Visualisasi',
+    title: 'Simulasi Lahan 3D & Sensor Tanah',
+    desc: 'Pantau kelembapan tanah, suhu udara, intensitas cahaya, level air tandon, serta status pompa dalam peta lahan 3D interaktif.',
+    cta: 'Lihat Lahan',
+    target: 'dashboard',
+    icon: 'sprout',
   },
   {
-    id: 'field',
-    title: 'Terbaca di Bawah Terik Matahari',
-    desc: 'Dirancang dengan kontras WCAG 2.2 AA, target sentuh minimal 48 px yang nyaman di lahan, bahasa tindakan sehari-hari tanpa istilah rumit, serta antrean otomatis saat sinyal lemah.',
-    tags: ['WCAG 2.2 AA', 'Target ≥ 48 px', 'Siap Sinyal Lemah'],
+    id: 'kalender-panen',
+    tag: 'Jadwal Otomatis',
+    title: 'Kalender Panen & Pengingat Siram',
+    desc: 'Perkiraan tanggal panen otomatis diperbarui dari riwayat scan, lengkap dengan jadwal siram pagi/sore dan cek bercak daun.',
+    cta: 'Buka Kalender',
+    target: 'dashboard',
+    icon: 'calendar',
   },
   {
-    id: 'dual',
-    title: 'Pendamping Petani di Setiap Langkah',
-    desc: 'Maskot Pak Cermat hadir dalam 8 pose ekspresif yang mendampingi dari halaman utama, proses scan foto, analisis penyakit & hara, hingga obrolan asisten kebun.',
-    tags: ['8 Pose Maskot', 'Pak Cermat', 'Bahasa Petani'],
+    id: 'energi-surya',
+    tag: 'Panel Surya',
+    title: 'Energi Surya & Pengaman Pompa',
+    desc: 'Lacak daya baterai panel surya, aktifkan mode hemat otomatis saat mendung, dan lindungi pompa bila air tandon menipis.',
+    cta: 'Cek Energi',
+    target: 'dashboard',
+    icon: 'sun',
+  },
+  {
+    id: 'asisten-cermo',
+    tag: 'Asisten Kebun',
+    title: 'Tanya Cermo Berbasis Organik',
+    desc: 'Diskusikan gejala tanaman dan takaran pupuk per fase tumbuh dengan anjuran sanitasi kebun serta bahan organik lebih dulu.',
+    cta: 'Tanya Cermo',
+    target: 'dashboard',
+    icon: 'chat',
+  },
+  {
+    id: 'notifikasi-telegram',
+    tag: 'Integrasi Bot',
+    title: 'Pengingat & Laporan via Telegram',
+    desc: 'Hubungkan akun kebun ke bot Telegram untuk menerima pengingat jadwal harian, peringatan sensor kritis, dan ringkasan scan.',
+    cta: 'Hubungkan Bot',
+    target: 'dashboard',
+    icon: 'droplets',
   },
 ];
 
@@ -79,6 +121,159 @@ const STACKED_DEMO = [
   { label: 'Mgg 5', matang: 24, setengah: 9, mentah: 6 },
 ];
 
+type WorkflowSheetDetail = FolderFile & {
+  detail: string;
+  highlights: string[];
+  ctaLabel: string;
+  ctaTarget: 'scan' | 'dashboard';
+};
+
+const WORKFLOW_STEPS: {
+  num: string;
+  title: string;
+  body: string;
+  files: WorkflowSheetDetail[];
+}[] = [
+  {
+    num: '01',
+    title: 'Pilih Bagian & Foto',
+    body: 'Pilih Buah, Daun, atau Batang lalu buka kamera langsung atau unggah foto. Gambar dikompres otomatis di ponsel.',
+    files: [
+      {
+        name: 'Buah · Daun · Batang',
+        meta: '3 fokus',
+        detail:
+          'Sebelum memotret, pilih bagian tanaman yang ingin diperiksa agar analisis AI tepat sasaran sesuai gejalanya.',
+        highlights: [
+          'Buah: menilai proporsi matang, setengah matang, dan mentah',
+          'Daun: mendeteksi bercak jamur, virus, dan dugaan kurang hara',
+          'Batang: memeriksa tanda layu atau busuk pangkal batang',
+        ],
+        ctaLabel: 'Coba pilih bagian & scan',
+        ctaTarget: 'scan',
+      },
+      {
+        name: 'Kamera / Unggah',
+        meta: '20–30 cm',
+        detail:
+          'Ambil foto langsung dari kamera HP di bedengan atau unggah foto yang sudah tersimpan di galeri.',
+        highlights: [
+          'Jarak bidik ideal 20–30 cm agar warna dan bercak terlihat tajam',
+          'Gunakan cahaya alami pagi atau sore tanpa bayangan menutupi daun',
+          'Jika sinyal kebun putus, foto masuk antrean offline otomatis',
+        ],
+        ctaLabel: 'Buka kamera scan',
+        ctaTarget: 'scan',
+      },
+      {
+        name: 'Kompresi Otomatis',
+        meta: '≤ 1,5 MB',
+        detail:
+          'Foto dari kamera ponsel otomatis diperkecil di perangkat sebelum diunggah sehingga proses tetap cepat dan hemat kuota.',
+        highlights: [
+          'Ukuran berkas ditekan hingga ≤ 1,5 MB tanpa menghilangkan detail bercak',
+          'Tetap ringan dipakai pada jaringan 3G/4G di area lahan pertanian',
+          'Riwayat foto tetap tersimpan rapi di akun kebunmu',
+        ],
+        ctaLabel: 'Coba unggah foto',
+        ctaTarget: 'scan',
+      },
+    ],
+  },
+  {
+    num: '02',
+    title: 'Pak Cermat Memeriksa',
+    body: 'AI menilai tahap kematangan, 3 kemungkinan penyakit teratas, dan dugaan kekurangan hara sambil menyebut tingkat keyakinan.',
+    files: [
+      {
+        name: 'Tahap Kematangan',
+        meta: 'Buah',
+        detail:
+          'Sistem mengelompokkan buah yang tertangkap kamera ke dalam tahap matang, setengah matang, dan mentah.',
+        highlights: [
+          'Menghitung jumlah buah tiap tahap kematangan dalam satu bidikan',
+          'Memperkirakan rentang hari menuju panen optimal',
+          'Menghitung estimasi bobot panen berdasarkan varietas tanaman',
+        ],
+        ctaLabel: 'Coba scan kematangan',
+        ctaTarget: 'scan',
+      },
+      {
+        name: '3 Penyakit Teratas',
+        meta: 'Keyakinan %',
+        detail:
+          'Menampilkan 3 kemungkinan penyakit yang paling sesuai dengan gejala visual lengkap dengan tingkat keyakinannya.',
+        highlights: [
+          'Menyebutkan persentase keyakinan secara transparan pada setiap diagnosis',
+          'Bila keyakinan rendah, sistem menyarankan foto ulang atau cek penyuluh',
+          'Mempertimbangkan kelembapan udara sekitar untuk risiko jamur',
+        ],
+        ctaLabel: 'Periksa gejala daun',
+        ctaTarget: 'scan',
+      },
+      {
+        name: 'Dugaan Unsur Hara',
+        meta: 'N · P · K',
+        detail:
+          'Membantu mengenali tanda awal kekurangan Nitrogen, Fosfor, atau Kalium dari pola warna daun sesuai fase tumbuh.',
+        highlights: [
+          'Menyesuaikan anjuran pupuk dengan fase vegetatif, berbunga, atau berbuah',
+          'Mengutamakan bahan organik seperti kompos matang dan pupuk hayati',
+          'Selalu mengingatkan bahwa AI bukan pengganti uji tanah laboratorium',
+        ],
+        ctaLabel: 'Cek kebutuhan hara',
+        ctaTarget: 'scan',
+      },
+    ],
+  },
+  {
+    num: '03',
+    title: 'Aksi Organik & Jadwal Siram',
+    body: 'Dapatkan anjuran panen besar, langkah organik lebih dulu, simpan ke timeline, dan aktifkan pengingat jadwal otomatis.',
+    files: [
+      {
+        name: 'Anjuran Panen Besar',
+        meta: 'Siap petik',
+        detail:
+          'Rangkuman keputusan panen yang langsung bisa diterapkan di kebun tanpa istilah teknis yang rumit.',
+        highlights: [
+          'Menampilkan status jelas: Siap Petik, Tunggu 2–4 Hari, atau Belum Siap',
+          'Saran waktu petik pagi hari agar buah lebih segar dan tahan simpan',
+          'Hasil panen aktual bisa dicatat untuk memperhalus estimasi berikutnya',
+        ],
+        ctaLabel: 'Lihat dasbor panen',
+        ctaTarget: 'dashboard',
+      },
+      {
+        name: 'Langkah Organik Dulu',
+        meta: 'Sanitasi',
+        detail:
+          'Setiap rekomendasi penanganan penyakit disusun bertahap mulai dari cara paling aman bagi tanah dan lingkungan.',
+        highlights: [
+          'Tahap 1: sanitasi kebun, pangkas daun sakit, dan perbaiki sirkulasi udara',
+          'Tahap 2: aplikasi agen hayati (Trichoderma) atau pestisida nabati',
+          'Tahap 3: opsi kimiawi hanya sebagai langkah terakhir sesuai label produk',
+        ],
+        ctaLabel: 'Coba rekomendasi organik',
+        ctaTarget: 'scan',
+      },
+      {
+        name: 'Timeline & Pengingat',
+        meta: 'Otomatis',
+        detail:
+          'Setiap hasil pemeriksaan otomatis tercatat di timeline tanaman, memperbarui kalender panen, dan dapat mengirim pengingat berkala.',
+        highlights: [
+          'Riwayat foto & kondisi tanaman tersusun kronologis per petak/tanaman',
+          'Kalender panen otomatis menghitung jadwal petik dari hasil scan terbaru',
+          'Pengingat siram pagi/sore & peringatan sensor kritis bisa terhubung ke Telegram',
+        ],
+        ctaLabel: 'Buka dasbor & jadwal',
+        ctaTarget: 'dashboard',
+      },
+    ],
+  },
+];
+
 /* Halaman Publik Terpadu — Palet Botanical Forest & Soft Mint selaras 100% dengan Dasbor Pengguna */
 export const LandingScreen: React.FC = () => {
   const {
@@ -90,9 +285,68 @@ export const LandingScreen: React.FC = () => {
     completeOnboarding,
     updateSettings,
   } = useApp();
-  const [valueOffset, setValueOffset] = useState(0);
   const [selectedPoseIdx, setSelectedPoseIdx] = useState(0);
+  const [openStepIdx, setOpenStepIdx] = useState<number | null>(null);
+  const [selectedSheet, setSelectedSheet] = useState<{
+    stepIdx: number;
+    fileIdx: number;
+  } | null>(null);
   const [activeNavId, setActiveNavId] = useState<string>('jalan-kami');
+  const [isDarkTone, setIsDarkTone] = useState(false);
+  const [featurePaused, setFeaturePaused] = useState(false);
+  const featureTrackRef = useRef<HTMLDivElement | null>(null);
+  const featureHoverRef = useRef(false);
+
+  // Auto-scroll horizontal halus & tak terputus untuk daftar kartu fitur
+  useEffect(() => {
+    const el = featureTrackRef.current;
+    if (!el || featurePaused) return;
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    let rafId = 0;
+    let lastTime = performance.now();
+    const speedPxPerSec = 42;
+
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+      if (!featureHoverRef.current && el) {
+        el.scrollLeft += speedPxPerSec * dt;
+        const half = el.scrollWidth / 2;
+        if (half > 0 && el.scrollLeft >= half) {
+          el.scrollLeft -= half;
+        }
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [featurePaused]);
+
+  const scrollFeaturesBy = (delta: number) => {
+    const el = featureTrackRef.current;
+    if (!el) return;
+    const half = el.scrollWidth / 2;
+    if (delta < 0 && el.scrollLeft <= 12 && half > 0) {
+      el.scrollLeft += half;
+    }
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const syncTone = () => {
+      const dark =
+        state.settings.tema === 'dark' ||
+        (state.settings.tema === 'system' &&
+          typeof window !== 'undefined' &&
+          window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+      setIsDarkTone(Boolean(dark));
+    };
+    syncTone();
+  }, [state.settings.tema]);
 
   // Scroll-spy halus untuk menyorot menu aktif di bilah navigasi
   useEffect(() => {
@@ -149,13 +403,25 @@ export const LandingScreen: React.FC = () => {
     }
   };
 
-  const visibleValues = [
-    VALUE_CARDS[valueOffset % VALUE_CARDS.length],
-    VALUE_CARDS[(valueOffset + 1) % VALUE_CARDS.length],
-    VALUE_CARDS[(valueOffset + 2) % VALUE_CARDS.length],
-  ];
-
   const activePose = PAK_CERMAT_SHOWCASE[selectedPoseIdx] || PAK_CERMAT_SHOWCASE[0];
+
+  const renderFeatureIcon = (icon: (typeof FEATURE_CARDS)[number]['icon']) => {
+    switch (icon) {
+      case 'camera':
+        return <Camera size={20} />;
+      case 'sprout':
+        return <Sprout size={20} />;
+      case 'calendar':
+        return <CalendarDays size={20} />;
+      case 'sun':
+        return <Sun size={20} />;
+      case 'chat':
+        return <MessageCircle size={20} />;
+      case 'droplets':
+      default:
+        return <Droplets size={20} />;
+    }
+  };
 
   return (
     <div className="landing-shell">
@@ -216,8 +482,8 @@ export const LandingScreen: React.FC = () => {
       </header>
 
       <main id="konten-utama">
-        {/* SEKSI 1: HERO — Foto kebun lebar penuh, judul editorial dua bobot, 3 chip statistik, kartu pratinjau kaca */}
-        <section className="landing-section" style={{ paddingTop: 26, paddingBottom: 38 }}>
+        {/* SEKSI 1: HERO — Editorial Foto Lahan + Strip Metrik Tanpa Kotak + Kartu Pengamatan Kebun */}
+        <section className="landing-section" style={{ paddingTop: 22, paddingBottom: 38 }}>
           <div className="landing-container">
             <div className="landing-hero-card">
               <img
@@ -227,83 +493,85 @@ export const LandingScreen: React.FC = () => {
               />
               <div className="landing-hero-scrim" aria-hidden="true" />
 
-              <div style={{ position: 'relative', zIndex: 2, maxWidth: 700, display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div className="hero-stagger-1" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span className="hero-badge">
-                    <Sparkles size={13} /> Computer Vision + IoT Surya
-                  </span>
-                  <span className="hero-badge">
-                    <Sprout size={13} /> Untuk Petani Lahan &amp; Urban Farming
-                  </span>
-                </div>
+              {/* Bar Atas Editorial */}
+              <div className="lp-hero-topbar hero-stagger-1">
+                <span className="lp-hero-kicker">
+                  <i className="lp-hero-dot" aria-hidden="true" />
+                  CermatTani · Budidaya Tomat &amp; Hortikultura
+                </span>
+                <span className="lp-hero-stamp">
+                  Kamera Ponsel · IoT Surya
+                </span>
+              </div>
 
-                <h1 className="t-editorial hero-stagger-2" style={{ color: '#FFFFFF' }}>
-                  <strong>Cermat memeriksa,</strong> tepat memutuskan di kebunmu.
+              {/* Konten Utama Kiri */}
+              <div className="lp-hero-main">
+                <h1 className="lp-hero-title hero-stagger-2">
+                  <strong>Cermat memeriksa,</strong>
+                  <span>tepat memutuskan di kebunmu.</span>
                 </h1>
 
-                <p className="t-body hero-stagger-3" style={{ color: 'rgba(255,255,255,0.88)', maxWidth: 560 }}>
-                  Satu foto dari kamera ponsel untuk mengetahui kapan buah siap dipanen, mengenali
-                  gejala penyakit dengan solusi organik lebih dulu, dan memantau kelembapan tanah
-                  serta irigasi bertenaga surya.
+                <p className="lp-hero-sub hero-stagger-3">
+                  Satu foto dari ponsel untuk mengetahui kapan buah siap dipanen, mengenali gejala
+                  penyakit dengan solusi organik lebih dulu, dan memantau kelembapan tanah serta
+                  irigasi bertenaga surya.
                 </p>
 
-                <div className="hero-stagger-4" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                  <button type="button" className="btn-tomato hero-cta-main" onClick={enterScan}>
-                    <Camera size={19} /> Coba Scan Tanaman
+                <div className="lp-hero-actions hero-stagger-4">
+                  <button type="button" className="btn-tomato lp-hero-btn-primary" onClick={enterScan}>
+                    <Camera size={18} /> Coba Scan Tanaman
                   </button>
                   <button type="button" className="hero-cta-ghost" onClick={enterDashboard}>
-                    {authUser ? 'Masuk ke Dasbor Kebun' : 'Login / Daftar Akun'}
+                    <span>{authUser ? 'Masuk ke Dasbor Kebun' : 'Login / Daftar Akun'}</span>
                     {authUser ? <ArrowUpRight size={17} /> : <LogIn size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* Bawah Hero: 3 Chip Statistik Kiri (sorot --lime-300) + Kartu Pratinjau Kaca Kanan */}
+              {/* Bar Bawah: Strip Metrik Editorial (tanpa kotak-kotak) + Kartu Pengamatan Lapangan */}
               <div className="landing-hero-bottom hero-stagger-4">
-                <div className="hero-stats">
-                  <div className="hero-stat">
-                    <span className="hero-stat-num">±5 dtk</span>
-                    <span className="hero-stat-label">Hasil dari 1 foto</span>
+                <dl className="lp-hero-metrics" aria-label="Ringkasan kemampuan lapangan">
+                  <div>
+                    <dt>Hasil dari 1 foto</dt>
+                    <dd>±5 dtk</dd>
                   </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat-num">−78%</span>
-                    <span className="hero-stat-label">Token AI per scan</span>
+                  <div>
+                    <dt>Buah, daun &amp; batang</dt>
+                    <dd>3 Fokus</dd>
                   </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat-num">100%</span>
-                    <span className="hero-stat-label">Saran organik lebih dulu</span>
+                  <div>
+                    <dt>Sanitasi &amp; hayati dulu</dt>
+                    <dd>Organik</dd>
                   </div>
-                </div>
+                </dl>
 
-                <div className="glass-preview-card ambient-float">
-                  <PakCermatMascot pose="tomat" height={86} />
-                  <div style={{ flex: 1 }}>
-                    <div className="t-micro" style={{ color: 'var(--leaf-600)' }}>
-                      Siap dicoba langsung
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3, marginTop: 2, color: 'var(--ink)' }}>
-                      Lihat hasil scan kematangan &amp; simulasi kebun 3D
-                    </div>
+                <div className="lp-hero-obs-card">
+                  <div className="lp-hero-obs-head">
+                    <span className="lp-hero-obs-loc">BLOK A · TOMAT SERVO F1</span>
+                    <span className="lp-hero-obs-status">Siap petik 2–3 hari</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={enterScan}
-                    aria-label="Mulai scan tanaman"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: 'var(--leaf-600)',
-                      color: '#FFFFFF',
-                      display: 'grid',
-                      placeItems: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <ArrowUpRight size={18} />
-                  </button>
+
+                  <div className="lp-hero-obs-bar" aria-hidden="true">
+                    <i style={{ width: '64%', background: 'var(--fruit-ripe)' }} />
+                    <i style={{ width: '24%', background: 'var(--fruit-mid)' }} />
+                    <i style={{ width: '12%', background: 'var(--fruit-raw)' }} />
+                  </div>
+
+                  <div className="lp-hero-obs-foot">
+                    <PakCermatMascot pose="tomat" height={54} />
+                    <div className="lp-hero-obs-copy">
+                      <strong>14 buah terdeteksi · ±1,19 kg</strong>
+                      <span>Coba scan kematangan &amp; simulasi 3D</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={enterScan}
+                      aria-label="Mulai scan tanaman"
+                      className="lp-hero-obs-go"
+                    >
+                      <ArrowUpRight size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -494,38 +762,11 @@ export const LandingScreen: React.FC = () => {
           </div>
         </section>
 
-        {/* SEKSI 4: CARA KERJA — Kartu cerah berkaca di atas foto kebun pagi */}
+        {/* SEKSI 4: CARA KERJA — Kartu Glass Folder 1 warna solid */}
         <section id="cara-kerja" className="landing-section">
           <div className="landing-container">
             <Reveal>
-              <div
-                style={{
-                  position: 'relative',
-                  borderRadius: 'var(--r-hero)',
-                  overflow: 'hidden',
-                  padding: '44px 38px',
-                  background: 'var(--surface-panel)',
-                  color: 'var(--ink)',
-                  boxShadow: 'var(--shadow-1)',
-                  border: '1px solid var(--line)',
-                }}
-              >
-                <img
-                  src="/images/farmer-tomato-hands.jpg"
-                  alt="Tangan petani memeriksa buah tomat segar di kebun"
-                  className="landing-hero-bg"
-                  style={{ opacity: 0.2 }}
-                />
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                      'linear-gradient(125deg, color-mix(in srgb, var(--surface) 92%, transparent) 0%, color-mix(in srgb, var(--surface-panel) 84%, transparent) 60%, color-mix(in srgb, var(--lime-soft) 72%, transparent) 100%)',
-                  }}
-                />
-
+              <div className="lp-workflow-card">
                 <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 28 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 18, flexWrap: 'wrap' }}>
                     <div style={{ maxWidth: 560 }}>
@@ -539,8 +780,7 @@ export const LandingScreen: React.FC = () => {
 
                     <div
                       style={{
-                        background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
-                        backdropFilter: 'blur(12px)',
+                        background: 'var(--surface)',
                         border: '1px solid var(--line)',
                         borderRadius: 18,
                         padding: '10px 16px',
@@ -560,60 +800,112 @@ export const LandingScreen: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 3 Kartu Langkah Cerah Berkaca */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-                    {[
-                      {
-                        num: '01',
-                        title: 'Pilih Bagian & Foto',
-                        body: 'Pilih Buah, Daun, atau Batang lalu buka kamera langsung atau unggah foto. Gambar dikompres otomatis di ponsel.',
-                      },
-                      {
-                        num: '02',
-                        title: 'Pak Cermat Memeriksa',
-                        body: 'AI menilai tahap kematangan, 3 kemungkinan penyakit teratas, dan dugaan kekurangan hara sambil menyebut tingkat keyakinan.',
-                      },
-                      {
-                        num: '03',
-                        title: 'Aksi Organik & Jadwal Siram',
-                        body: 'Dapatkan anjuran panen besar, langkah organik lebih dulu, simpan ke timeline, dan aktifkan pengingat jadwal otomatis.',
-                      },
-                    ].map((s) => (
-                      <div
-                        key={s.num}
-                        className="card-interactive"
-                        style={{
-                          background: 'color-mix(in srgb, var(--surface) 90%, transparent)',
-                          backdropFilter: 'blur(14px)',
-                          border: '1px solid var(--line)',
-                          borderRadius: 22,
-                          padding: '22px 20px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 10,
-                          boxShadow: 'var(--shadow-1)',
-                        }}
-                      >
-                        <span
-                          className="font-display"
-                          style={{
-                            fontSize: '1.08rem',
-                            color: '#FFFFFF',
-                            background: 'var(--leaf-600)',
-                            width: 40,
-                            height: 40,
-                            borderRadius: 12,
-                            display: 'grid',
-                            placeItems: 'center',
-                          }}
+                  {/* 3 Kartu Langkah dengan UI Glass Folder Cards (1 warna solid hijau CermatTani) */}
+                  <div className="lp-folder-grid">
+                    {WORKFLOW_STEPS.map((s, idx) => {
+                      const isOpen = openStepIdx === idx;
+                      return (
+                        <div
+                          key={s.num}
+                          className={`lp-folder-slot ${isOpen ? 'is-open' : ''}`}
                         >
-                          {s.num}
-                        </span>
-                        <h3 className="t-h3" style={{ color: 'var(--ink)' }}>{s.title}</h3>
-                        <p className="t-small t-soft">{s.body}</p>
-                      </div>
-                    ))}
+                          <div className="lp-folder-stage">
+                            <GlassFolder
+                              className="lp-solid-folder"
+                              label={s.title}
+                              meta={`Langkah ${s.num}`}
+                              tone={isDarkTone ? 'dark' : 'light'}
+                              art="none"
+                              files={s.files}
+                              action="none"
+                              labelPlacement="bottom-left"
+                              width={292}
+                              appearDelay={idx * 120}
+                              open={isOpen}
+                              onOpenChange={(next) => {
+                                setOpenStepIdx(next ? idx : null);
+                              }}
+                              onFileSelect={(_file, fileIdx) => {
+                                setOpenStepIdx(idx);
+                                setSelectedSheet({ stepIdx: idx, fileIdx });
+                              }}
+                            />
+                          </div>
+                          <p className="t-small t-soft lp-folder-desc">{s.body}</p>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  {selectedSheet &&
+                    WORKFLOW_STEPS[selectedSheet.stepIdx]?.files[selectedSheet.fileIdx] && (() => {
+                      const stepInfo = WORKFLOW_STEPS[selectedSheet.stepIdx];
+                      const sheetInfo = stepInfo.files[selectedSheet.fileIdx];
+                      return (
+                        <div
+                          key={`${selectedSheet.stepIdx}-${selectedSheet.fileIdx}`}
+                          className="lp-sheet-detail-card step-transition"
+                          role="region"
+                          aria-live="polite"
+                          aria-label={`Detail ${sheetInfo.name}`}
+                        >
+                          <div className="lp-sheet-detail-head">
+                            <div className="lp-sheet-detail-badges">
+                              <span className="pill pill-ok">
+                                Langkah {stepInfo.num} · {stepInfo.title}
+                              </span>
+                              {sheetInfo.meta && (
+                                <span className="pill pill-neutral">{sheetInfo.meta}</span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="lp-sheet-detail-close"
+                              onClick={() => setSelectedSheet(null)}
+                              aria-label="Tutup info rincian"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+
+                          <div className="lp-sheet-detail-body">
+                            <div className="lp-sheet-detail-main">
+                              <h3 className="t-h3" style={{ color: 'var(--ink)' }}>
+                                {sheetInfo.name}
+                              </h3>
+                              <p className="t-small t-soft" style={{ marginTop: 4 }}>
+                                {sheetInfo.detail}
+                              </p>
+                              <ul className="lp-sheet-detail-list">
+                                {sheetInfo.highlights.map((point) => (
+                                  <li key={point}>
+                                    <CheckCircle2 size={15} />
+                                    <span>{point}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="lp-sheet-detail-action">
+                              <button
+                                type="button"
+                                className="ct-btn-dark"
+                                onClick={sheetInfo.ctaTarget === 'scan' ? enterScan : enterDashboard}
+                              >
+                                <span>{sheetInfo.ctaLabel}</span>
+                                <span className="ct-btn-dark-circle">
+                                  <ArrowUpRight size={17} />
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                  <p className="lp-folder-hint">
+                    Sorot folder untuk mengintip · Klik folder untuk membuka · Klik lembar di dalamnya untuk melihat info
+                  </p>
                 </div>
               </div>
             </Reveal>
@@ -721,69 +1013,102 @@ export const LandingScreen: React.FC = () => {
           </div>
         </section>
 
-        {/* SEKSI 6: NILAI KAMI — Panel Sage Lembut + 3 Kartu Nilai (Permukaan · Hutan Gelap · Permukaan) */}
-        <section id="nilai-kami" className="landing-section">
+        {/* SEKSI 6: FITUR-FITUR CERMATTANI — Auto-scroll horizontal halus ke samping */}
+        <section id="fitur-unggulan" className="landing-section">
           <div className="landing-container">
             <Reveal>
-              <div className="values-panel">
+              <div className="values-panel lp-features-panel">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
                   <div>
                     <span className="t-eyebrow" style={{ color: 'var(--leaf-600)' }}>
-                      Nilai &amp; Prinsip Kami
+                      Fitur-Fitur CermatTani
                     </span>
                     <h2 className="t-editorial-sub" style={{ color: 'var(--ink)', marginTop: 4 }}>
-                      Dirancang agar <strong>aman, jujur, dan mudah dibaca</strong> di kebun.
+                      Semua alat kebun untuk <strong>memantau, mendiagnosis, dan merawat</strong> tanaman.
                     </h2>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button
                       type="button"
                       className="carousel-circle-btn"
-                      aria-label="Nilai sebelumnya"
-                      onClick={() => setValueOffset((v) => (v - 1 + VALUE_CARDS.length) % VALUE_CARDS.length)}
+                      aria-label={featurePaused ? 'Lanjutkan gulir otomatis' : 'Jeda gulir otomatis'}
+                      title={featurePaused ? 'Lanjutkan auto-scroll' : 'Jeda auto-scroll'}
+                      onClick={() => setFeaturePaused((p) => !p)}
+                    >
+                      {featurePaused ? <Play size={16} /> : <Pause size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="carousel-circle-btn"
+                      aria-label="Geser fitur ke kiri"
+                      onClick={() => scrollFeaturesBy(-340)}
                     >
                       <ArrowLeft size={18} />
                     </button>
                     <button
                       type="button"
                       className="carousel-circle-btn carousel-circle-btn--active"
-                      aria-label="Nilai berikutnya"
-                      onClick={() => setValueOffset((v) => (v + 1) % VALUE_CARDS.length)}
+                      aria-label="Geser fitur ke kanan"
+                      onClick={() => scrollFeaturesBy(340)}
                     >
                       <ArrowRight size={18} />
                     </button>
                   </div>
                 </div>
 
-                <div key={valueOffset} className="values-grid-3 step-transition">
-                  {visibleValues.map((card, i) => {
-                    const isMiddleDark = i === 1;
+                <div
+                  ref={featureTrackRef}
+                  className="lp-features-marquee"
+                  onMouseEnter={() => {
+                    featureHoverRef.current = true;
+                  }}
+                  onMouseLeave={() => {
+                    featureHoverRef.current = false;
+                  }}
+                  onFocus={() => {
+                    featureHoverRef.current = true;
+                  }}
+                  onBlur={() => {
+                    featureHoverRef.current = false;
+                  }}
+                  onTouchStart={() => {
+                    featureHoverRef.current = true;
+                  }}
+                  onTouchEnd={() => {
+                    featureHoverRef.current = false;
+                  }}
+                  aria-label="Daftar fitur CermatTani"
+                >
+                  {[...FEATURE_CARDS, ...FEATURE_CARDS].map((card, i) => {
+                    const isAccent = i % 2 === 1;
                     return (
                       <article
-                        key={card.id}
-                        className={`value-card ${isMiddleDark ? 'value-card--dark' : ''}`}
+                        key={`${card.id}-${i}`}
+                        className={`value-card lp-feature-slide ${isAccent ? 'value-card--dark' : ''}`}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {card.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className={isMiddleDark ? 'value-tag-dark' : 'pill pill-ok'}
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                          <div className="lp-feature-slide-top">
+                            <span className="lp-feature-icon-box">
+                              {renderFeatureIcon(card.icon)}
+                            </span>
+                            <span className={isAccent ? 'value-tag-dark' : 'pill pill-ok'}>
+                              {card.tag}
+                            </span>
                           </div>
                           <h3 className="t-h2" style={{ color: 'var(--ink)' }}>
                             {card.title}
                           </h3>
-                          <p className="t-small t-soft">
-                            {card.desc}
-                          </p>
+                          <p className="t-small t-soft">{card.desc}</p>
                         </div>
-                        <div className="t-micro" style={{ color: 'var(--leaf-600)' }}>
-                          Standar CermatTani
-                        </div>
+
+                        <button
+                          type="button"
+                          className="lp-feature-slide-link"
+                          onClick={card.target === 'scan' ? enterScan : enterDashboard}
+                        >
+                          <span>{card.cta}</span>
+                          <ArrowUpRight size={15} />
+                        </button>
                       </article>
                     );
                   })}

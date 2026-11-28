@@ -31,7 +31,7 @@ const FOOTER_COLUMNS = [
     title: 'Perusahaan',
     links: [
       { label: 'Tentang kami', href: '#jalan-kami' },
-      { label: 'Nilai kami', href: '#nilai-kami' },
+      { label: 'Fitur unggulan', href: '#fitur-unggulan' },
       { label: 'Masuk petani', href: '/login' },
       { label: 'Hubungi kami', href: 'mailto:bantuan@cermattani.id' },
     ],

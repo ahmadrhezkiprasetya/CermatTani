@@ -30,11 +30,16 @@ export const ScanPhotoExamples: React.FC = () => (
     </figure>
 
     <figure className="scan-ex scan-ex--bad">
-      <div className="scan-ex-img scan-ex-img--plain">
+      <div className="scan-ex-img">
         <img
-          src="/mascot/pak-cermat/03_petani_mengamati_tomat.png"
-          alt="Contoh foto salah: gambar kartun, bukan tanaman asli"
+          src="/images/farmer-tomato-hands.jpg"
+          alt="Contoh foto salah: foto tanaman buram dan kurang jelas"
           loading="lazy"
+          style={{
+            transform: 'scale(2.3)',
+            transformOrigin: '44% 60%',
+            filter: 'blur(2.5px) brightness(0.8)',
+          }}
         />
       </div>
       <figcaption>
@@ -44,7 +49,7 @@ export const ScanPhotoExamples: React.FC = () => (
           </span>
           Salah
         </span>
-        <span>Gambar kartun, foto dari layar, atau foto buram & gelap.</span>
+        <span>Foto buram, gelap, terlalu jauh, atau gambar kartun / dari layar.</span>
       </figcaption>
     </figure>
   </section>

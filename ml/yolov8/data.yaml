@@ -1,0 +1,46 @@
+# ============================================================================
+# CermatTani YOLOv8 Unified Dataset Configuration (v3.0 — 27 Kelas Lengkap)
+# ----------------------------------------------------------------------------
+# 3 Kelas Kematangan Buah (LaboroTomato / USDA Stage 1-6)
+# + 24 Kelas Penyakit, Busuk Buah, Virus, Hama & Gangguan Fisiologis
+#   (PlantVillage + UF/IFAS + Balitsa Kementan RI + FAO IPM)
+# ============================================================================
+
+path: ./dataset
+train: images/train
+val: images/val
+test: images/test
+
+nc: 27
+
+names:
+  # --- KEMATANGAN BUAH SEGAR (0-2) ---
+  0: buah_mentah
+  1: buah_setengah_matang
+  2: buah_matang
+
+  # --- SEHAT & PENYAKIT DAUN / BATANG / BUAH (3-26) ---
+  3: sehat
+  4: bercak_kering              # Early blight (Alternaria solani)
+  5: busuk_daun                 # Late blight (Phytophthora infestans)
+  6: kapang_daun                # Leaf mold (Passalora fulva)
+  7: bercak_septoria            # Septoria leaf spot (Septoria lycopersici)
+  8: bercak_target              # Target spot (Corynespora cassiicola)
+  9: bercak_bakteri             # Bacterial spot (Xanthomonas perforans)
+  10: bintik_bakteri            # Bacterial speck (Pseudomonas syringae)
+  11: kanker_bakteri            # Bacterial canker (Clavibacter michiganensis)
+  12: embun_tepung              # Powdery mildew (Oidium neolycopersici)
+  13: embun_bulu                # Downy mildew (Pseudoperonospora cubensis)
+  14: layu_batang               # Fusarium / Bacterial wilt
+  15: busuk_pangkal_sklerotium  # Southern blight (Athelia rolfsii)
+  16: keriting_kuning           # Tomato Yellow Leaf Curl Virus (TYLCV)
+  17: virus_mosaik              # Tomato Mosaic Virus (ToMV)
+  18: virus_bercak_layu         # Tomato Spotted Wilt Virus (TSWV)
+  19: tungau_laba               # Two-spotted spider mite (Tetranychus urticae)
+  20: serangan_hama_daun        # Leaf miner / Caterpillar / Aphids
+  21: busuk_ujung_buah          # Blossom end rot (Calcium deficiency)
+  22: antraknosa                # Anthracnose / Patek (Colletotrichum spp.)
+  23: busuk_basah_buah          # Bacterial soft rot (Pectobacterium carotovorum)
+  24: busuk_jamur_buah          # Buckeye rot (Phytophthora nicotianae)
+  25: busuk_kapang_abu          # Grey mold (Botrytis cinerea)
+  26: buah_pecah_sengatan       # Fruit cracking / Sunscald

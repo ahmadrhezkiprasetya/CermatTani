@@ -1,0 +1,7938 @@
+/* CermatTani Design System Stylesheet — DESIGN.md v2.0
+   Tema Aplikasi: Mint Organic Modernism (Agrova × Plant Monitor × Agri-cultur)
+   Tema Publik: Cream Harvest (Agroton 8 Seksi)
+   Navigasi Instan 0 ms + Kontras WCAG 2.2 AA */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background-color: var(--bg);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 280ms var(--ease-out), color 220ms var(--ease-out);
+}
+
+/* Skala Tipografi eksak DESIGN.md v2.0 §4.3 */
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  margin: 0;
+  color: inherit;
+  text-wrap: balance;
+}
+
+h3,
+h4 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  margin: 0;
+  color: inherit;
+}
+
+.t-display {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Judul Editorial 2 Bobot Halaman Publik (Agroton §4.3: Plus Jakarta Sans 300 + 700) */
+.t-editorial {
+  font-family: var(--font-body);
+  font-size: clamp(2.125rem, 4.4vw, 3.5rem);
+  line-height: 1.1;
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.t-editorial strong {
+  font-weight: 700;
+}
+
+.t-editorial-sub {
+  font-family: var(--font-body);
+  font-size: clamp(1.65rem, 3vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.t-editorial-sub strong {
+  font-weight: 700;
+}
+
+.t-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.t-h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.t-h3 {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.t-eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.t-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 400;
+  max-width: 65ch;
+}
+
+.t-small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.t-micro {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.t-soft {
+  color: var(--ink-soft);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+/* Cincin Fokus WCAG 2.2 AA (§6: 3px --leaf-500, offset 2px) */
+:focus-visible {
+  outline: 3px solid var(--leaf-500);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 200;
+  background: var(--forest-900);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--r-ctl);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: 12px;
+}
+
+/* ============================================================
+   KERANGKA APLIKASI (DESIGN.md v2.0 §5.1)
+   Desktop ≥1100px: Sidebar 240px (--forest-900) + Konten + Panel Kanan 340px
+   Tablet 700–1099px: Rel Ikon 80px + label di bawah
+   Mobile <700px: Header Ringkas + Single Column + Bottom-Nav 5 item + FAB 64px
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 228px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  background: linear-gradient(180deg, var(--surface-milk) 0%, var(--surface-2) 100%);
+  color: var(--ink);
+  padding: 14px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  z-index: 30;
+  border-right: 1px solid var(--line);
+  transition: background-color 280ms var(--ease-out), border-color 240ms var(--ease-out);
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 99px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  border-radius: 14px;
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.sidebar-brand:hover {
+  background: var(--surface-2);
+}
+
+.sidebar-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-farm-box {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 9px;
+}
+
+.sidebar-farm-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--leaf-600);
+  display: block;
+  margin-bottom: 5px;
+}
+
+.sidebar-farm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sidebar-farm-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: var(--leaf-700);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 2px 5px;
+  cursor: pointer;
+}
+
+.sidebar-farm-add:hover {
+  color: var(--leaf-600);
+  text-decoration: underline;
+}
+
+.mobile-farm-add {
+  border-style: dashed;
+}
+
+.sidebar-farm-select {
+  width: 100%;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 8px;
+  min-height: 36px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sidebar-farm-select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sidebar-section-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 5px 12px 2px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+/* Item navigasi cerah, rapi, dan nyaman dibaca */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+  width: 100%;
+}
+
+.nav-item:hover:not(.active) {
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  color: var(--ink);
+  transform: translateX(3px);
+}
+
+.nav-item:active {
+  transform: scale(0.985);
+}
+
+.nav-item.active {
+  background: var(--leaf-600);
+  color: var(--on-leaf);
+  font-weight: 700;
+  box-shadow: 0 5px 14px rgba(69, 150, 106, 0.24);
+}
+
+.nav-item.nav-scan-item:not(.active) {
+  background: var(--cream-warm);
+  color: var(--ink);
+  border: 1px solid var(--cream-border);
+}
+
+.nav-item.nav-scan-item:not(.active):hover {
+  background: var(--surface);
+  color: var(--leaf-700);
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--tomato-btn);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+}
+
+.sidebar-mascot-card {
+  background: var(--cream-warm);
+  border: 1px solid var(--cream-border);
+  border-radius: 14px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* Main Workspace */
+.main-viewport {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.main-viewport--chat {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Kepala Halaman 1 Baris Rapi (tidak pernah turun baris di desktop!) */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: nowrap;
+  min-height: 68px;
+  padding: 10px 28px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.main-content-pad {
+  padding: 22px 28px 56px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.main-content-pad--chat {
+  padding: 14px 24px 16px;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-main-host,
+.chat-screen-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-shell-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.chat-card-header {
+  flex-shrink: 0;
+  padding: 13px 18px 11px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.chat-messages-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+}
+
+.chat-messages-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--leaf-600) 28%, var(--line));
+  border-radius: 99px;
+}
+
+.chat-composer {
+  flex-shrink: 0;
+  padding: 11px 16px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.chat-quick-row {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chat-quick-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-scroll-bottom-btn {
+  position: absolute;
+  right: 18px;
+  bottom: 118px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  animation: panelFadeIn 180ms var(--ease-out);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) ease;
+}
+
+.chat-scroll-bottom-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--leaf-600);
+  color: var(--leaf-700);
+}
+
+.topbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 0 12px;
+  min-height: 40px;
+  width: 220px;
+  box-shadow: none;
+  transition: border-color var(--dur-base) ease, width var(--dur-base) ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--leaf-500);
+  width: 250px;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  padding: 6px 8px;
+  outline: none;
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+.search-box input::placeholder {
+  color: var(--ink-soft);
+}
+
+.icon-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--leaf-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-1);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-btn-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tomato-btn);
+  border: 2px solid var(--surface);
+}
+
+.icon-btn-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--tomato-btn);
+  color: #ffffff;
+  font-size: 0.67rem;
+  font-weight: 800;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-btn--alert {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--line));
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+}
+
+/* ============================================================
+   ALERT SNACKBAR RINGKAS (KOMPATIBEL SEMUA PERANGKAT, ANTI TUMPANG TINDIH)
+   ============================================================ */
+
+.alert-toast-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: min(370px, calc(100vw - 32px));
+  z-index: 85;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.alert-toast {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  border-left-width: 3.5px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(15, 35, 29, 0.14);
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  animation: toastSlideUp 220ms var(--ease-out);
+}
+
+.alert-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-toast-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.alert-toast-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-toast-time {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.alert-toast-desc {
+  margin-top: 1px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.alert-toast--info {
+  border-left-color: var(--water);
+}
+
+.alert-toast--warn {
+  border-left-color: var(--warn);
+}
+
+.alert-toast--bad {
+  border-left-color: var(--bad);
+}
+
+.alert-toast--ok {
+  border-left-color: var(--leaf-600);
+}
+
+.alert-toast-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.alert-toast--info .alert-toast-icon {
+  background: color-mix(in srgb, var(--water) 14%, transparent);
+  color: var(--water);
+}
+
+.alert-toast--warn .alert-toast-icon {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
+.alert-toast--bad .alert-toast-icon {
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
+  color: var(--bad);
+}
+
+.alert-toast--ok .alert-toast-icon {
+  background: color-mix(in srgb, var(--leaf-600) 14%, transparent);
+  color: var(--leaf-600);
+}
+
+.alert-toast-action {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.alert-toast-action:hover {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: #ffffff;
+}
+
+.alert-toast-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.alert-toast-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .alert-toast-stack {
+    left: 12px;
+    right: 12px;
+    bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .alert-toast {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 13px;
+  }
+
+  .alert-toast-time {
+    display: none;
+  }
+
+  .alert-toast-desc {
+    -webkit-line-clamp: 1;
+  }
+}
+
+.notif-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(16, 42, 35, 0.24);
+  backdrop-filter: blur(2px);
+}
+
+.notif-popover {
+  position: fixed;
+  top: 72px;
+  right: 22px;
+  width: min(448px, calc(100vw - 24px));
+  max-height: calc(100dvh - 94px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 92;
+  animation: popoverFadeIn 180ms var(--ease-out);
+}
+
+.notif-popover-header {
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  background: var(--surface);
+}
+
+.notif-popover-body {
+  padding: 14px 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.notif-item-card {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  padding: 11px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.notif-item-card--warn {
+  border-color: color-mix(in srgb, var(--warn) 42%, var(--line));
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+}
+
+.notif-item-card--bad {
+  border-color: color-mix(in srgb, var(--bad) 42%, var(--line));
+  background: color-mix(in srgb, var(--bad) 8%, var(--surface));
+}
+
+.notif-item-card--info {
+  border-color: color-mix(in srgb, var(--water) 34%, var(--line));
+}
+
+.notif-item-card--ok {
+  border-color: color-mix(in srgb, var(--leaf-600) 34%, var(--line));
+}
+
+.schedule-row {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-row--off {
+  opacity: 0.68;
+}
+
+.time-pill-input {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 5px 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.time-pill-input:focus {
+  outline: 2px solid var(--leaf-500);
+  outline-offset: 1px;
+}
+
+.alert-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  background: color-mix(in srgb, var(--ink-soft) 32%, transparent);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) ease;
+  padding: 0;
+}
+
+.alert-switch[aria-checked='true'] {
+  background: var(--leaf-600);
+}
+
+.alert-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+.alert-switch[aria-checked='true'] .alert-switch-thumb {
+  transform: translateX(18px);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(22px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   TATA LETAK DASHBOARD TENANG & RAPI
+   ============================================================ */
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 22px;
+  align-items: start;
+}
+
+.dashboard-center {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.dashboard-bento-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.dashboard-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  /* Kartu bersebelahan selalu sama tinggi agar tepinya rata */
+  align-items: stretch;
+}
+
+.dashboard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.dashboard-right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 86px;
+}
+
+/* Grid KPI Bersih & Seragam (4 Kartu Ringkas) */
+.kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Jarak sama dengan baris 2 kolom di bawahnya agar tepi kartu segaris */
+  gap: 18px;
+}
+
+/* Kartu Ringkasan Kebun & Cuaca Terpadu (desktop): lokasi + cuaca, 4 metrik berkotak, busur matahari */
+.dash-climate-card {
+  background: var(--surface);
+  border: 1px solid var(--card-hairline);
+  border-radius: var(--r-card);
+  padding: 22px 24px 18px;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.dash-climate-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dash-climate-place {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dash-climate-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.dash-climate-pin {
+  color: var(--leaf-600);
+  flex-shrink: 0;
+}
+
+.dash-climate-date {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-climate-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.dash-climate-cond-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-climate-cond-icon--cerah {
+  background: var(--warn-bg);
+  color: var(--sun-400);
+}
+
+.dash-climate-cond-icon--malam {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+.dash-climate-weather-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.dash-climate-temp {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 2.4vw, 2.3rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.dash-climate-cond {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.dash-climate-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dash-climate-metric {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  padding: 14px 14px 12px;
+  border-radius: var(--r-card-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.dash-climate-metric:hover {
+  border-color: var(--leaf-500);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-2px);
+}
+
+.dash-climate-metric:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.dash-climate-metric:focus-visible {
+  outline: 2px solid var(--leaf-600);
+  outline-offset: 2px;
+}
+
+.dash-climate-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.dash-climate-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.dash-climate-chip--leaf {
+  background: var(--ok-bg);
+  color: var(--leaf-600);
+}
+
+.dash-climate-chip--water {
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-climate-chip--sky {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.dash-climate-chip--soil {
+  background: rgba(168, 116, 64, 0.14);
+  color: #8a5a2b;
+}
+
+:root[data-theme="dark"] .dash-climate-chip--soil {
+  background: rgba(214, 160, 104, 0.16);
+  color: #e3b98a;
+}
+
+.dash-climate-pill {
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.dash-climate-val {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.dash-climate-subval {
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-climate-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Bar level + penanda ambang batas */
+.dash-climate-bar {
+  position: relative;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.dash-climate-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width 600ms var(--ease-out);
+}
+
+.dash-climate-bar i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--ink-soft);
+  opacity: 0.55;
+}
+
+.dash-climate-bar--leaf span {
+  background: var(--leaf-500);
+}
+
+.dash-climate-bar--water span {
+  background: var(--water-700);
+}
+
+.dash-climate-bar--sky span {
+  background: var(--sun-400);
+}
+
+.dash-climate-bar--soil span {
+  background: #a87440;
+}
+
+
+/* Kotak "Matahari hari ini" — info ringkas (kiri) + kubah langit (kanan) */
+.dash-sun-panel {
+  display: grid;
+  grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+  gap: 28px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+  /* Tanpa warna latar: menyatu dengan kartu, hanya garis tepi tipis */
+  background: transparent;
+}
+
+.dash-sun-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dash-sun-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.dash-sun-title svg {
+  color: var(--sun-400);
+}
+
+.dash-sun-remain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-sun-remain strong {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.dash-sun-remain span {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.dash-sun-stats {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.dash-sun-stats>div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dash-sun-stats dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.dash-sun-stats dt svg {
+  color: var(--sun-400);
+}
+
+.dash-sun-stats dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dash-sun-sky {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dash-sun-arc-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 150px;
+  margin-bottom: 18px;
+}
+
+.dash-sun-arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-soft);
+  overflow: visible;
+}
+
+.dash-sun-dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe08a 0%, #f5b82e 60%, #e89a12 100%);
+  box-shadow:
+    0 0 0 6px rgba(245, 184, 46, 0.16),
+    0 0 0 14px rgba(245, 184, 46, 0.07),
+    0 0 26px 8px rgba(245, 184, 46, 0.35);
+}
+
+.dash-sun-tick {
+  position: absolute;
+  top: calc(100% * 130 / 150 + 8px);
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.dash-sun-tick::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  opacity: 0.45;
+}
+
+.dash-sun-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.dash-sun-tip svg {
+  color: var(--water-700);
+  flex-shrink: 0;
+}
+
+.dash-sun-tip strong {
+  color: var(--ink);
+}
+
+@media (max-width: 1000px) {
+  .dash-sun-panel {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .dash-sun-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: end;
+    gap: 10px 24px;
+  }
+
+  .dash-sun-title {
+    grid-column: 1 / -1;
+  }
+
+  .dash-sun-stats {
+    border-top: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .dash-sun-stats>div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  /* Satu kolom: busur setinggi tetap agar tidak menyisakan ruang kosong */
+  .dash-sun-arc-wrap {
+    flex: none;
+    height: 140px;
+    min-height: 0;
+  }
+}
+
+/* ---- Kotak matahari: animasi & interaksi ---- */
+.dash-sun-sky-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.dash-sun-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.dash-sun-phase--water {
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.dash-sun-phase--hot {
+  background: rgba(242, 86, 43, 0.12);
+  color: var(--tomato-btn);
+}
+
+.dash-sun-phase--night {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+.dash-sun-hint {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.dash-sun-arc-wrap {
+  cursor: crosshair;
+  touch-action: pan-y;
+  overflow: visible;
+}
+
+/* Matahari: cincin cahaya berdenyut */
+.dash-sun-dot::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 184, 46, 0.45);
+  animation: dashSunPulse 2.6s ease-out infinite;
+}
+
+/* Matahari bayangan saat busur digeser */
+.dash-sun-ghost {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  border: 2px solid #f5b82e;
+  background: var(--surface);
+  box-shadow: 0 0 0 4px rgba(245, 184, 46, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dash-sun-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-2);
+  z-index: 3;
+}
+
+.dash-sun-tooltip strong {
+  margin-right: 4px;
+}
+
+.dash-sun-tooltip--water strong {
+  color: #8fd0ff;
+}
+
+.dash-sun-tooltip--sun strong {
+  color: #ffd36b;
+}
+
+.dash-sun-tooltip--hot strong {
+  color: #ff9a76;
+}
+
+/* Awan tipis melayang */
+.dash-sun-cloud {
+  position: absolute;
+  color: var(--ink-soft);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.dash-sun-cloud--a {
+  top: 18%;
+  left: 18%;
+  animation: dashCloudDrift 26s ease-in-out infinite alternate;
+}
+
+.dash-sun-cloud--b {
+  top: 40%;
+  left: 62%;
+  animation: dashCloudDrift 34s ease-in-out infinite alternate-reverse;
+}
+
+.dash-sun-title-icon {
+  animation: dashSunSpin 18s linear infinite;
+}
+
+/* Kotak metrik: muncul bergantian, bar tumbuh dari kiri */
+.dash-climate-metric {
+  animation: dashTileIn 0.5s var(--ease-out) backwards;
+}
+
+.dash-climate-metric:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.dash-climate-metric:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.dash-climate-metric:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.dash-climate-bar span {
+  transform-origin: left center;
+  animation: dashBarGrow 1s var(--ease-out) backwards;
+  animation-delay: 250ms;
+}
+
+.dash-climate-chip {
+  transition: transform var(--dur-fast) ease;
+}
+
+.dash-climate-metric:hover .dash-climate-chip {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+@keyframes dashSunPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes dashCloudDrift {
+  from {
+    transform: translateX(-30px);
+  }
+
+  to {
+    transform: translateX(60px);
+  }
+}
+
+@keyframes dashSunSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dashTileIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dashBarGrow {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .dash-sun-dot::after,
+  .dash-sun-cloud,
+  .dash-sun-title-icon,
+  .dash-climate-metric,
+  .dash-climate-bar span {
+    animation: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dash-sun-hint {
+    display: none;
+  }
+}
+
+/* Beranda: kondisi kebun (4 metrik 2x2) bersebelahan dengan tugas kebun, sama tinggi */
+.dash-split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.dash-metrics-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dash-tasks-card {
+  min-width: 0;
+}
+
+.dash-metrics-card .dash-climate-metrics {
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+
+@media (max-width: 1100px) {
+  .dash-split-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dash-climate-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--card-hairline);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background-color 260ms var(--ease-out);
+}
+
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+  border-color: color-mix(in srgb, var(--leaf-600) 28%, var(--line));
+}
+
+.kpi-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.kpi-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Segmented Tabs Bersih */
+.seg-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.seg-tab {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.seg-tab.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(16, 42, 35, 0.08);
+}
+
+/* 4 Ubin Statistik (dipertahankan untuk kompatibilitas) */
+.stat-tiles-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--card-hairline);
+  border-radius: var(--r-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   KARTU BENTO, TOMBOL & KOMPONEN BERSIH
+   ============================================================ */
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  border: 1px solid var(--card-hairline);
+  box-shadow: var(--shadow-1);
+  padding: 20px 22px;
+  transition:
+    background-color 260ms var(--ease-out),
+    border-color 240ms var(--ease-out),
+    box-shadow 260ms var(--ease-out);
+}
+
+.card-interactive {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background-color 260ms var(--ease-out);
+}
+
+.card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+  border-color: color-mix(in srgb, var(--leaf-600) 32%, var(--line));
+}
+
+.card-interactive:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.card-sm {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--card-hairline);
+  box-shadow: var(--shadow-1);
+  padding: 16px 18px;
+  transition: background-color 260ms var(--ease-out), border-color 240ms var(--ease-out);
+}
+
+.card-forest {
+  background: var(--surface-accent);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--leaf-600) 20%, var(--line));
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-1);
+  padding: 20px 22px;
+  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.card-forest .t-soft {
+  color: var(--ink-soft);
+}
+
+.card-subtle {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.card-divider {
+  height: 1px;
+  background: var(--line);
+  border: none;
+  margin: 14px 0;
+}
+
+/* Kartu Metrik 3 Varian (§6.3: Lime sorot, Putih, Forest penekanan) */
+.metrics-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metric-card--lime {
+  background: var(--lime-300);
+  color: var(--on-lime);
+}
+
+.metric-card--white {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--card-hairline);
+}
+
+.metric-card--forest {
+  background: var(--forest-900);
+  color: #ffffff;
+}
+
+.metric-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metric-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+
+.metric-card--lime .metric-icon-circle {
+  background: rgba(20, 48, 42, 0.12);
+  color: var(--on-lime);
+}
+
+.metric-card--white .metric-icon-circle {
+  background: var(--surface-2);
+  color: var(--leaf-600);
+}
+
+.metric-card--forest .metric-icon-circle {
+  background: rgba(216, 243, 106, 0.16);
+  color: var(--lime-300);
+}
+
+.metric-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.05;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card--forest .metric-value {
+  color: var(--lime-300);
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Striped Progress Bar (§6.6 Kesehatan Tanah & N-P-K) */
+.striped-track {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.striped-track--dark {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.striped-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width 500ms var(--ease-out);
+  background-image: repeating-linear-gradient(-45deg,
+      rgba(255, 255, 255, 0.22) 0px,
+      rgba(255, 255, 255, 0.22) 6px,
+      transparent 6px,
+      transparent 12px);
+}
+
+/* Kartu Foto Tugas Agrova (§6.3: foto penuh r20, gradasi bawah, judul putih kiri bawah, chip status kiri atas) */
+.activity-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.activity-photo-card {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--card-hairline);
+  background: #102a22;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4 / 3.1;
+  transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+
+.activity-photo-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+}
+
+.activity-photo-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.activity-photo-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(18, 36, 31, 0.08) 0%, rgba(18, 36, 31, 0.22) 48%, rgba(18, 36, 31, 0.88) 100%);
+  pointer-events: none;
+}
+
+.activity-photo-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+}
+
+.activity-photo-body {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #ffffff;
+}
+
+/* Panel Peta Kebun Agrova (§6.7) */
+.agrova-map-panel {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: #0e4f43;
+  box-shadow: var(--shadow-1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.glass-surface {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  color: #14302a;
+}
+
+@supports not (backdrop-filter: blur(12px)) {
+  .glass-surface {
+    background: #ffffffee;
+  }
+}
+
+.floating-pin {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) ease;
+}
+
+.floating-pin:hover {
+  transform: scale(1.03);
+}
+
+.floating-pin-dot {
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   TOMBOL v2.0 (§6.1: Utama 3D, Tomat 3D, Sekunder, Gelap Panah Bulat ↗)
+   ============================================================ */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 18px;
+  border-radius: var(--r-ctl);
+  border: none;
+  background: var(--leaf-600);
+  color: var(--on-leaf);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.9125rem;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+  text-decoration: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--leaf-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(22, 121, 75, 0.28);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  box-shadow: 0 2px 6px rgba(22, 121, 75, 0.2);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-tomato {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 18px;
+  border-radius: var(--r-ctl);
+  border: none;
+  background: var(--tomato-btn);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.9125rem;
+  box-shadow: var(--shadow-btn-tomato);
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+}
+
+.btn-tomato:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(217, 72, 30, 0.3);
+}
+
+.btn-tomato:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  box-shadow: 0 2px 6px rgba(217, 72, 30, 0.2);
+}
+
+.btn-tomato:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Tombol Pil Hijau Cerah dengan Bulatan Panah Segar */
+.ct-btn-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 5px 5px 5px 18px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(135deg, var(--leaf-600) 0%, var(--leaf-500) 100%);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 5px 16px rgba(24, 150, 88, 0.24);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.ct-btn-dark:hover {
+  filter: brightness(1.04);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(24, 150, 88, 0.3);
+}
+
+.ct-btn-dark:active {
+  transform: translateY(0) scale(0.975);
+}
+
+.ct-btn-dark-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--leaf-700);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+.ct-btn-dark:hover .ct-btn-dark-circle {
+  transform: translate(2px, -2px) scale(1.06);
+}
+
+.ct-btn-dark--amber .ct-btn-dark-circle {
+  background: var(--lime-300);
+  color: var(--on-lime);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border-radius: var(--r-ctl);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--leaf-600);
+  color: var(--leaf-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-1);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.btn-ghost:active {
+  transform: scale(0.97);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 16px;
+  border-radius: var(--r-ctl);
+  border: 1.5px solid var(--bad-600);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* ============================================================
+   LENCANA & CHIP WCAG 2.2 AA
+   ============================================================ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* [REVISI WCAG AA 5,12:1] Pil #ECE9FF + teks #5B4CD6 */
+.pill-sim {
+  background: var(--sim-bg);
+  color: var(--sim-600);
+}
+
+.pill-ok {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.pill-warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.pill-bad {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+
+.pill-water {
+  background: var(--water-bg);
+  color: var(--water-700);
+}
+
+.pill-neutral {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+.ripeness-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Status strip pills */
+.status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-strip-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-chip-solid {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--leaf-600);
+  color: var(--on-leaf);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.status-chip-surface {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--line);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+/* Alert Cards */
+.alert-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  padding: 15px 17px;
+  border-radius: var(--r-md);
+}
+
+.alert-card>div:not(.cermo-mascot-root) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .alert-card {
+    padding: 13px 14px;
+    gap: 10px 12px;
+  }
+
+  .alert-card>button {
+    width: 100%;
+    min-height: 40px;
+    font-size: 0.84rem;
+  }
+}
+
+.alert-card--warn {
+  background: var(--warn-bg);
+  color: var(--ink);
+  border-left: 4px solid var(--warn);
+}
+
+.alert-card--bad {
+  background: var(--bad-bg);
+  color: var(--ink);
+  border-left: 4px solid var(--bad-600);
+}
+
+.alert-card--ok {
+  background: var(--ok-bg);
+  color: var(--ink);
+  border-left: 4px solid var(--leaf-600);
+}
+
+.alert-card--water {
+  background: var(--water-bg);
+  color: var(--ink);
+  border-left: 4px solid var(--water-700);
+}
+
+/* Toggle Irigasi 64×36 (§6.8) */
+.irrigation-toggle {
+  position: relative;
+  width: 60px;
+  height: 34px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: var(--line);
+  cursor: pointer;
+  padding: 3px;
+  transition: background var(--dur-base) ease;
+  flex-shrink: 0;
+}
+
+.irrigation-toggle[aria-checked="true"] {
+  background: var(--water-700);
+}
+
+.irrigation-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.irrigation-toggle-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.irrigation-toggle[aria-checked="true"] .irrigation-toggle-thumb {
+  transform: translateX(26px);
+  color: var(--water-700);
+}
+
+/* Formulir (§6.8: tinggi 48, r14, garis 2px --line) */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.field-input,
+.field-select,
+.field-textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: var(--r-ctl);
+  border: 2px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 1rem;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
+}
+
+.field-input:focus,
+.field-select:focus,
+.field-textarea:focus {
+  border-color: var(--leaf-500);
+  background: var(--surface);
+  outline: none;
+}
+
+.range-slider {
+  width: 100%;
+  accent-color: var(--leaf-600);
+  height: 8px;
+  cursor: pointer;
+}
+
+/* Tabs */
+.tabs-bar {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  padding: 5px;
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  flex: 1;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
+}
+
+.tab-btn.active {
+  background: var(--leaf-600);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(24, 150, 88, 0.22);
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 35, 29, 0.5);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 100;
+  animation: backdropFadeIn 200ms var(--ease-out);
+}
+
+.modal-panel {
+  width: min(560px, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 24px;
+  box-shadow: var(--shadow-3);
+  animation: modalPopIn 280ms var(--ease-out);
+}
+
+.mobile-appbar,
+.mobile-bottom-nav,
+.mobile-more-bar,
+.dash-hero-mobile,
+.dash-kpi-mobile,
+.mobile-only-inline,
+.login-mobile-brand {
+  display: none;
+}
+
+.dash-land-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Mobile Bottom Sheet (Menu CermatTani & Pilih Kebun Aktif — identik Flutter App) */
+.mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(12, 34, 25, 0.46);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: backdropFadeIn 180ms var(--ease-out);
+}
+
+.mobile-sheet {
+  width: 100%;
+  max-width: 540px;
+  max-height: 82dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  border-top: 1px solid var(--line);
+  padding: 12px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 32px rgba(20, 48, 42, 0.18);
+  animation: sheetSlideUp 260ms var(--ease-out);
+}
+
+.mobile-sheet-handle {
+  width: 42px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  margin: 0 auto 14px;
+}
+
+.mobile-more-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Jumlah tile ganjil: tile terakhir melebar penuh agar grid tetap rapi */
+.mobile-more-grid> :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.mobile-more-tile {
+  min-height: 62px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.mobile-more-tile:active {
+  transform: scale(0.97);
+}
+
+.mobile-more-tile.active {
+  background: var(--surface-milk);
+  border-color: var(--leaf-600);
+  color: var(--leaf-700);
+}
+
+.mobile-sheet-utils {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.mobile-util-chip {
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.mobile-util-chip--primary {
+  background: var(--surface-milk);
+  border-color: color-mix(in srgb, var(--leaf-600) 40%, var(--line));
+  color: var(--leaf-700);
+}
+
+.mobile-util-chip--danger {
+  background: var(--bad-bg);
+  border-color: color-mix(in srgb, var(--bad) 30%, var(--line));
+  color: var(--bad-fg);
+}
+
+.mobile-farm-option {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border-radius: 15px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.mobile-farm-option:hover,
+.mobile-farm-option.active {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--leaf-600) 32%, var(--line));
+}
+
+.mobile-farm-option-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--surface-milk);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   HALAMAN PUBLIK TERPADU — BOTANICAL FOREST & SOFT MINT
+   100% Konsisten dengan Dasbor Pengguna (Mode Terang & Mode Gelap)
+   ============================================================ */
+
+.landing-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 12% 4%, color-mix(in srgb, var(--surface-milk) 72%, transparent), transparent 44%),
+    radial-gradient(circle at 90% 18%, color-mix(in srgb, var(--cream-warm) 80%, transparent), transparent 42%),
+    var(--bg);
+  color: var(--ink);
+  transition: background-color 280ms var(--ease-out), color 220ms var(--ease-out);
+}
+
+.landing-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.landing-section {
+  padding: 54px 0;
+}
+
+/* Navigasi pil bersih (selaras topbar aplikasi) */
+.landing-nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 14px 0;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  transition: background-color 260ms var(--ease-out), border-color 240ms var(--ease-out);
+}
+
+.landing-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.landing-nav-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+.landing-nav-link {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.landing-nav-link:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.landing-nav-link.active {
+  background: var(--leaf-600);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(24, 150, 88, 0.24);
+}
+
+/* Seksi 1: Hero Foto Hijau Susu Teduh Bercahaya Pagi */
+.landing-hero-card {
+  position: relative;
+  border-radius: var(--r-hero);
+  overflow: hidden;
+  min-height: 560px;
+  background: linear-gradient(145deg, #439366 0%, #317b51 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 42px 44px 36px;
+  box-shadow: var(--shadow-2);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.landing-hero-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 60% 50%;
+  /* Foto tampil cerah (tanpa lapisan hijau rata) + zoom pelan ala Ken Burns */
+  animation: heroKenBurns 24s ease-in-out infinite alternate;
+}
+
+/* Bayangan hutan gelap dari kiri (teks terbaca) & dari bawah (statistik), kebun di kanan tetap cerah */
+.landing-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 38, 23, 0.9) 0%, rgba(9, 48, 29, 0.72) 38%, rgba(9, 48, 29, 0.18) 68%, rgba(9, 48, 29, 0) 100%),
+    linear-gradient(0deg, rgba(6, 30, 18, 0.62) 0%, rgba(6, 30, 18, 0) 38%);
+}
+
+@keyframes heroKenBurns {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.08) translate(-1.5%, -1%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-bg {
+    animation: none;
+  }
+}
+
+/* Label kaca di atas judul */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.hero-badge svg {
+  color: #d8f36a;
+}
+
+/* Tombol sekunder transparan bergaris */
+.hero-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.hero-cta-ghost:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.hero-cta-main {
+  min-height: 48px;
+  padding: 10px 22px;
+  box-shadow: 0 10px 24px rgba(242, 86, 43, 0.35);
+}
+
+/* Statistik kaca seragam */
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 140px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+.hero-stat-num {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.hero-stat-label {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+@media (max-width: 600px) {
+
+  /* Layar sempit: bayangan menyeluruh atas-bawah agar teks selalu terbaca */
+  .landing-hero-scrim {
+    background: linear-gradient(180deg, rgba(7, 38, 23, 0.86) 0%, rgba(7, 38, 23, 0.72) 55%, rgba(6, 30, 18, 0.82) 100%);
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .hero-stat {
+    min-width: 0;
+    padding: 10px 10px;
+  }
+
+  .hero-stat-num {
+    font-size: 1.2rem;
+  }
+
+  .hero-stat-label {
+    font-size: 0.68rem;
+  }
+
+  .hero-cta-main,
+  .hero-cta-ghost {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+.landing-hero-bottom {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 34px;
+}
+
+/* Chip statistik halus & seragam */
+.stat-chip-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--ink);
+  border: 1px solid var(--card-hairline);
+  border-radius: 16px;
+  padding: 14px 18px;
+  min-width: 142px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+
+.stat-chip:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-3);
+}
+
+.stat-chip--butter {
+  background: var(--cream-warm);
+  color: var(--ink);
+  border-color: var(--cream-border);
+}
+
+.stat-chip-num {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.08;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kartu pratinjau kaca cerah kanan bawah */
+.glass-preview-card {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  padding: 16px 18px;
+  color: var(--ink);
+  width: min(338px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-2);
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.glass-preview-card:hover {
+  border-color: var(--leaf-500);
+}
+
+/* Seksi 3: Wadah Data Cerah Pastel Mint-Lime Terpadu */
+.landing-night-box {
+  background: var(--surface-accent);
+  color: var(--ink);
+  border-radius: var(--r-hero);
+  padding: 40px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-shadow: var(--shadow-1);
+  border: 1px solid color-mix(in srgb, var(--leaf-600) 20%, var(--line));
+}
+
+.landing-night-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+/* Kartu CTA Hijau-Lime Cerah Terpadu */
+.butter-cta-card {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid color-mix(in srgb, var(--leaf-600) 24%, var(--line));
+  border-radius: 22px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-1);
+}
+
+/* Seksi 6: Panel Nilai Krim Susu Hangat + Kartu Tengah Hijau Susu */
+.values-panel {
+  background: var(--surface-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--r-hero);
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  transition: background-color 260ms var(--ease-out), border-color 240ms var(--ease-out);
+}
+
+.values-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.value-card {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--card-hairline);
+  border-radius: var(--r-card);
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: var(--shadow-1);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.value-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+}
+
+.value-card--dark {
+  background: var(--surface-accent);
+  color: var(--ink);
+  border: 1.5px solid color-mix(in srgb, var(--leaf-600) 32%, var(--line));
+}
+
+.value-tag-dark {
+  display: inline-flex;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--leaf-600) 28%, transparent);
+  background: var(--surface);
+  color: var(--leaf-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.carousel-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
+}
+
+.carousel-circle-btn--active,
+.carousel-circle-btn:hover {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.carousel-circle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Onboarding Split */
+.onboarding-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--lime-300) 18%, transparent), transparent 44%),
+    var(--bg);
+}
+
+.onboarding-split {
+  width: min(980px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-hero);
+  overflow: hidden;
+  box-shadow: var(--shadow-2);
+}
+
+.onboarding-showcase {
+  background: var(--surface-accent);
+  color: var(--ink);
+  border-right: 1px solid var(--line);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.onboarding-form-pane {
+  padding: 34px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* ============================================================
+   SISTEM ANIMASI SMOOTH 60FPS (GPU transform + opacity saja)
+   ============================================================ */
+
+.screen-transition {
+  animation: screenGlideIn 300ms var(--ease-out) both;
+}
+
+.step-transition,
+.tab-fade {
+  animation: panelFadeIn 260ms var(--ease-out) both;
+}
+
+.pose-swap {
+  animation: posePopIn 320ms var(--ease-spring) both;
+}
+
+.stagger-card {
+  animation: cardSoftIn 360ms var(--ease-out) both;
+}
+
+.stagger-1 {
+  animation-delay: 40ms;
+}
+
+.stagger-2 {
+  animation-delay: 85ms;
+}
+
+.stagger-3 {
+  animation-delay: 130ms;
+}
+
+.stagger-4 {
+  animation-delay: 175ms;
+}
+
+.stagger-5 {
+  animation-delay: 220ms;
+}
+
+.stagger-6 {
+  animation-delay: 265ms;
+}
+
+.hero-stagger-1 {
+  animation: heroRiseIn 520ms var(--ease-out) 40ms both;
+}
+
+.hero-stagger-2 {
+  animation: heroRiseIn 540ms var(--ease-out) 120ms both;
+}
+
+.hero-stagger-3 {
+  animation: heroRiseIn 560ms var(--ease-out) 200ms both;
+}
+
+.hero-stagger-4 {
+  animation: heroRiseIn 580ms var(--ease-out) 280ms both;
+}
+
+.reveal-block {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 540ms var(--ease-out),
+    transform 560ms var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal-block.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ambient-float {
+  animation: ambientFloat 5.5s ease-in-out infinite;
+}
+
+.loading-pulse {
+  animation: softPulse 1.5s ease-in-out infinite;
+}
+
+.mascot-interactive-btn:hover {
+  transform: translateY(-3px) scale(1.04) !important;
+}
+
+.tip-bubble-in {
+  animation: tipBubblePop 240ms var(--ease-spring) both;
+}
+
+.pose-chip-btn {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.pose-chip-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-1);
+}
+
+.pose-chip-btn:active {
+  transform: scale(0.97);
+}
+
+@keyframes screenGlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.996);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardSoftIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes posePopIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetSlideUp {
+  from {
+    opacity: 0.4;
+    transform: translateY(36px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ambientFloat {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes softPulse {
+
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes tipBubblePop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* Animasi Bermakna (§4.9) */
+@keyframes fabPulse {
+
+  0%,
+  74%,
+  100% {
+    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 0 rgba(214, 61, 18, 0.32);
+  }
+
+  88% {
+    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.36), 0 0 0 12px rgba(214, 61, 18, 0);
+  }
+}
+
+@keyframes cermoBreathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes cermoLeafSway {
+
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes cermoJump {
+  0% {
+    transform: scale(1, 1) translateY(0);
+  }
+
+  20% {
+    transform: scale(1.1, 0.88) translateY(4px);
+  }
+
+  50% {
+    transform: scale(0.94, 1.08) translateY(-14px);
+  }
+
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
+}
+
+@keyframes cermoWave {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-20deg);
+  }
+
+  60% {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes cermoScanGlass {
+
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-6px, -4px) rotate(-10deg);
+  }
+}
+
+@keyframes scanBeam {
+  0% {
+    top: 4%;
+    opacity: 0.95;
+  }
+
+  50% {
+    top: 90%;
+    opacity: 1;
+  }
+
+  100% {
+    top: 4%;
+    opacity: 0.95;
+  }
+}
+
+@keyframes boxPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes confettiDrop {
+  0% {
+    transform: translateY(-8px) rotate(0deg) scale(0.75);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100px) rotate(180deg) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes barGrowUp {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes drawPath {
+  from {
+    stroke-dashoffset: 1000;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes floatZzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 4px) scale(0.85);
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(8px, -14px) scale(1.05);
+  }
+}
+
+/* ============================================================
+   TITIK HENTI RESPONSIF (§4.4)
+   ============================================================ */
+
+@media (max-width: 1220px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-right-panel {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  }
+}
+
+@media (max-width: 1099px) {
+  .app-shell {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 14px 6px;
+    align-items: center;
+  }
+
+  .sidebar-brand-text,
+  .sidebar-farm-box,
+  .sidebar-mascot-text,
+  .sidebar-section-title,
+  .nav-badge {
+    display: none;
+  }
+
+  .sidebar-brand {
+    justify-content: center;
+    padding: 4px;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    font-size: 0.68rem;
+    text-align: center;
+    min-height: 52px;
+    border-radius: 14px;
+  }
+
+  .sidebar-mascot-card {
+    padding: 6px;
+    justify-content: center;
+  }
+
+  .topbar,
+  .main-content-pad {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .landing-night-grid,
+  .values-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Utility Grids Responsif Multi-Perangkat (Desktop / Tablet / Mobile 360px+) */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Tata Letak Master-Detail Halaman Tanaman (Nyaman di Desktop, Tablet, & HP) */
+/* Filter & Dropdown Responsif Halaman Tanaman */
+.plants-filter-bar {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.plants-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plants-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  min-height: 36px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.plants-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.82rem;
+  width: 135px;
+  color: var(--ink);
+}
+
+.plants-filter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.plants-filter-btn {
+  min-height: 38px;
+  padding: 6px 13px;
+  font-size: 0.84rem;
+}
+
+.plants-mobile-dropdown {
+  display: none;
+}
+
+.plants-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Tombol aksi detail tanaman: ukuran sama, tanpa bayangan berlebih */
+.plants-detail-btn {
+  min-height: 40px;
+  padding: 7px 15px;
+  font-size: 0.86rem;
+  box-shadow: none;
+}
+
+.plants-seg-tabs .seg-tab {
+  white-space: nowrap;
+}
+
+.plants-search-box {
+  min-height: 38px;
+}
+
+@media (max-width: 768px) {
+  .plants-filter-bar {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .plants-filter-left {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .plants-seg-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .plants-seg-tabs .seg-tab {
+    padding: 6px 6px;
+    font-size: 0.76rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .plants-search-box {
+    width: 100%;
+    min-height: 38px;
+  }
+
+  .plants-search-input {
+    width: 100%;
+  }
+
+  .plants-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .plants-filter-btn {
+    width: 100%;
+    padding: 6px 8px;
+    gap: 5px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .plants-mobile-dropdown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+  }
+
+  .plants-list-col {
+    display: none !important;
+  }
+
+  .plants-detail-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .plants-detail-btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 8px;
+    gap: 5px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
+.plants-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+  /* Kolom daftar & panel detail sama tinggi agar tepi bawah rata */
+  align-items: stretch;
+}
+
+@media (max-width: 1280px) {
+  .plants-layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+/* Daftar tanaman dibungkus satu kartu yang tingginya mengikuti panel detail */
+.plants-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--card-hairline, var(--line));
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+
+.plant-row-btn {
+  width: 100%;
+  text-align: left;
+  border-radius: 15px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 12px 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.plant-row-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--leaf-600) 45%, var(--line));
+  box-shadow: var(--shadow-1);
+}
+
+.plant-row-btn.active {
+  background: var(--surface-accent);
+  border-color: var(--leaf-600);
+  box-shadow: var(--shadow-1);
+}
+
+.plant-row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--leaf-600);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.plant-row-btn.active .plant-row-icon {
+  background: var(--leaf-600);
+  color: #ffffff;
+}
+
+.plant-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plant-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plant-row-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.plant-row-pill {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  padding: 2px 9px;
+}
+
+.plant-row-meta {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Strip 3 metrik ringkas tanaman: tinggi & tipografi seragam */
+.plant-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.plant-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  text-align: left;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+
+button.plant-stat {
+  cursor: pointer;
+}
+
+.plant-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.plant-stat-value {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.plant-stat-value--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 560px) {
+  .plant-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Di HP: label kiri, nilai kanan — satu baris ringkas */
+  .plant-stat {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .plant-stat-label {
+    flex-shrink: 0;
+  }
+
+  .plant-stat-value {
+    font-size: 0.92rem;
+    text-align: right;
+    min-width: 0;
+  }
+}
+
+/* Stepper Fase Pertumbuhan Tanaman (5 Langkah Visual) */
+.growth-stepper {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.growth-step {
+  border-radius: 12px;
+  padding: 9px 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 220ms var(--ease-out), border-color 220ms var(--ease-out);
+}
+
+.growth-step--done {
+  background: var(--ok-bg);
+  border-color: color-mix(in srgb, var(--leaf-600) 30%, var(--line));
+}
+
+.growth-step--current {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(69, 150, 106, 0.24);
+}
+
+/* Keterangan AI hemat token (halaman Scan) */
+.scan-token-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.scan-token-note strong {
+  color: var(--ink);
+}
+
+.scan-token-note-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--ok-bg);
+  color: var(--leaf-700);
+  flex-shrink: 0;
+}
+
+.scan-token-note-title {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.scan-token-note-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 2px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* Kartu Hitung Mundur Panen (Kalender) */
+.harvest-countdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface-accent);
+}
+
+.harvest-countdown-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.harvest-countdown-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--leaf-600);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.harvest-countdown-kicker {
+  color: var(--leaf-700);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.66rem;
+}
+
+.harvest-countdown-title {
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.harvest-countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.harvest-countdown-cell {
+  --hc-accent: var(--leaf-600);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+/* Detik: aksen kuning agar jam terasa "hidup" */
+.harvest-countdown-cell--live {
+  --hc-accent: var(--sun-400);
+}
+
+.harvest-countdown-ring {
+  position: relative;
+  width: min(84px, 100%);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.harvest-countdown-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.hc-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 5;
+}
+
+.hc-progress {
+  fill: none;
+  stroke: var(--hc-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s linear;
+}
+
+.harvest-countdown-num {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  animation: hcTick 0.35s var(--ease-out);
+}
+
+@keyframes hcTick {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harvest-countdown-num {
+    animation: none !important;
+  }
+}
+
+.harvest-countdown-unit {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.harvest-countdown-due {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--warn-bg);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.harvest-countdown-due>span {
+  flex: 1 1 180px;
+}
+
+.harvest-countdown-due>button {
+  min-height: 36px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  box-shadow: none;
+}
+
+.harvest-countdown-note {
+  line-height: 1.45;
+}
+
+.harvest-countdown-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.harvest-countdown-actions>button {
+  min-height: 40px;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  box-shadow: none;
+}
+
+/* Tata Letak Halaman Kalender Panen */
+/* Grid 2×2: kartu dalam satu baris sama tinggi, tepi atas & bawah rata */
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.calendar-layout>.card {
+  min-width: 0;
+}
+
+/* Hitung mundur mengisi ruang kosong kartu yang direntangkan: cincin di tengah */
+.calendar-layout .harvest-countdown-grid {
+  flex: 1;
+  align-content: center;
+}
+
+/* Tombol aksi/form menempel di dasar kartu saat kartu direntangkan */
+.calendar-layout .harvest-countdown-actions,
+.calendar-layout>.card>form:last-child {
+  margin-top: auto;
+}
+
+.cal-day-cell {
+  min-height: 52px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 3px;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.cal-day-cell:hover {
+  transform: translateY(-1px);
+  border-color: var(--leaf-500);
+  box-shadow: var(--shadow-1);
+}
+
+.cal-day-cell--has {
+  background: var(--surface-2);
+}
+
+.cal-day-cell--today {
+  background: var(--cream-warm);
+  border: 1.5px solid var(--cream-border);
+}
+
+.cal-day-cell--selected {
+  background: var(--ok-bg);
+  border: 2px solid var(--leaf-600);
+  box-shadow: 0 4px 12px rgba(69, 150, 106, 0.16);
+}
+
+.phase-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.solar-res-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Header Lahan & Kontrol Simulasi 3D Responsif */
+.land-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.land-device-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.land-device-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.land-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.land-action-btn {
+  min-height: 38px;
+  padding: 6px 13px;
+  font-size: 0.84rem;
+}
+
+.sim3d-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sim3d-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.sim3d-heading {
+  font-size: 1.125rem;
+}
+
+.sim3d-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-subtitle {
+  margin-top: 1px;
+}
+
+.sim3d-tabs-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sim3d-fs-btn {
+  width: 34px;
+  height: 34px;
+}
+
+/* Mode contoh tahap busuk: label di atas tanaman 3D + daftar gejala di panel */
+.sim3d-stage-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 4px;
+  border-radius: 999px;
+  background: rgba(12, 32, 27, 0.82);
+  color: #f4fbf7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  z-index: 6;
+}
+
+.sim3d-stage-tag b,
+.sim3d-stage-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.sim3d-stage-tag--0 b,
+.sim3d-stage-dot--0 {
+  background: #2f9e4f;
+}
+
+.sim3d-stage-tag--1 b,
+.sim3d-stage-dot--1 {
+  background: #c9a10b;
+}
+
+.sim3d-stage-tag--2 b,
+.sim3d-stage-dot--2 {
+  background: #e07a12;
+}
+
+.sim3d-stage-tag--3 b,
+.sim3d-stage-dot--3 {
+  background: #c62f36;
+}
+
+.sim3d-stage-tag--4 b,
+.sim3d-stage-dot--4 {
+  background: #5b3a1f;
+}
+
+.sim3d-stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border-radius: var(--r-ctl);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.sim3d-stage-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sim3d-stage-list li>div {
+  display: grid;
+  gap: 1px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.sim3d-stage-list strong {
+  color: var(--ink);
+}
+
+.sim3d-stage-list span:not(.sim3d-stage-dot) {
+  color: var(--ink-soft);
+}
+
+.sim3d-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim3d-cam-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sim3d-cam-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 0.76rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .land-header-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .land-device-meta {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+
+  .land-device-label {
+    font-size: 0.78rem;
+  }
+
+  .land-header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .land-action-btn {
+    width: 100%;
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .sim3d-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sim3d-title-block {
+    flex: none;
+  }
+
+  .sim3d-heading {
+    font-size: 1.02rem;
+  }
+
+  .sim3d-subtitle {
+    display: none;
+  }
+
+  .sim3d-tabs-wrap {
+    width: 100%;
+  }
+
+  .sim3d-seg-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sim3d-seg-tabs .seg-tab {
+    padding: 6px 4px;
+    font-size: 0.74rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .sim3d-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sim3d-cam-label {
+    display: none;
+  }
+
+  .sim3d-cam-group {
+    width: 100%;
+  }
+
+  .sim3d-cam-pills {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .sim3d-cam-btn {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 0.74rem;
+  }
+
+}
+
+.sim3d-viewport {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  height: 410px;
+  min-height: 270px;
+  background: #2c82c9;
+  border: 1px solid rgba(20, 48, 42, 0.14);
+}
+
+.sim3d-viewport--full {
+  height: min(64dvh, 560px);
+}
+
+/* Halaman Simulasi 3D tersendiri: panggung 3D lebih tinggi & mengikuti tinggi layar */
+.sim3d-viewport.sim3d-viewport--page {
+  height: clamp(400px, calc(100dvh - 300px), 720px);
+}
+
+@media (max-width: 960px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(320px, 56dvh, 560px);
+  }
+}
+
+@media (max-width: 480px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(280px, 50dvh, 440px);
+  }
+}
+
+/* Pembacaan langsung di halaman Simulasi 3D */
+.sim-live-card {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-live-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.sim-page-desc {
+  min-width: 0;
+  white-space: normal;
+}
+
+/* 6 pembacaan: 3 kolom × 2 baris (desktop/tablet), 2 kolom × 3 baris (HP) — tidak ada kotak yatim */
+.sim-live-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sim-live-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.sim-live-value {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.14rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sim-live-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-live-pill {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .sim-live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Kotak seragam: ikon + status di baris atas, angka & label di bawah */
+  .sim-live-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .sim-live-pill {
+    position: absolute;
+    top: 11px;
+    right: 11px;
+    margin-left: 0;
+  }
+
+  .sim-live-label {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 960px) {
+
+  .sim3d-grid,
+  .plants-layout,
+  .calendar-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .plants-list-col {
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .plant-row-btn {
+    width: 250px;
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+
+  .sim3d-viewport {
+    height: 330px;
+  }
+}
+
+@media (max-width: 960px) and (min-width: 769px) {
+  .topbar {
+    padding: 10px 18px;
+    gap: 10px;
+  }
+
+  .search-box {
+    width: 165px;
+  }
+
+  .search-box:focus-within {
+    width: 195px;
+  }
+}
+
+@media (max-width: 900px) {
+
+  .onboarding-split,
+  .dashboard-bento-row,
+  .dashboard-two-col,
+  .activity-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-tiles-4,
+  .kpi-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-nav-pills {
+    display: none;
+  }
+
+  .landing-hero-card {
+    padding: 28px 22px;
+    min-height: 500px;
+  }
+
+  .landing-night-box,
+  .values-panel {
+    padding: 26px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    overflow-x: clip;
+  }
+
+  .sidebar,
+  .topbar {
+    display: none !important;
+  }
+
+  /* Native Mobile AppBar — Sama persis dengan Flutter App */
+  .mobile-appbar {
+    position: sticky;
+    top: 0;
+    z-index: 38;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 58px;
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 6px 14px;
+    background: color-mix(in srgb, var(--bg) 95%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-farm-trigger {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 4px 2px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    cursor: pointer;
+    color: var(--ink);
+  }
+
+  .mobile-farm-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--surface-milk);
+    color: var(--leaf-700);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  .mobile-farm-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mobile-farm-name-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .mobile-farm-name {
+    font-size: 0.96rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-farm-sub {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-subpage-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mobile-appbar-title {
+    font-size: clamp(1.06rem, 4.6vw, 1.28rem);
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-appbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .mobile-icon-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+  }
+
+  .mobile-icon-btn:active {
+    background: var(--surface-milk);
+    transform: scale(0.93);
+  }
+
+  .mobile-badge-count {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--tomato-btn);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--bg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Dashboard Mobile Parity — Identik dengan Flutter DashboardScreen */
+  .dash-hero-desktop,
+  .dash-kpi-desktop {
+    display: none !important;
+  }
+
+  .dash-hero-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 14px 16px 18px !important;
+    border-radius: 20px !important;
+  }
+
+  .dash-kpi-mobile {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .app-metric-card {
+    border-radius: 18px;
+    padding: 14px;
+    border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+    box-shadow: 0 6px 18px rgba(45, 92, 68, 0.06);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 122px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--dur-fast) ease;
+  }
+
+  .app-metric-card:active {
+    transform: scale(0.975);
+  }
+
+  .app-metric-card--milk {
+    background: var(--surface-milk);
+  }
+
+  .app-metric-card--white {
+    background: var(--surface);
+  }
+
+  .app-metric-card--cream {
+    background: var(--cream-warm);
+    border-color: var(--cream-border);
+  }
+
+  .mobile-only-inline {
+    display: inline-flex !important;
+  }
+
+  .dash-land-cta-row {
+    width: 100%;
+  }
+
+  .dash-sim3d-btn {
+    flex: 1;
+  }
+
+  /* Ruang konten mobile identik dengan AppScaffold padding (16px + ruang bottom nav & FAB Scan) */
+  .main-content-pad {
+    padding: 6px 16px calc(120px + env(safe-area-inset-bottom, 0px));
+    gap: 14px;
+    max-width: 840px;
+  }
+
+  .main-content-pad--chat {
+    padding: 4px 12px calc(82px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+  }
+
+  .chat-shell-card {
+    border-radius: 18px;
+  }
+
+  .chat-card-header {
+    padding: 10px 12px 9px;
+    gap: 7px;
+  }
+
+  .chat-header-desc {
+    display: none;
+  }
+
+  .chat-header-controls {
+    width: 100%;
+  }
+
+  .chat-header-controls .field-select {
+    flex: 1;
+    min-width: 0 !important;
+  }
+
+  /* Login Screen Mobile Parity — Form langsung di atas seperti Flutter App */
+  .login-split-grid {
+    gap: 14px !important;
+  }
+
+  .login-mobile-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    padding: 4px 0 2px;
+  }
+
+  .login-info-panel {
+    order: 3;
+    padding: 18px !important;
+  }
+
+  .chat-messages-scroll {
+    padding: 12px;
+  }
+
+  .chat-composer {
+    padding: 8px 11px 10px;
+  }
+
+  .card,
+  .card-forest {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .metrics-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .sim3d-viewport {
+    height: 275px;
+  }
+
+  .phase-grid-5 {
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  }
+
+  /* 5 fase tetap satu baris di HP agar "Panen" tidak turun sendirian */
+  .growth-stepper {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .growth-step {
+    padding: 8px 2px;
+  }
+
+  .growth-step .t-micro {
+    font-size: 0.66rem;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .solar-res-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modal-panel {
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    animation: sheetSlideUp 300ms var(--ease-out);
+  }
+
+  .notif-popover {
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 86dvh;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: sheetSlideUp 300ms var(--ease-out);
+  }
+
+  /* Bottom-Nav Mobile 5 Item + Pil Aktif Hijau Susu + FAB Scan 62px (identik Flutter _BottomNav) */
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -5px 18px rgba(40, 89, 65, 0.08);
+    display: flex;
+    justify-content: center;
+    padding: 0 4px env(safe-area-inset-bottom, 0px);
+    z-index: 60;
+  }
+
+  .mobile-bottom-nav-inner {
+    width: 100%;
+    max-width: 680px;
+    height: 74px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+  }
+
+  .bottom-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 2px;
+    transition: color 200ms var(--ease-out);
+  }
+
+  .bottom-nav-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: transparent;
+    transition: background-color 200ms var(--ease-out), transform 180ms var(--ease-out);
+  }
+
+  .bottom-nav-btn.active {
+    color: var(--leaf-700);
+    font-weight: 700;
+  }
+
+  .bottom-nav-btn.active .bottom-nav-pill {
+    background: var(--surface-milk);
+    color: var(--leaf-700);
+  }
+
+  .bottom-nav-alert-dot {
+    position: absolute;
+    top: 3px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tomato-btn);
+    border: 1.5px solid var(--surface);
+  }
+
+  .bottom-nav-scan-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+
+  .scan-fab {
+    width: 62px;
+    height: 62px;
+    transform: translateY(-13px);
+    border-radius: 50%;
+    border: 4px solid var(--surface);
+    background: var(--tomato-btn);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(214, 61, 18, 0.35);
+    transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+  }
+
+  .scan-fab:active {
+    transform: translateY(-11px) scale(0.95);
+  }
+
+  .scan-fab.active {
+    box-shadow: 0 6px 18px rgba(214, 61, 18, 0.5), 0 0 0 3px color-mix(in srgb, var(--tomato-btn) 28%, transparent);
+  }
+}
+
+@media (max-width: 520px) {
+
+  .landing-shell,
+  .app-shell {
+    overflow-x: clip;
+  }
+
+  .landing-container {
+    padding: 0 14px;
+  }
+
+  .landing-brand-tagline {
+    display: none;
+  }
+
+  .landing-nav-inner {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .landing-section {
+    padding: 36px 0;
+  }
+
+  .landing-hero-card {
+    padding: 22px 16px;
+    min-height: 440px;
+    border-radius: 22px;
+  }
+
+  .landing-night-box,
+  .values-panel {
+    padding: 20px 15px;
+    border-radius: 22px;
+  }
+
+  .stat-chip {
+    min-width: 0;
+    flex: 1 1 130px;
+    padding: 12px 14px;
+  }
+
+  .onboarding-showcase,
+  .onboarding-form-pane {
+    padding: 22px 18px;
+  }
+
+  .cal-day-cell {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 3px 1px;
+  }
+
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card {
+    padding: 13px;
+    min-width: 0;
+  }
+
+  .kpi-value {
+    font-size: 1.4rem;
+  }
+
+  .card,
+  .card-forest {
+    padding: 15px;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   HALAMAN SIMULASI 3D — TATA LETAK RAPI
+   Header 1 baris · toolbar kamera + lapisan · kontrol waktu & notifikasi di dalam 3D ·
+   panel samping 3 bagian seragam · tinggi panggung 3D = tinggi panel (sejajar)
+   ============================================================================ */
+@media (min-width: 769px) {
+  .sim3d-header {
+    align-items: center;
+  }
+
+  .sim3d-title-block {
+    gap: 2px;
+  }
+
+  .sim3d-badges {
+    justify-content: flex-end;
+  }
+
+  .sim3d-toolbar {
+    gap: 10px 14px;
+  }
+}
+
+.sim3d-heading {
+  font-size: 1.05rem;
+}
+
+.sim3d-cam-label {
+  font-weight: 600;
+}
+
+.sim3d-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+}
+
+.sim3d-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sim3d-panel-section+.sim3d-panel-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.sim3d-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sim3d-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sim3d-opt-btn {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  justify-content: flex-start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sim3d-opt-btn--wide {
+  grid-column: 1 / -1;
+}
+
+.sim3d-opt-btn--center {
+  justify-content: center;
+}
+
+.sim3d-slider {
+  display: grid;
+  gap: 4px;
+}
+
+.sim3d-slider-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.sim3d-slider-head strong {
+  color: var(--ink);
+}
+
+.sim3d-pump-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sim3d-pump-row button {
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.sim3d-overlay-top {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.sim3d-overlay-btn {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sim3d-toast {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: min(360px, calc(100% - 180px));
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  z-index: 11;
+  animation: sim3dToastIn 0.25s ease;
+}
+
+@keyframes sim3dToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Panggung 3D halaman: tinggi tetap (tidak memanjang ke bawah). Panel samping yang menyesuaikan:
+   pembungkusnya tidak ikut menentukan tinggi baris, panel mengisi penuh & isinya bisa digulir. */
+.sim3d-viewport.sim3d-viewport--page {
+  height: clamp(380px, calc(100dvh - 360px), 520px);
+  min-height: 0;
+}
+
+.sim3d-panel-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.sim3d-panel-wrap>.sim3d-panel {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+@media (max-width: 960px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(320px, 56dvh, 520px);
+  }
+
+  .sim3d-panel-wrap>.sim3d-panel {
+    position: static;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  .sim3d-tabs-wrap {
+    display: flex;
+    gap: 8px;
+  }
+
+  .sim3d-seg-tabs {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sim3d-toast {
+    top: 52px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sim3d-viewport.sim3d-viewport--page {
+    height: clamp(300px, 52dvh, 440px);
+  }
+}
+
+/* ---- Scan: area ambil foto (drag & drop + tombol) dan kolom contoh foto ---- */
+.scan-pick-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.scan-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px;
+  text-align: center;
+  border: 2px dashed var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.scan-drop--active {
+  border-color: var(--leaf-600);
+  background: var(--ok-bg);
+}
+
+.scan-drop-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+  background: var(--surface);
+  color: var(--leaf-600);
+  border: 1px solid var(--line);
+}
+
+.scan-drop-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.scan-drop-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.scan-drop-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.scan-drop-actions button {
+  min-width: 150px;
+  min-height: 42px;
+  padding: 8px 16px;
+  justify-content: center;
+}
+
+.scan-drop-meta {
+  margin: 6px 0 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+/* Kolom contoh foto: benar di atas, salah di bawah */
+.scan-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scan-examples-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-ex {
+  flex: 1;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+}
+
+.scan-ex--good {
+  background: var(--ok-bg);
+  border-color: rgba(65, 154, 104, 0.35);
+}
+
+.scan-ex--bad {
+  background: rgba(214, 61, 18, 0.06);
+  border-color: rgba(214, 61, 18, 0.22);
+}
+
+.scan-ex-img {
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--leaf-600);
+}
+
+.scan-ex--bad .scan-ex-img {
+  border-color: #d63d12;
+}
+
+/* Gambar kartun: tampil utuh di latar terang */
+.scan-ex-img--plain {
+  background: #f4efe4;
+}
+
+.scan-ex-img--plain img {
+  object-fit: contain;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.scan-ex-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scan-ex figcaption {
+  display: grid;
+  gap: 3px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.scan-ex-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.scan-ex-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: var(--leaf-600);
+  flex-shrink: 0;
+}
+
+.scan-ex--bad .scan-ex-badge {
+  background: #d63d12;
+}
+
+@media (max-width: 860px) {
+  .scan-pick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-examples {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scan-examples-title {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .scan-examples {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-drop-actions,
+  .scan-drop-actions button {
+    width: 100%;
+  }
+}
+
+
+
+/* ============================================================================
+   BATERAI SURYA REALISTIS (halaman Energi surya)
+   ============================================================================ */
+.batt {
+  --batt-a: #3ddc84;
+  --batt-b: #14954c;
+  --batt-glow: rgba(61, 220, 132, 0.45);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.batt--mid {
+  --batt-a: #ffd24a;
+  --batt-b: #e09a07;
+  --batt-glow: rgba(255, 196, 46, 0.45);
+}
+
+.batt--low {
+  --batt-a: #ff7a59;
+  --batt-b: #d6331a;
+  --batt-glow: rgba(255, 92, 60, 0.5);
+}
+
+/* Casing logam gelap */
+.batt-shell {
+  width: 184px;
+  height: 78px;
+  padding: 5px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #4b5a52 0%, #26312b 45%, #121915 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 18px rgba(14, 30, 22, 0.28);
+}
+
+/* Kaca bagian dalam */
+.batt-glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0c1310 0%, #141d18 100%);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* Cairan energi */
+.batt-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: visible;
+  background: linear-gradient(180deg, var(--batt-a) 0%, var(--batt-b) 100%);
+  box-shadow: 0 0 18px var(--batt-glow), inset 0 -6px 10px rgba(0, 0, 0, 0.18);
+  transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.batt-wave {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -8px;
+  width: 9px;
+  background: linear-gradient(180deg, var(--batt-a) 0%, var(--batt-b) 100%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6Q12 10 6 20T6 40H0Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6Q12 10 6 20T6 40H0Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 9px 26px;
+  mask-size: 9px 26px;
+  -webkit-mask-repeat: repeat-y;
+  mask-repeat: repeat-y;
+  animation: battWave 1.4s linear infinite;
+}
+
+/* Kilau menyapu dari kiri ke kanan */
+.batt-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.batt-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 34%;
+  left: -40%;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.38) 50%, transparent 100%);
+  transform: skewX(-18deg);
+  animation: battShine 3.2s ease-in-out infinite;
+}
+
+.batt:not(.batt--charging) .batt-shine::after {
+  animation-duration: 6s;
+  opacity: 0.5;
+}
+
+/* Gelembung energi naik saat mengisi */
+.batt-bubbles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.batt-bubbles i {
+  position: absolute;
+  bottom: -8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+  animation: battBubble 2.1s ease-in infinite;
+}
+
+.batt-bubbles i:nth-child(even) {
+  width: 4px;
+  height: 4px;
+}
+
+/* Garis skala 25 / 50 / 75 % di kaca */
+.batt-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.batt-ticks i {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.batt-ticks i:nth-child(1) {
+  left: 25%;
+}
+
+.batt-ticks i:nth-child(2) {
+  left: 50%;
+}
+
+.batt-ticks i:nth-child(3) {
+  left: 75%;
+}
+
+/* Pantulan kaca di sisi atas */
+.batt-gloss {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  height: 36%;
+  border-radius: 10px 10px 18px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.04) 100%);
+  pointer-events: none;
+}
+
+.batt-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.batt-label b {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.batt-bolt {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+  filter: drop-shadow(0 0 6px var(--batt-glow)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  animation: battBolt 1.6s ease-in-out infinite;
+}
+
+.batt:not(.batt--charging) .batt-bolt {
+  animation: none;
+  opacity: 0.55;
+}
+
+/* Kutub positif logam */
+.batt-cap {
+  width: 10px;
+  height: 30px;
+  margin-left: 3px;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(180deg, #d9e2dd 0%, #8e9b94 50%, #5d6a63 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Mode hemat / rendah: tepi berdenyut merah */
+.batt--low .batt-shell {
+  animation: battLowPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes battWave {
+  from {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+
+  to {
+    -webkit-mask-position: 0 26px;
+    mask-position: 0 26px;
+  }
+}
+
+@keyframes battShine {
+  0% {
+    left: -40%;
+  }
+
+  60%,
+  100% {
+    left: 120%;
+  }
+}
+
+@keyframes battBubble {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-80px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes battBolt {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+@keyframes battLowPulse {
+
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(14, 30, 22, 0.28),
+      0 0 0 0 rgba(214, 51, 26, 0);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(14, 30, 22, 0.28),
+      0 0 0 4px rgba(214, 51, 26, 0.35);
+  }
+}
+
+/* Baterai tetap beranimasi walau sistem memakai "kurangi gerakan" (gerak kecil & lokal) */
+@media (prefers-reduced-motion: reduce) {
+  .batt-wave {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-shine::after {
+    animation-duration: 3.2s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-bubbles i {
+    animation-duration: 2.1s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt--charging .batt-bolt {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt--low .batt-shell {
+    animation-duration: 1.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .batt-fill {
+    transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+}
+
+/* ============================================================================
+   HASIL SCAN — kartu ringkasan rapi (foto kiri · status, judul, penjelasan, aksi kanan)
+   ============================================================================ */
+.scan-result {
+  --sr-accent: var(--leaf-600);
+  --sr-bg: var(--ok-bg);
+  --sr-fg: var(--ok-fg);
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-result--warn {
+  --sr-accent: #e8ac44;
+  --sr-bg: var(--warn-bg);
+  --sr-fg: var(--warn-fg);
+}
+
+.scan-result--bad {
+  --sr-accent: #c62f36;
+  --sr-bg: rgba(198, 47, 54, 0.1);
+  --sr-fg: #a5262c;
+}
+
+.scan-result--harvest {
+  --sr-accent: var(--tomato-btn);
+  --sr-bg: rgba(242, 86, 43, 0.12);
+  --sr-fg: var(--tomato-btn);
+}
+
+.scan-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.scan-result-photo {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.scan-result-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.scan-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.scan-result-status {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--sr-bg);
+  color: var(--sr-fg);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.scan-result-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.scan-result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scan-result-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.scan-result-tag>span {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.scan-result-tag--warn {
+  border-color: rgba(232, 172, 68, 0.55);
+  background: var(--warn-bg);
+}
+
+.scan-result-confidence {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.scan-result-confidence strong {
+  color: var(--ink);
+}
+
+.scan-result-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.scan-result-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sr-accent);
+}
+
+.scan-result-text {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border-left: 4px solid var(--sr-accent);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.scan-result-findings {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-result-findings-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.scan-result-findings ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.scan-result-findings li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--ink-soft);
+}
+
+.scan-result-findings li svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--sr-accent);
+}
+
+.scan-result-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--warn-fg);
+}
+
+.scan-result-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.scan-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.scan-result-actions button {
+  min-height: 40px;
+  padding: 7px 14px;
+  font-size: 0.84rem;
+}
+
+.scan-result-foot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  .scan-result-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .scan-result-actions button {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+  }
+}
+
+/* Hasil scan: tabel perbandingan jenis & langkah selanjutnya */
+.scan-compare {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card-sm);
+  overflow: hidden;
+  font-size: 0.82rem;
+}
+
+.scan-compare-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.scan-compare-row+.scan-compare-row {
+  border-top: 1px solid var(--line);
+}
+
+.scan-compare-row>span {
+  padding: 8px 10px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.scan-compare-head>span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  text-transform: capitalize;
+}
+
+.scan-compare-aspect {
+  font-weight: 700;
+  background: var(--surface-2);
+}
+
+.scan-compare-head>span:first-child {
+  background: var(--surface-2);
+}
+
+.scan-compare-photo {
+  background: var(--warn-bg);
+}
+
+.scan-compare-target {
+  background: var(--ok-bg);
+}
+
+.scan-next {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-next ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.scan-next strong {
+  color: var(--ink);
+}
+
+@media (max-width: 480px) {
+  .scan-compare {
+    font-size: 0.76rem;
+  }
+
+  .scan-compare-row {
+    grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .scan-compare-row>span {
+    padding: 7px 8px;
+  }
+}
+
+/* Baris lebar penuh di bawah foto + ringkasan (tabel perbandingan & langkah selanjutnya) */
+.scan-result-wide {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.scan-result-wide .scan-next {
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .scan-result-wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hasil scan: laporan kondisi tanaman (panen · penyakit · hara · catatan lain) */
+.scan-result-wide.scan-report {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.scan-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scan-report-card {
+  --rc-accent: var(--leaf-600);
+  --rc-bg: var(--ok-bg);
+  --rc-fg: var(--ok-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--rc-accent);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.scan-report-card--warn {
+  --rc-accent: #e8ac44;
+  --rc-bg: var(--warn-bg);
+  --rc-fg: var(--warn-fg);
+}
+
+.scan-report-card--bad {
+  --rc-accent: #c62f36;
+  --rc-bg: rgba(198, 47, 54, 0.1);
+  --rc-fg: #a5262c;
+}
+
+.scan-report-card--neutral {
+  --rc-accent: var(--ink-soft);
+  --rc-bg: var(--surface);
+  --rc-fg: var(--ink-soft);
+}
+
+.scan-report-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-report-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--rc-bg);
+  color: var(--rc-fg);
+}
+
+.scan-report-label {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.scan-report-reason {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.scan-report-notes {
+  display: grid;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px dashed var(--line);
+}
+
+.scan-report-notes-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-report-notes ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .scan-report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Kotak matahari — mode malam: bulan sabit, bintang berkelip, kubah biru malam */
+.dash-moon-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset -7px 3px 0 0 #f0dc84;
+  transform: rotate(-20deg);
+  animation: dashMoonGlow 3.6s ease-in-out infinite;
+}
+
+.dash-moon-title-icon {
+  color: #6f82cf;
+}
+
+.dash-night-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #7d8fdc;
+  box-shadow: 0 0 6px 1px rgba(125, 143, 220, 0.7);
+  pointer-events: none;
+  animation: dashStarTwinkle 2.4s ease-in-out infinite;
+}
+
+.dash-sun-panel--night .dash-sun-title svg,
+.dash-sun-panel--night .dash-sun-stats dt svg {
+  color: #6f82cf;
+}
+
+.dash-sun-panel--night .dash-sun-ghost {
+  border-color: #9fb0f0;
+  box-shadow: 0 0 0 4px rgba(159, 176, 240, 0.2);
+}
+
+:root[data-theme="dark"] .dash-night-star {
+  background: #e6ebff;
+}
+
+@keyframes dashMoonGlow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(240, 220, 132, 0.55));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 12px rgba(240, 220, 132, 0.95));
+  }
+}
+
+@keyframes dashStarTwinkle {
+
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+/* ============================================================================
+   HASIL SCAN — REKOMENDASI PUPUK (organik dulu · pupuk anjuran · dosis per fase)
+   ============================================================================ */
+.scan-fert {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scan-fert-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scan-fert-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+}
+
+.scan-fert-title svg {
+  color: var(--leaf-600);
+}
+
+.scan-fert-symptom {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.scan-fert-phase {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.scan-fert-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scan-fert-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.scan-fert-chip:hover {
+  border-color: var(--leaf-500);
+}
+
+.scan-fert-chip.is-active {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: var(--on-leaf, #ffffff);
+}
+
+.scan-fert-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scan-fert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--r-card-sm);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--water-700);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.scan-fert-card--organic {
+  border-top-color: var(--leaf-600);
+}
+
+.scan-fert-card--dose {
+  border-top-color: var(--sun-400);
+}
+
+.scan-fert-card-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.scan-fert-card--organic .scan-fert-card-head svg {
+  color: var(--leaf-600);
+}
+
+.scan-fert-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.scan-fert-card--dose p {
+  font-weight: 600;
+}
+
+.scan-fert-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-card-sm);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.scan-fert-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.scan-fert-source {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  .scan-fert-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Landing — Bukti dalam angka: peta bedengan interaktif */
+.lp-bedmap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.lp-bedmap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lp-bedmap-head>span:first-child {
+  display: grid;
+  gap: 1px;
+}
+
+.lp-bedmap-head strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.lp-bedmap-head small {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-beds {
+  display: grid;
+  gap: 8px;
+}
+
+.lp-bedmap-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-bedmap-bed-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* Bedengan tanah: strip coklat dengan alur halus */
+.lp-bedmap-soil {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-items: center;
+  padding: 7px 8px;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #8a6141 0%, #6f4c32 100%);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* Tanaman: lingkaran daun hijau + buah berwarna sesuai status */
+.lp-bedmap-plant {
+  --fruit: #4aa25f;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: radial-gradient(circle at 35% 30%, #5fbf6e 0%, #2f8a45 70%);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lp-bedmap-fruit {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fruit);
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.lp-bedmap-plant--siap {
+  --fruit: #e2553a;
+}
+
+.lp-bedmap-plant--setengah {
+  --fruit: #efa93a;
+}
+
+.lp-bedmap-plant--mentah {
+  --fruit: #a6d86a;
+}
+
+.lp-bedmap-plant--cek {
+  --fruit: #e2553a;
+  border-color: #ffd36b;
+  box-shadow: 0 0 0 3px rgba(255, 211, 107, 0.45);
+  animation: lpBedCheck 1.8s ease-in-out infinite;
+}
+
+.lp-bedmap-plant:hover,
+.lp-bedmap-plant:focus-visible,
+.lp-bedmap-plant.is-active {
+  transform: scale(1.18);
+  outline: none;
+  box-shadow: 0 0 0 3px #ffffff, 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.lp-bedmap-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.lp-bedmap-info>span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.lp-bedmap-info strong {
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.lp-bedmap-info small {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #4aa25f;
+}
+
+.lp-bedmap-dot--siap {
+  background: #e2553a;
+}
+
+.lp-bedmap-dot--setengah {
+  background: #efa93a;
+}
+
+.lp-bedmap-dot--mentah {
+  background: #a6d86a;
+}
+
+.lp-bedmap-dot--cek {
+  background: #ffd36b;
+  box-shadow: 0 0 0 2px rgba(226, 85, 58, 0.6);
+}
+
+.lp-bedmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.lp-bedmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-bedmap-legend b {
+  color: var(--ink);
+}
+
+@keyframes lpBedCheck {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(255, 211, 107, 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 211, 107, 0.15);
+  }
+}
+
+/* Seksi 4 (#cara-kerja) — Layout Glass Folder Cards (jarak lega & tidak menumpuk) */
+.lp-workflow-card {
+  position: relative;
+  border-radius: var(--r-hero);
+  overflow: visible;
+  padding: 44px 38px 38px;
+  background: var(--surface-panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--line);
+}
+
+.lp-workflow-bg-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lp-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 56px 28px;
+  align-items: start;
+  padding-top: 44px;
+  padding-bottom: 6px;
+}
+
+.lp-folder-slot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.lp-folder-slot:hover,
+.lp-folder-slot:focus-within,
+.lp-folder-slot.is-open {
+  z-index: 25;
+}
+
+.lp-folder-stage {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Panel belakang folder 1 warna solid hijau utama CermatTani (#358458 / --leaf-600) */
+.lp-folder-stage .lp-solid-folder .gf-back {
+  background: var(--leaf-600);
+}
+
+.lp-folder-stage .lp-solid-folder .gf-back-sheen {
+  display: none;
+}
+
+.lp-folder-desc {
+  max-width: 300px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
+.lp-folder-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Panel info saat lembar di dalam Glass Folder diklik */
+.lp-sheet-detail-card {
+  background: var(--surface);
+  border: 1.5px solid color-mix(in srgb, var(--leaf-600) 28%, var(--line));
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lp-sheet-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lp-sheet-detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lp-sheet-detail-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.lp-sheet-detail-close:hover {
+  background: var(--surface);
+  border-color: var(--leaf-600);
+  color: var(--ink);
+}
+
+.lp-sheet-detail-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.lp-sheet-detail-main {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.lp-sheet-detail-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+
+.lp-sheet-detail-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.lp-sheet-detail-list svg {
+  color: var(--leaf-600);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.lp-sheet-detail-action {
+  flex-shrink: 0;
+}
+
+/* Seksi 6 (#fitur-unggulan) — Auto-scroll horizontal ke samping */
+.lp-features-panel {
+  overflow: hidden;
+}
+
+.lp-features-marquee {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 6px 4px 12px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+.lp-features-marquee::-webkit-scrollbar {
+  display: none;
+}
+
+.lp-feature-slide {
+  flex: 0 0 330px;
+  min-height: 270px;
+}
+
+.lp-feature-slide-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lp-feature-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-milk);
+  color: var(--leaf-700);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.lp-feature-slide-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  color: var(--leaf-700);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: gap 160ms ease, color 160ms ease;
+}
+
+.lp-feature-slide-link:hover {
+  gap: 9px;
+  color: var(--leaf-600);
+}
+
+@media (max-width: 600px) {
+  .lp-feature-slide {
+    flex: 0 0 280px;
+  }
+}
+
+/* ============================================================================
+   HERO EDITORIAL — BERSIH, TERARAH, TANPA KOTAK KACA BERULANG
+   ============================================================================ */
+
+.lp-hero-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.lp-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.lp-hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--lime-300);
+  box-shadow: 0 0 0 4px rgba(195, 229, 200, 0.24);
+  flex-shrink: 0;
+}
+
+.lp-hero-stamp {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.lp-hero-main {
+  position: relative;
+  z-index: 2;
+  max-width: 650px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.lp-hero-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: clamp(2.25rem, 4.7vw, 3.75rem);
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  font-weight: 300;
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-hero-title strong {
+  font-weight: 700;
+}
+
+.lp-hero-title span {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.lp-hero-sub {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.62;
+  color: rgba(255, 255, 255, 0.86);
+  max-width: 51ch;
+}
+
+.lp-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.lp-hero-btn-primary {
+  min-height: 50px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 0.94rem;
+}
+
+/* Strip metrik editorial tanpa kotak-kotak kaca */
+.lp-hero-metrics {
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.lp-hero-metrics > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+}
+
+.lp-hero-metrics > div + div {
+  padding-left: 28px;
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.lp-hero-metrics dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.lp-hero-metrics dt {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Kartu pengamatan lapangan kanan bawah (stabil, konkret, tanpa melayang naik-turun) */
+.lp-hero-obs-card {
+  width: min(372px, 100%);
+  border-radius: 22px;
+  padding: 15px 17px;
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 20px 44px rgba(7, 30, 18, 0.28);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.lp-hero-obs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lp-hero-obs-loc {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.lp-hero-obs-status {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lp-hero-obs-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.lp-hero-obs-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.lp-hero-obs-foot {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.lp-hero-obs-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lp-hero-obs-copy strong {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.lp-hero-obs-copy span {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.lp-hero-obs-go {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: var(--leaf-600);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.lp-hero-obs-go:hover {
+  background: var(--leaf-hover);
+  transform: translate(1px, -1px);
+}
+
+@media (max-width: 720px) {
+  .lp-hero-stamp {
+    display: none;
+  }
+
+  .lp-hero-metrics {
+    gap: 16px;
+    width: 100%;
+  }
+
+  .lp-hero-metrics > div + div {
+    padding-left: 16px;
+  }
+
+  .lp-hero-metrics dd {
+    font-size: 1.35rem;
+  }
+
+  .lp-hero-btn-primary,
+  .hero-cta-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1080px) {
+  .lp-folder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px 28px;
+  }
+}
+
+@media (max-width: 720px) {
+  .lp-workflow-card {
+    padding: 32px 20px 28px;
+  }
+
+  .lp-folder-grid {
+    grid-template-columns: 1fr;
+    gap: 56px;
+    padding-top: 36px;
+  }
+}
+
+/* ============================================================================
+   ONBOARDING SCREEN — REFINED DESIGN.md (RADIUS PILL/12/28, ALIGNED GRID)
+   ============================================================================ */
+
+.ob-card-shell {
+  width: min(1040px, 100%);
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.1);
+}
+
+.ob-showcase {
+  padding: 32px 30px;
+  gap: 24px;
+}
+
+.ob-showcase-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ob-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.ob-public-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.ob-public-btn:hover {
+  border-color: var(--leaf-600);
+  color: var(--leaf-700);
+  transform: translateY(-1px);
+}
+
+.ob-showcase-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.ob-mascot-frame {
+  width: 224px;
+  height: 224px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.ob-showcase-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 32ch;
+}
+
+.ob-eyebrow {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--leaf-700);
+}
+
+.ob-showcase-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.38rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.ob-showcase-desc {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.ob-showcase-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ob-progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+  overflow: hidden;
+}
+
+.ob-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--leaf-600);
+  transition: width 260ms var(--ease-out);
+}
+
+.ob-showcase-chips {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--leaf-700);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+/* Panel Kanan */
+.ob-form-pane {
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ob-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: default;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.ob-step-pill.is-done {
+  background: var(--ok-bg);
+  border-color: transparent;
+  color: var(--ok-fg);
+  cursor: pointer;
+}
+
+.ob-step-pill.is-active {
+  background: var(--leaf-600);
+  border-color: var(--leaf-600);
+  color: var(--on-leaf);
+}
+
+.ob-step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: inherit;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ob-step-pill.is-active .ob-step-num {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--on-leaf);
+}
+
+.ob-step-connector {
+  flex: 1 1 20px;
+  height: 0;
+  border-top: 1.5px dashed var(--line);
+  min-width: 12px;
+}
+
+.ob-step-connector.is-done {
+  border-top-style: solid;
+  border-top-color: var(--leaf-600);
+}
+
+.ob-step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.ob-step-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ob-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.ob-heading span {
+  color: var(--ink-soft);
+}
+
+.ob-lead {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 54ch;
+}
+
+.ob-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ob-field-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.ob-input {
+  border-radius: 12px;
+  border-width: 1.5px;
+  min-height: 48px;
+}
+
+.ob-feature-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ob-actions {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ob-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ob-pill-btn {
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+}
+
+.ob-back-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+@media (max-width: 720px) {
+  .ob-form-pane {
+    padding: 24px 20px;
+  }
+
+  .ob-field-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .ob-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .ob-actions-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ob-pill-btn,
+  .ob-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

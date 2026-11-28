@@ -1,0 +1,55 @@
+{
+  "datasetVersion": "CermatTani-YOLOv8-Agronomy-v3.0",
+  "totalClasses": 27,
+  "externalSources": [
+    {
+      "name": "PlantVillage Dataset (Tomato & Vegetable Diseases)",
+      "url": "https://github.com/spMohanty/PlantVillage-Dataset",
+      "coverage": "Early blight, Late blight, Leaf mold, Septoria, Target spot, Bacterial spot, TYLCV, ToMV, Spider mites, Healthy"
+    },
+    {
+      "name": "LaboroTomato Dataset (Ripeness Bounding Boxes)",
+      "url": "https://github.com/laboroai/LaboroTomato",
+      "coverage": "buah_mentah (b_green/l_green), buah_setengah_matang (b_half_ripened/l_half_ripened), buah_matang (b_fully_ripened/l_fully_ripened)"
+    },
+    {
+      "name": "PlantDoc Object Detection Dataset",
+      "url": "https://github.com/pratikkayal/PlantDoc-Object-Detection-Dataset",
+      "coverage": "Field-condition bounding boxes for leaf blight, mold, rust, viral & bacterial spots"
+    },
+    {
+      "name": "UF/IFAS & FAO IPM Fruit Rot Reference",
+      "url": "https://edis.ifas.ufl.edu",
+      "coverage": "Blossom end rot, Anthracnose, Bacterial soft rot, Buckeye rot, Botrytis grey mold, Cracking/Sunscald, Bacterial canker, Southern blight"
+    }
+  ],
+  "classes": [
+    { "yoloId": 0, "appId": "mentah", "focus": "kematangan", "label": "Buah Mentah (Green)", "externalLabels": ["b_green", "l_green", "unripe"] },
+    { "yoloId": 1, "appId": "setengah_matang", "focus": "kematangan", "label": "Buah Setengah Matang (Breaker/Pink)", "externalLabels": ["b_half_ripened", "l_half_ripened", "half_ripe"] },
+    { "yoloId": 2, "appId": "matang", "focus": "kematangan", "label": "Buah Matang (Red)", "externalLabels": ["b_fully_ripened", "l_fully_ripened", "ripe"] },
+    { "yoloId": 3, "appId": "sehat", "focus": "kematangan", "label": "Sehat", "externalLabels": ["Tomato___healthy", "Pepper,_bell___healthy", "Potato___healthy"] },
+    { "yoloId": 4, "appId": "bercak_kering", "focus": "penyakit", "label": "Bercak daun kering (Early blight)", "pathogen": "Alternaria solani", "externalLabels": ["Tomato___Early_blight", "Potato___Early_blight"] },
+    { "yoloId": 5, "appId": "busuk_daun", "focus": "penyakit", "label": "Busuk daun / Hawar daun (Late blight)", "pathogen": "Phytophthora infestans", "externalLabels": ["Tomato___Late_blight", "Potato___Late_blight"] },
+    { "yoloId": 6, "appId": "kapang_daun", "focus": "penyakit", "label": "Kapang daun (Leaf mold)", "pathogen": "Passalora fulva", "externalLabels": ["Tomato___Leaf_Mold"] },
+    { "yoloId": 7, "appId": "bercak_septoria", "focus": "penyakit", "label": "Bercak daun Septoria", "pathogen": "Septoria lycopersici", "externalLabels": ["Tomato___Septoria_leaf_spot"] },
+    { "yoloId": 8, "appId": "bercak_target", "focus": "penyakit", "label": "Bercak target (Target spot)", "pathogen": "Corynespora cassiicola", "externalLabels": ["Tomato___Target_Spot"] },
+    { "yoloId": 9, "appId": "bercak_bakteri", "focus": "penyakit", "label": "Bercak bakteri (Bacterial spot)", "pathogen": "Xanthomonas perforans", "externalLabels": ["Tomato___Bacterial_spot", "Pepper,_bell___Bacterial_spot"] },
+    { "yoloId": 10, "appId": "bintik_bakteri", "focus": "penyakit", "label": "Bintik bakteri (Bacterial speck)", "pathogen": "Pseudomonas syringae pv. tomato", "externalLabels": ["bacterial_speck"] },
+    { "yoloId": 11, "appId": "kanker_bakteri", "focus": "penyakit", "label": "Kanker bakteri (Bacterial canker)", "pathogen": "Clavibacter michiganensis", "externalLabels": ["bacterial_canker"] },
+    { "yoloId": 12, "appId": "embun_tepung", "focus": "penyakit", "label": "Embun tepung (Powdery mildew)", "pathogen": "Oidium neolycopersici", "externalLabels": ["powdery_mildew"] },
+    { "yoloId": 13, "appId": "embun_bulu", "focus": "penyakit", "label": "Embun bulu (Downy mildew)", "pathogen": "Pseudoperonospora cubensis", "externalLabels": ["downy_mildew"] },
+    { "yoloId": 14, "appId": "layu_batang", "focus": "penyakit", "label": "Layu fusarium / bakteri batang", "pathogen": "Fusarium oxysporum", "externalLabels": ["fusarium_wilt", "bacterial_wilt"] },
+    { "yoloId": 15, "appId": "busuk_pangkal_sklerotium", "focus": "penyakit", "label": "Busuk pangkal batang (Southern blight)", "pathogen": "Athelia rolfsii", "externalLabels": ["southern_blight"] },
+    { "yoloId": 16, "appId": "keriting_kuning", "focus": "penyakit", "label": "Virus kuning / keriting daun (TYLCV)", "pathogen": "Tomato yellow leaf curl virus", "externalLabels": ["Tomato___Tomato_Yellow_Leaf_Curl_Virus"] },
+    { "yoloId": 17, "appId": "virus_mosaik", "focus": "penyakit", "label": "Virus mosaik (ToMV / TMV)", "pathogen": "Tomato mosaic virus", "externalLabels": ["Tomato___Tomato_mosaic_virus"] },
+    { "yoloId": 18, "appId": "virus_bercak_layu", "focus": "penyakit", "label": "Virus bercak layu / perunggu (TSWV)", "pathogen": "Tomato spotted wilt orthotospovirus", "externalLabels": ["tswv", "spotted_wilt"] },
+    { "yoloId": 19, "appId": "tungau_laba", "focus": "penyakit", "label": "Tungau laba-laba dua titik", "pathogen": "Tetranychus urticae", "externalLabels": ["Tomato___Spider_mites Two-spotted_spider_mite"] },
+    { "yoloId": 20, "appId": "serangan_hama_daun", "focus": "penyakit", "label": "Hama daun (Penggorok / Ulat / Kutu)", "pathogen": "Liriomyza", "externalLabels": ["leaf_miner", "caterpillar", "aphids"] },
+    { "yoloId": 21, "appId": "busuk_ujung_buah", "focus": "penyakit", "label": "Busuk ujung buah (Blossom end rot)", "pathogen": "Blossom end rot", "externalLabels": ["blossom_end_rot"] },
+    { "yoloId": 22, "appId": "antraknosa", "focus": "penyakit", "label": "Antraknosa / Patek buah", "pathogen": "Colletotrichum coccodes", "externalLabels": ["anthracnose"] },
+    { "yoloId": 23, "appId": "busuk_basah_buah", "focus": "penyakit", "label": "Busuk basah buah (Bacterial soft rot)", "pathogen": "Pectobacterium carotovorum", "externalLabels": ["soft_rot", "rotten_tomato"] },
+    { "yoloId": 24, "appId": "busuk_jamur_buah", "focus": "penyakit", "label": "Busuk jamur buah (Buckeye rot)", "pathogen": "Phytophthora nicotianae", "externalLabels": ["buckeye_rot"] },
+    { "yoloId": 25, "appId": "busuk_kapang_abu", "focus": "penyakit", "label": "Busuk kapang abu-abu (Botrytis / Grey mold)", "pathogen": "Botrytis cinerea", "externalLabels": ["gray_mold", "botrytis"] },
+    { "yoloId": 26, "appId": "buah_pecah_sengatan", "focus": "penyakit", "label": "Buah pecah / Sengatan matahari", "pathogen": "Sunscald", "externalLabels": ["sunscald", "fruit_cracking"] }
+  ]
+}

@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+.next-dev/
+out/
+tsconfig.tsbuildinfo
+
+# Local env & OS
+.env
+.env*.local
+!.env.example
+.DS_Store
+Thumbs.db
+*.log

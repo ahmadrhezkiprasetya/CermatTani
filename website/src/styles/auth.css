@@ -1,0 +1,2172 @@
+.ct-auth-page {
+  --auth-night: #1d5235;
+  --auth-forest: var(--leaf-700, #286c46);
+  --auth-forest-dark: var(--forest-950, #2a6f49);
+  --auth-mint: var(--bg, #eef6ef);
+  --auth-lime: var(--cream-warm, #f9f3e4);
+  --auth-accent: var(--lime-300, #c3e5c8);
+  --auth-on-lime: var(--on-lime, #1d3f2e);
+  --auth-gold: var(--sun-400, #e8ac44);
+  --auth-muted: #d5ecd9;
+  --auth-error: #ffd2cf;
+  --auth-success: #c3f0d2;
+  --auth-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Jarak tepi; env(safe-area-*) menjaga konten dari notch/poni & area gesture saat dibuka sebagai app (PWA). */
+  --auth-pad-y: 28px;
+  --auth-pad-x: 24px;
+  position: relative;
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: hidden;
+  padding:
+    max(var(--auth-pad-y), env(safe-area-inset-top))
+    max(var(--auth-pad-x), env(safe-area-inset-right))
+    max(var(--auth-pad-y), env(safe-area-inset-bottom))
+    max(var(--auth-pad-x), env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse at 82% 12%, rgba(74, 158, 110, 0.14), transparent 38%),
+    radial-gradient(ellipse at 12% 90%, rgba(232, 172, 68, 0.12), transparent 44%),
+    linear-gradient(145deg, #dff0e2 0%, #eef6ef 52%, #f9f3e4 100%);
+  color: var(--ink, #1f392d);
+  font-family: var(--font-body);
+}
+
+.ct-auth-page :focus-visible {
+  outline-color: var(--auth-lime);
+  outline-offset: 3px;
+}
+
+.ct-auth-page::before,
+.ct-auth-page::after {
+  position: absolute;
+  z-index: 0;
+  width: min(42vw, 460px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(216, 243, 106, 0.05);
+  border-radius: 48% 52% 62% 38%;
+  content: "";
+  pointer-events: none;
+  animation: ct-auth-blob-morph 18s ease-in-out infinite;
+}
+
+.ct-auth-page::before {
+  top: -260px;
+  left: -180px;
+  box-shadow: 0 0 0 34px rgba(255, 255, 255, 0.025), 0 0 0 72px rgba(255, 255, 255, 0.018);
+}
+
+.ct-auth-page::after {
+  right: -230px;
+  bottom: -300px;
+  animation-delay: -8s;
+}
+
+.ct-auth-bokeh {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ct-auth-bokeh span {
+  position: absolute;
+  bottom: -130px;
+  width: 36px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(40, 108, 70, 0.14);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 0 14px rgba(195, 229, 200, 0.25);
+  will-change: transform, opacity;
+  animation: ct-auth-bokeh-float 18s ease-in-out infinite;
+}
+
+.ct-auth-bokeh span:nth-child(1) { left: 3%; width: 42px; animation-delay: -2s; }
+.ct-auth-bokeh span:nth-child(2) { left: 11%; width: 84px; animation-delay: -9s; animation-duration: 22s; }
+.ct-auth-bokeh span:nth-child(3) { left: 19%; width: 24px; animation-delay: -5s; animation-duration: 13s; }
+.ct-auth-bokeh span:nth-child(4) { left: 31%; width: 58px; animation-delay: -14s; animation-duration: 19s; }
+.ct-auth-bokeh span:nth-child(5) { left: 43%; width: 34px; animation-delay: -3s; animation-duration: 17s; }
+.ct-auth-bokeh span:nth-child(6) { left: 52%; width: 108px; animation-delay: -12s; animation-duration: 25s; }
+.ct-auth-bokeh span:nth-child(7) { left: 62%; width: 28px; animation-delay: -8s; }
+.ct-auth-bokeh span:nth-child(8) { left: 70%; width: 62px; animation-delay: -4s; animation-duration: 18s; }
+.ct-auth-bokeh span:nth-child(9) { left: 78%; width: 36px; animation-delay: -16s; animation-duration: 21s; }
+.ct-auth-bokeh span:nth-child(10) { left: 86%; width: 82px; animation-delay: -6s; }
+.ct-auth-bokeh span:nth-child(11) { left: 94%; width: 25px; animation-delay: -11s; animation-duration: 14s; }
+.ct-auth-bokeh span:nth-child(12) { left: 25%; width: 32px; animation-delay: -18s; animation-duration: 23s; }
+.ct-auth-bokeh span:nth-child(13) { left: 57%; width: 44px; animation-delay: -7s; animation-duration: 20s; }
+.ct-auth-bokeh span:nth-child(14) { left: 37%; width: 22px; animation-delay: -13s; animation-duration: 16s; }
+
+.ct-auth-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  /*
+   * Kartu login & daftar SAMA ukurannya: lebar, tinggi minimum, dan pembagian panel (48/52)
+   * identik — mode daftar hanya mencerminkan posisinya. Isi form diletakkan di tengah vertikal.
+   */
+  --auth-card-h: 700px;
+  grid-template-areas: "art form" "footer footer";
+  grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+  grid-template-rows: minmax(0, 1fr) 44px;
+  width: min(1080px, 100%);
+  height: auto;
+  min-height: min(var(--auth-card-h), calc(100dvh - 2 * var(--auth-pad-y)));
+  overflow: hidden;
+  border: 1px solid rgba(40, 108, 70, 0.14);
+  border-radius: 36px;
+  background: var(--auth-forest);
+  box-shadow: 0 24px 64px rgba(31, 57, 45, 0.16), 0 4px 16px rgba(31, 57, 45, 0.08);
+  /* Lebar & bentuk gelombang di-set inline dari src/lib/authWave.ts */
+  --auth-wave-w: 72px;
+  will-change: transform, opacity;
+  animation: ct-auth-card-enter 560ms var(--auth-ease) both;
+  transition: grid-template-columns 520ms var(--auth-ease);
+}
+
+.ct-auth-card--register {
+  grid-template-areas: "form art" "footer footer";
+  grid-template-columns: minmax(0, 52fr) minmax(0, 48fr);
+}
+
+/*
+ * Panel ilustrasi diperpanjang selebar gelombang ke arah panel form, lalu tepinya
+ * dipotong dengan mask berbentuk gelombang. Gelombang = bagian dari panel yang sama,
+ * jadi warna/gradient-nya selalu menyatu tanpa sambungan.
+ */
+.ct-auth-art {
+  --auth-art-pad: clamp(24px, 3.8vw, 44px);
+  --auth-wave-l: 0px;
+  --auth-wave-r: var(--auth-wave-w);
+  position: relative;
+  z-index: 2;
+  grid-area: art;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  margin-right: calc(-1 * var(--auth-wave-r));
+  margin-left: calc(-1 * var(--auth-wave-l));
+  padding: var(--auth-art-pad);
+  padding-right: calc(var(--auth-art-pad) + var(--auth-wave-r));
+  padding-left: calc(var(--auth-art-pad) + var(--auth-wave-l));
+  background:
+    radial-gradient(ellipse at 48% 53%, rgba(255, 255, 255, 0.55), transparent 52%),
+    linear-gradient(160deg, var(--cream-warm, #f9f3e4) 0%, var(--auth-mint) 62%, #e2efe4 100%);
+  color: var(--auth-forest);
+  -webkit-mask:
+    linear-gradient(#000 0 0) left top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat,
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) right top / var(--auth-wave-w) 100% no-repeat;
+  mask:
+    linear-gradient(#000 0 0) left top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat,
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) right top / var(--auth-wave-w) 100% no-repeat;
+  animation: ct-auth-panel-in 520ms var(--auth-ease) both;
+}
+
+.ct-auth-card--register .ct-auth-art {
+  --auth-wave-l: var(--auth-wave-w);
+  --auth-wave-r: 0px;
+  -webkit-mask:
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) left top / var(--auth-wave-w) 100% no-repeat,
+    linear-gradient(#000 0 0) right top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat;
+  mask:
+    var(--auth-wave-mask, linear-gradient(#000 0 0)) left top / var(--auth-wave-w) 100% no-repeat,
+    linear-gradient(#000 0 0) right top / calc(100% - var(--auth-wave-w) + 1px) 100% no-repeat;
+  animation-name: ct-auth-panel-in-reverse;
+}
+
+/* TOOLS SEMENTARA: kotak overlay editor gelombang (?wave-editor) */
+.ct-auth-wave-editor-box {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 48%;
+  width: var(--auth-wave-w);
+  height: calc(100% - 44px);
+}
+
+.ct-auth-card--register .ct-auth-wave-editor-box {
+  left: calc(52% - var(--auth-wave-w));
+}
+
+.ct-auth-brand {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  color: var(--auth-forest);
+  text-decoration: none;
+}
+
+.ct-auth-brand-mark {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border: 1px solid rgba(14, 79, 67, 0.13);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #17803f;
+}
+
+.ct-auth-brand strong,
+.ct-auth-brand small {
+  display: block;
+}
+
+.ct-auth-brand strong {
+  font-family: var(--font-display);
+  font-size: 1.16rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.ct-auth-brand small {
+  margin-top: 2px;
+  color: #526d60;
+  font-size: 0.65rem;
+  font-weight: 500;
+}
+
+.ct-auth-art-heading {
+  position: absolute;
+  z-index: 2;
+  top: 24%;
+  left: calc(var(--auth-art-pad) + var(--auth-wave-l));
+  max-width: 260px;
+  pointer-events: none;
+}
+
+.ct-auth-art-heading span {
+  display: block;
+  color: #526d60;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.ct-auth-art-heading p {
+  margin-top: 7px;
+  color: var(--auth-forest);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.ct-auth-scene {
+  position: absolute;
+  right: calc(3% + var(--auth-wave-r));
+  bottom: 46px;
+  left: calc(1% + var(--auth-wave-l));
+  height: 68%;
+  min-height: 300px;
+}
+
+.ct-auth-blob {
+  position: absolute;
+  top: 3%;
+  left: 19%;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 43% 57% 52% 48% / 48% 42% 58% 52%;
+  background: #e2f6e9;
+  animation: ct-auth-blob-morph 17s ease-in-out infinite;
+}
+
+.ct-auth-blob--small {
+  top: 22%;
+  left: 15%;
+  width: 57%;
+  background: rgba(186, 223, 190, 0.34);
+  animation-delay: -7s;
+}
+
+.ct-auth-farm {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 93%;
+  overflow: visible;
+}
+
+.ct-auth-rice {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ct-auth-sway 3.8s ease-in-out infinite;
+}
+
+.ct-auth-rice--second {
+  animation-delay: -1.6s;
+}
+
+.ct-auth-dew {
+  position: absolute;
+  z-index: 2;
+  width: 11px;
+  height: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 60% 40% 55% 45%;
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: 0 4px 12px rgba(50, 117, 98, 0.12);
+  animation: ct-auth-dew-rise 5s ease-in-out infinite;
+}
+
+.ct-auth-dew--one { top: 19%; left: 25%; }
+.ct-auth-dew--two { top: 36%; right: 12%; animation-delay: -2.4s; }
+.ct-auth-dew--three { top: 54%; left: 13%; width: 8px; height: 11px; animation-delay: -3.4s; }
+
+.ct-auth-mascot {
+  position: absolute;
+  z-index: 3;
+  bottom: 1%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  transform: translateX(-50%);
+  will-change: transform, opacity;
+  animation: ct-auth-mascot-bounce 580ms 120ms var(--auth-ease) both, ct-auth-float 5.5s 720ms ease-in-out infinite;
+}
+
+.ct-auth-mascot img {
+  height: clamp(175px, 23vw, 250px) !important;
+  max-width: 230px !important;
+  filter: drop-shadow(0 11px 15px rgba(30, 75, 55, 0.2)) !important;
+}
+
+.ct-auth-speech {
+  position: relative;
+  z-index: 1;
+  width: max-content;
+  max-width: 230px;
+  margin-bottom: -2px;
+  padding: 9px 13px;
+  border: 1px solid rgba(14, 79, 67, 0.08);
+  border-radius: 15px 15px 15px 4px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(29, 68, 47, 0.1);
+  color: #245c46;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: center;
+  animation: ct-auth-speech-in 260ms ease both;
+}
+
+.ct-auth-art-caption {
+  position: absolute;
+  z-index: 2;
+  right: calc(25px + var(--auth-wave-r));
+  bottom: 12px;
+  left: calc(25px + var(--auth-wave-l));
+  width: fit-content;
+  max-width: calc(100% - 50px - var(--auth-wave-l) - var(--auth-wave-r));
+  margin-inline: auto;
+  padding: 5px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(249, 243, 228, 0.86);
+  box-shadow: 0 4px 14px rgba(29, 68, 47, 0.14);
+  color: #2f5a45;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.ct-auth-form-panel {
+  position: relative;
+  z-index: 1;
+  grid-area: form;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(195, 229, 200, 0.14), transparent 42%),
+    linear-gradient(165deg, var(--auth-forest) 0%, #235e3d 100%);
+  color: #fff;
+}
+
+/*
+ * Kartu tumbuh mengikuti isi (tidak ada scroll di dalam kartu, tidak ada yang terpotong);
+ * kalau kartu lebih tinggi dari isinya, isi form berada di tengah vertikal.
+ */
+.ct-auth-form-scroll {
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  width: 100%;
+  height: 100%;
+  padding: clamp(20px, 2.6vw, 30px) clamp(24px, 3.4vw, 46px) 20px;
+}
+
+.ct-auth-home-link {
+  align-self: flex-start;
+}
+
+/* Jarak dari gelombang — sama untuk login (kiri) & daftar (kanan). */
+.ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll {
+  padding-left: clamp(56px, 5vw, 68px);
+}
+
+.ct-auth-card--register .ct-auth-form-scroll {
+  padding-right: clamp(56px, 5vw, 68px);
+}
+
+/* Baris 2 kolom hanya aktif di mode daftar; di mode login isinya tetap bertumpuk biasa. */
+.ct-auth-field-row {
+  display: contents;
+}
+
+.ct-auth-card--register .ct-auth-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.ct-auth-card--register .ct-auth-form {
+  gap: 10px;
+}
+
+.ct-auth-card--register .ct-auth-form-heading {
+  margin: 6px 0 14px;
+}
+
+.ct-auth-card--register .ct-auth-form .field-input {
+  min-height: 44px;
+}
+
+/* Ruang kanan 43px hanya perlu untuk tombol mata di kolom kata sandi. */
+.ct-auth-card--register .ct-auth-form .field-input:not(#auth-password) {
+  padding-right: 16px;
+}
+
+/* Panel ilustrasi (48%) sama di kedua mode: posisi judul sama, embun pertama disembunyikan karena jatuh di ujung judul. */
+.ct-auth-art-heading {
+  top: 19%;
+}
+
+.ct-auth-dew--one {
+  display: none;
+}
+
+/* Layar laptop yang pendek: kurangi jarak luar agar kartu tetap muat satu layar. */
+@media (max-height: 780px) and (min-width: 1024px) {
+  .ct-auth-page {
+    --auth-pad-y: 14px;
+  }
+}
+
+.ct-auth-home-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--auth-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.ct-auth-home-link:hover {
+  transform: translateX(-2px);
+  color: var(--auth-lime);
+}
+
+.ct-auth-form-heading {
+  margin: 10px 0 18px;
+  animation: ct-auth-form-rise 480ms 80ms ease both;
+}
+
+.ct-auth-form-heading > span {
+  color: var(--auth-lime);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.ct-auth-form-heading h1 {
+  margin: 6px 0 4px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 3.4vw, 2.65rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.ct-auth-form-heading p {
+  color: var(--auth-muted);
+  font-size: 0.81rem;
+  line-height: 1.6;
+}
+
+.ct-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.ct-auth-form .field-group {
+  gap: 5px;
+}
+
+.ct-auth-form .field-label {
+  color: rgba(255, 255, 255, 0.91);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ct-auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ct-auth-input-wrap > svg:first-child {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  color: var(--auth-muted);
+  pointer-events: none;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.ct-auth-input-wrap:focus-within > svg:first-child {
+  color: var(--auth-lime);
+  transform: scale(1.06);
+}
+
+.ct-auth-form .field-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 43px 10px 45px;
+  border: 1px solid rgba(221, 240, 224, 0.24);
+  border-radius: 999px;
+  outline: 0;
+  background: var(--auth-night);
+  color: #fff;
+  font-size: 0.82rem;
+  transition: border-color 220ms var(--auth-ease), box-shadow 220ms var(--auth-ease), background 220ms var(--auth-ease);
+}
+
+.ct-auth-form .field-input::placeholder {
+  color: rgba(213, 236, 217, 0.7);
+  opacity: 1;
+}
+
+.ct-auth-form .field-input:focus {
+  border-color: var(--auth-lime);
+  background: #17452c;
+  box-shadow: 0 0 0 4px rgba(249, 243, 228, 0.2);
+}
+
+.ct-auth-form .field-input[aria-invalid="true"] {
+  border-color: var(--auth-error);
+}
+
+.ct-auth-visibility {
+  position: absolute;
+  right: 7px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--auth-muted);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.ct-auth-visibility:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--auth-lime);
+}
+
+.ct-auth-forgot {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: -10px;
+}
+
+.ct-auth-forgot a,
+.ct-auth-terms a {
+  color: var(--auth-lime);
+  font-size: 0.72rem;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.ct-auth-forgot a:hover,
+.ct-auth-terms a:hover {
+  text-decoration: underline;
+}
+
+.ct-auth-strength {
+  display: flex;
+  min-height: 18px;
+  align-items: center;
+  gap: 9px;
+  color: var(--auth-muted);
+  font-size: 0.64rem;
+}
+
+.ct-auth-strength-leaves {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ct-auth-strength-leaves span {
+  width: 11px;
+  height: 7px;
+  border-radius: 80% 10% 80% 10%;
+  background: rgba(183, 207, 195, 0.28);
+  transform: scale(0.65) rotate(-35deg);
+  transition: background 180ms ease, transform 180ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.ct-auth-strength-leaves span.is-lit {
+  background: var(--auth-lime);
+  transform: scale(1) rotate(-35deg);
+}
+
+.ct-auth-strength-leaves span:nth-child(2) { transition-delay: 35ms; }
+.ct-auth-strength-leaves span:nth-child(3) { transition-delay: 70ms; }
+.ct-auth-strength-leaves span:nth-child(4) { transition-delay: 105ms; }
+
+.ct-auth-confirm {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.ct-auth-confirm.is-match { color: var(--auth-success); }
+.ct-auth-confirm.is-mismatch { color: var(--auth-error); }
+
+.ct-auth-terms {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--auth-muted);
+  font-size: 0.67rem;
+  line-height: 1.55;
+  cursor: pointer;
+}
+
+.ct-auth-terms input {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
+}
+
+.ct-auth-checkbox {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 6px;
+  color: var(--auth-on-lime);
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.ct-auth-checkbox svg {
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.ct-auth-terms input:checked + .ct-auth-checkbox {
+  transform: scale(1.03);
+  border-color: var(--auth-lime);
+  background: var(--auth-lime);
+}
+
+.ct-auth-terms input:checked + .ct-auth-checkbox svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.ct-auth-terms input:focus-visible + .ct-auth-checkbox {
+  outline: 3px solid var(--auth-lime);
+  outline-offset: 3px;
+}
+
+.ct-auth-submit {
+  display: inline-flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--cream-warm, #f9f3e4) 0%, var(--lime-soft, #ddf0e0) 100%);
+  box-shadow: 0 6px 18px rgba(18, 52, 33, 0.22);
+  color: var(--auth-on-lime);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 220ms var(--auth-ease), filter 220ms var(--auth-ease), box-shadow 220ms var(--auth-ease), opacity 220ms var(--auth-ease);
+}
+
+.ct-auth-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+  box-shadow: 0 10px 24px rgba(18, 52, 33, 0.28);
+}
+
+.ct-auth-submit:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 3px 10px rgba(18, 52, 33, 0.2);
+}
+
+.ct-auth-submit:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.ct-auth-submit-arrow {
+  transform: rotate(180deg);
+  transition: transform 180ms ease;
+}
+
+.ct-auth-submit:hover .ct-auth-submit-arrow {
+  transform: rotate(180deg) translateX(-3px);
+}
+
+.ct-auth-loading-sprout {
+  transform-origin: 50% 100%;
+  animation: ct-auth-sprout 900ms ease-out infinite;
+}
+
+.ct-auth-switch {
+  margin: 1px 0 0;
+  color: var(--auth-muted);
+  font-size: 0.73rem;
+  text-align: center;
+}
+
+.ct-auth-switch button {
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--auth-lime);
+  font-size: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ct-auth-switch button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ct-auth-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid currentColor;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  animation: ct-auth-form-rise 260ms ease both;
+}
+
+.ct-auth-alert svg {
+  flex: 0 0 17px;
+  margin-top: 1px;
+}
+
+.ct-auth-alert--warning {
+  border-color: var(--auth-gold);
+  background: rgba(255, 182, 61, 0.1);
+  color: #ffe0a6;
+}
+
+.ct-auth-alert--error {
+  border-color: var(--auth-error);
+  background: rgba(255, 163, 167, 0.12);
+  color: var(--auth-error);
+  animation: ct-auth-shake 450ms ease, ct-auth-form-rise 260ms ease both;
+}
+
+.ct-auth-alert--success {
+  border-color: var(--auth-success);
+  background: rgba(143, 224, 174, 0.12);
+  color: var(--auth-success);
+}
+
+.ct-auth-security {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--auth-muted);
+  font-size: 0.65rem;
+}
+
+.ct-auth-security svg {
+  flex: 0 0 15px;
+  color: var(--auth-lime);
+}
+
+.ct-auth-wave {
+  display: none;
+}
+
+.ct-auth-card-footer {
+  z-index: 5;
+  grid-area: footer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 28px;
+  background: var(--auth-night);
+  color: var(--auth-muted);
+  font-size: 0.64rem;
+}
+
+.ct-auth-card-footer a {
+  color: var(--auth-muted);
+  text-decoration: none;
+}
+
+.ct-auth-card-footer a:hover {
+  color: var(--auth-lime);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@keyframes ct-auth-card-enter {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ct-auth-panel-in {
+  from { opacity: 0.82; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ct-auth-panel-in-reverse {
+  from { opacity: 0.82; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ct-auth-form-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ct-auth-mascot-bounce {
+  from { opacity: 0; transform: translate(-50%, 14px) scale(0.94); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes ct-auth-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+
+@keyframes ct-auth-speech-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ct-auth-sway {
+  0%, 100% { rotate: -2deg; }
+  50% { rotate: 2.5deg; }
+}
+
+@keyframes ct-auth-dew-rise {
+  0%, 100% { translate: 0 0; opacity: 0.6; }
+  50% { translate: 8px -15px; opacity: 1; }
+}
+
+@keyframes ct-auth-bokeh-float {
+  0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.92); }
+  22% { opacity: 0.16; }
+  80% { opacity: 0.12; }
+  100% { opacity: 0; transform: translate3d(18px, -108vh, 0) scale(1.1); }
+}
+
+@keyframes ct-auth-blob-morph {
+  0%, 100% { border-radius: 43% 57% 52% 48% / 48% 42% 58% 52%; }
+  50% { border-radius: 57% 43% 42% 58% / 42% 58% 42% 58%; }
+}
+
+@keyframes ct-auth-sprout {
+  0% { transform: scaleY(0.25) rotate(-8deg); }
+  65% { transform: scaleY(1.1) rotate(4deg); }
+  100% { transform: scaleY(1) rotate(0); }
+}
+
+@keyframes ct-auth-shake {
+  10%, 90% { translate: -2px 0; }
+  20%, 80% { translate: 4px 0; }
+  30%, 50%, 70% { translate: -6px 0; }
+  40%, 60% { translate: 6px 0; }
+}
+
+.ct-footer {
+  --ct-forest: #0e4f43;
+  --ct-night: #12241f;
+  --ct-muted: #b7cfc3;
+  --ct-lime: #d8f36a;
+  --ct-gold: #ffb63d;
+  --ct-water: #2b8fd9;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: 28px;
+  background: var(--ct-forest);
+}
+
+.ct-footer :focus-visible {
+  outline: 2px solid var(--ct-lime);
+  outline-offset: 3px;
+}
+
+.ct-footer-scenery {
+  position: relative;
+  height: clamp(400px, 42vw, 500px);
+  overflow: hidden;
+  background: linear-gradient(180deg, #f8fbf8 0%, #e8f4f3 44%, #b8d9e8 100%);
+}
+
+.ct-footer-sun {
+  position: absolute;
+  top: 30%;
+  left: 75%;
+  width: clamp(65px, 8vw, 106px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--ct-gold);
+  box-shadow: 0 0 0 18px rgba(255, 182, 61, 0.12), 0 0 74px rgba(255, 182, 61, 0.4);
+  animation: ct-footer-sun-glow 6s ease-in-out infinite;
+}
+
+.ct-footer-cloud {
+  position: absolute;
+  z-index: 1;
+  width: 120px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  filter: drop-shadow(0 8px 16px rgba(67, 112, 121, 0.07));
+  animation: ct-footer-cloud-drift 40s ease-in-out infinite alternate;
+}
+
+.ct-footer-cloud::before,
+.ct-footer-cloud::after {
+  position: absolute;
+  bottom: 8px;
+  border-radius: 50%;
+  background: inherit;
+  content: "";
+}
+
+.ct-footer-cloud::before { left: 20px; width: 43px; height: 43px; }
+.ct-footer-cloud::after { right: 22px; width: 55px; height: 55px; }
+.ct-footer-cloud--one { top: 16%; left: 48%; }
+.ct-footer-cloud--two { top: 23%; left: 82%; transform: scale(0.72); animation-duration: 55s; animation-delay: -12s; }
+
+.ct-footer-birds {
+  position: absolute;
+  z-index: 2;
+  top: 21%;
+  left: 57%;
+  width: 130px;
+  overflow: visible;
+  fill: none;
+  stroke: #315a4b;
+  stroke-linecap: round;
+  stroke-width: 3;
+  animation: ct-footer-bird-fly 28s linear infinite;
+}
+
+.ct-footer-scenery-copy {
+  position: relative;
+  z-index: 6;
+  width: min(1200px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-top: clamp(42px, 6vw, 74px);
+}
+
+.ct-footer-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #286c46;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.ct-footer-eyebrow svg {
+  color: #17803f;
+}
+
+.ct-footer-scenery-copy h2 {
+  margin-top: 14px;
+  color: #14302a;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+
+.ct-footer-cta {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 20px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ct-gold);
+  box-shadow: 0 6px 0 #7a4b00;
+  color: #14302a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.ct-footer-cta:hover {
+  transform: translateY(3px);
+  background: #ffc968;
+  box-shadow: 0 3px 0 #7a4b00;
+}
+
+.ct-footer-cta:active {
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 #7a4b00;
+}
+
+.ct-footer-back-hills {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 78%;
+  overflow: visible;
+  transform: translateY(var(--ct-parallax-back, 0px));
+  pointer-events: none;
+}
+
+.ct-footer-mountain {
+  opacity: 0.9;
+}
+
+.ct-footer-mountain--near {
+  opacity: 0.85;
+}
+
+.ct-footer-trees .ct-footer-tree-trunk {
+  fill: #6b4a2e;
+}
+
+.ct-footer-tree-crown {
+  fill: #1c7a40;
+}
+
+.ct-footer-tree-crown--light {
+  fill: #2f9a55;
+}
+
+.ct-footer-terrace {
+  fill: none;
+  stroke: rgba(216, 243, 106, 0.32);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.ct-footer-river {
+  fill: none;
+  stroke: var(--ct-water);
+  stroke-linecap: round;
+  stroke-width: 12;
+  opacity: 0.85;
+}
+
+.ct-footer-river-shine {
+  fill: none;
+  stroke: #e4f1fb;
+  stroke-dasharray: 20 180;
+  stroke-linecap: round;
+  stroke-width: 4;
+  opacity: 0.85;
+  animation: ct-footer-river-shine 6s linear infinite;
+}
+
+.ct-footer-hut {
+  fill: #d9b382;
+  stroke: #6b4a2e;
+  stroke-linejoin: round;
+  stroke-width: 8;
+}
+
+.ct-footer-rows {
+  fill: none;
+  stroke: rgba(10, 80, 38, 0.35);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.ct-footer-crop {
+  transform-box: fill-box;
+}
+
+.ct-footer-crop-leaf {
+  fill: #157a3c;
+}
+
+.ct-footer-crop-leaf--light {
+  fill: #2f9a55;
+}
+
+.ct-footer-fruit {
+  fill: #e2553a;
+}
+
+.ct-footer-fruit--half {
+  fill: #efa93a;
+}
+
+.ct-footer-mascot {
+  position: absolute;
+  z-index: 4;
+  right: clamp(8%, calc((100% - 1200px) / 2 + 9%), 19%);
+  bottom: 29px;
+  width: auto;
+  height: clamp(155px, 19vw, 230px);
+  object-fit: contain;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.2));
+  opacity: 0;
+  transform: translateY(70%);
+  transition: opacity 500ms ease;
+}
+
+.ct-footer.is-visible .ct-footer-mascot {
+  opacity: 1;
+  transform: translateY(0);
+  animation: ct-footer-mascot-peek 800ms cubic-bezier(0.34, 1.4, 0.64, 1) both,
+    ct-footer-mascot-idle 3.2s 900ms ease-in-out infinite;
+}
+
+.ct-footer-front-hill {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 43%;
+  overflow: visible;
+  transform: translateY(var(--ct-parallax-front, 0px));
+  pointer-events: none;
+}
+
+.ct-footer-front-hill > path:first-child {
+  fill: #1f9d55;
+}
+
+.ct-footer-grass {
+  fill: #17803f;
+  stroke: #17803f;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ct-footer-grass-sway 4s ease-in-out infinite;
+}
+
+.ct-footer-leaf {
+  fill: #d8f36a;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ct-footer-leaf-fall 9s linear infinite;
+}
+
+.ct-footer-leaf--one { animation-delay: -3s; }
+
+.ct-footer-main {
+  position: relative;
+  z-index: 5;
+  margin-top: -1px;
+  padding: 42px 24px 0;
+  background: var(--ct-forest);
+  color: #fff;
+}
+
+.ct-footer-content {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+}
+
+.ct-footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  gap: clamp(22px, 3.8vw, 48px);
+  padding-bottom: 36px;
+}
+
+.ct-footer-brand {
+  max-width: 260px;
+}
+
+.ct-footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  text-decoration: none;
+}
+
+.ct-footer-logo svg {
+  color: var(--ct-lime);
+}
+
+.ct-footer-brand p {
+  margin: 13px 0 18px;
+  color: var(--ct-muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.ct-footer-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ct-muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.ct-footer-contact svg {
+  color: var(--ct-lime);
+}
+
+.ct-footer-contact:hover {
+  color: #fff;
+}
+
+.ct-footer-column {
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 520ms ease, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: var(--column-delay, 0ms);
+}
+
+.ct-footer-column nav {
+  display: block;
+}
+
+.ct-footer.is-visible .ct-footer-column {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ct-footer-column summary {
+  position: relative;
+  width: fit-content;
+  margin: 0 0 16px;
+  padding: 0 0 8px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.ct-footer-column summary::-webkit-details-marker {
+  display: none;
+}
+
+.ct-footer-column summary::after {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  height: 2px;
+  background: var(--ct-gold);
+  content: "";
+}
+
+.ct-footer-column ul {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ct-footer-column a {
+  position: relative;
+  display: inline-block;
+  padding-left: 10px;
+  color: var(--ct-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-decoration: none;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.ct-footer-column a::before {
+  position: absolute;
+  top: 0.2em;
+  bottom: 0.2em;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.28);
+  content: "";
+  transition: background 160ms ease;
+}
+
+.ct-footer-column a:hover {
+  transform: translateX(4px);
+  color: #fff;
+}
+
+.ct-footer-column a:hover::before {
+  background: var(--ct-gold);
+}
+
+.ct-footer-note {
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--ct-muted);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.ct-footer-legal {
+  display: flex;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--ct-muted);
+  font-size: 0.69rem;
+}
+
+.ct-footer-legal nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ct-footer-legal a {
+  color: var(--ct-muted);
+  text-decoration: none;
+}
+
+.ct-footer-legal a:hover {
+  color: var(--ct-lime);
+}
+
+.ct-footer-made span {
+  color: var(--ct-lime);
+}
+
+@keyframes ct-footer-cloud-drift {
+  from { translate: -6% 0; }
+  to { translate: 6% 0; }
+}
+
+@keyframes ct-footer-sun-glow {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+@keyframes ct-footer-river-shine {
+  to { stroke-dashoffset: -200; }
+}
+
+@keyframes ct-footer-bird-fly {
+  from { translate: -10vw 0; }
+  to { translate: 20vw -40px; }
+}
+
+@keyframes ct-footer-grass-sway {
+  0%, 100% { rotate: -2deg; }
+  50% { rotate: 2.5deg; }
+}
+
+@keyframes ct-footer-leaf-fall {
+  0% { opacity: 0; transform: translate(0, -20px) rotate(0); }
+  10% { opacity: 1; }
+  100% { opacity: 0; transform: translate(60px, 220px) rotate(360deg); }
+}
+
+@keyframes ct-footer-mascot-peek {
+  from { opacity: 0; transform: translateY(70%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ct-footer-mascot-idle {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+
+/*
+ * < 1024px (HP portrait & landscape, tablet portrait, jendela desktop sempit):
+ * layout bertumpuk — ilustrasi di atas, form di bawah, halaman yang di-scroll.
+ * Layout berdampingan hanya dipakai di ≥ 1024px yang lebarnya cukup untuk dua panel.
+ */
+@media (max-width: 1023px) {
+  .ct-auth-page {
+    --auth-pad-y: 24px;
+    --auth-pad-x: 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .ct-auth-card,
+  .ct-auth-card--register {
+    grid-template-areas: "art" "form" "footer";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 260px auto auto;
+    width: min(600px, 100%);
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    border-radius: 28px;
+  }
+
+  .ct-auth-card .ct-auth-art {
+    --auth-wave-l: 0px;
+    --auth-wave-r: 0px;
+    min-height: 0;
+    margin: 0;
+    padding: 20px 24px;
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .ct-auth-art-heading,
+  .ct-auth-dew,
+  .ct-auth-art-caption,
+  .ct-auth-wave-editor-box {
+    display: none;
+  }
+
+  .ct-auth-scene {
+    right: 6%;
+    bottom: -18%;
+    left: -3%;
+    height: 150%;
+    min-height: 0;
+  }
+
+  .ct-auth-farm {
+    right: -10%;
+    bottom: -3%;
+    left: -10%;
+    width: 120%;
+    height: 85%;
+  }
+
+  .ct-auth-blob {
+    top: 10%;
+    left: 28%;
+    width: 52%;
+  }
+
+  .ct-auth-blob--small {
+    top: 26%;
+    left: 24%;
+    width: 48%;
+  }
+
+  .ct-auth-mascot {
+    bottom: -2%;
+    left: 56%;
+  }
+
+  .ct-auth-mascot img {
+    height: 176px !important;
+    max-width: 160px !important;
+  }
+
+  .ct-auth-speech {
+    max-width: 210px;
+    padding: 7px 11px;
+    font-size: 0.66rem;
+    line-height: 1.35;
+  }
+
+  .ct-auth-wave {
+    position: absolute;
+    z-index: 4;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 36px;
+  }
+
+  .ct-auth-form-panel {
+    overflow: visible;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll,
+  .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll,
+  .ct-auth-card--register .ct-auth-form-scroll {
+    height: auto;
+    overflow: visible;
+    padding: 22px 32px 30px;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .ct-auth-home-link {
+    min-height: 40px;
+  }
+
+  .ct-auth-security {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .ct-auth-card-footer {
+    min-height: 48px;
+    padding: 10px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.64rem;
+  }
+
+  .ct-footer-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 26px;
+  }
+
+  .ct-footer-brand {
+    grid-column: 1 / -1;
+    max-width: 480px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* HP: jarak tepi, ilustrasi & form lebih ringkas (layout bertumpuk dari blok ≤ 1023px). */
+  .ct-auth-page {
+    --auth-pad-y: 14px;
+    --auth-pad-x: 12px;
+  }
+
+  .ct-auth-card,
+  .ct-auth-card--register {
+    grid-template-rows: 216px auto auto;
+    width: min(520px, 100%);
+  }
+
+  .ct-auth-card .ct-auth-art {
+    padding: 18px 20px;
+  }
+
+  .ct-auth-brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ct-auth-brand strong {
+    font-size: 1.04rem;
+  }
+
+  .ct-auth-brand small {
+    font-size: 0.58rem;
+  }
+
+  .ct-auth-mascot img {
+    height: 142px !important;
+    max-width: 128px !important;
+  }
+
+  .ct-auth-speech {
+    max-width: 185px;
+    padding: 6px 10px;
+    font-size: 0.6rem;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll,
+  .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll,
+  .ct-auth-card--register .ct-auth-form-scroll {
+    padding: 18px 22px 26px;
+  }
+
+  .ct-auth-form-heading {
+    margin: 10px 0 18px;
+  }
+
+  .ct-auth-form-heading h1 {
+    font-size: 2.15rem;
+  }
+
+  .ct-auth-form {
+    gap: 12px;
+  }
+
+  .ct-auth-card-footer {
+    padding: 10px 22px;
+    font-size: 0.62rem;
+  }
+
+  .ct-footer-scenery {
+    height: 300px;
+  }
+
+  .ct-footer-scenery-copy {
+    width: calc(100% - 40px);
+    padding-top: 34px;
+  }
+
+  .ct-footer-scenery-copy h2 {
+    font-size: clamp(1.8rem, 7vw, 2.55rem);
+  }
+
+  .ct-footer-cta {
+    min-height: 40px;
+    margin-top: 14px;
+  }
+
+  .ct-footer-back-hills {
+    height: 60%;
+  }
+
+  .ct-footer-front-hill {
+    height: 36%;
+  }
+
+  .ct-footer-mascot {
+    right: 7%;
+    bottom: 19px;
+    height: 128px;
+  }
+
+  .ct-footer-cloud--two {
+    left: 76%;
+  }
+
+  .ct-footer-main {
+    padding: 32px 20px 0;
+  }
+
+  .ct-footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 25px 20px;
+  }
+
+  .ct-footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .ct-footer-legal {
+    min-height: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px 18px;
+    padding: 16px 0;
+  }
+}
+
+@media (max-width: 479px) {
+  .ct-auth-card-footer {
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 20px;
+    text-align: center;
+  }
+
+  .ct-footer-scenery {
+    height: 280px;
+  }
+
+  .ct-footer-scenery-copy h2 {
+    max-width: 12ch;
+    font-size: 1.9rem;
+  }
+
+  .ct-footer-birds,
+  .ct-footer-pine {
+    display: none;
+  }
+
+  .ct-footer-mascot {
+    right: 3%;
+    height: 112px;
+  }
+
+  .ct-footer-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .ct-footer-brand {
+    grid-column: auto;
+    max-width: none;
+    padding-bottom: 4px;
+  }
+
+  .ct-footer-column {
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .ct-footer-column summary {
+    display: block;
+    width: 100%;
+    margin-bottom: 0;
+    padding: 4px 22px 10px 0;
+  }
+
+  .ct-footer-column summary::before {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    content: "+";
+    color: var(--ct-muted);
+    font-size: 1rem;
+  }
+
+  .ct-footer-column[open] summary::before {
+    content: "−";
+  }
+
+  .ct-footer-column ul {
+    gap: 8px;
+    padding: 11px 0 4px;
+  }
+
+  .ct-footer-legal {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Monitor besar (QHD/4K): kartu ikut membesar proporsional, tidak terlihat kecil di tengah layar. */
+@media (min-width: 1680px) and (min-height: 940px) {
+  .ct-auth-card {
+    zoom: 1.15;
+  }
+}
+
+@media (min-width: 2200px) and (min-height: 1250px) {
+  .ct-auth-card {
+    zoom: 1.35;
+  }
+}
+
+/* TV & monitor 4K/5K (tanpa scaling OS): kartu diperbesar lagi agar terbaca dari jarak jauh. */
+@media (min-width: 3000px) and (min-height: 1650px) {
+  .ct-auth-card {
+    zoom: 1.85;
+  }
+}
+
+@media (min-width: 4600px) and (min-height: 2500px) {
+  .ct-auth-card {
+    zoom: 2.5;
+  }
+}
+
+/*
+ * Smart display (Nest Hub dkk.), netbook, laptop dengan banyak toolbar (tinggi ≤ 700px):
+ * mode ringkas agar kartu login & daftar tetap muat satu layar tanpa scroll.
+ */
+@media (min-width: 1024px) and (max-height: 700px) {
+  .ct-auth-card {
+    --auth-card-h: 640px;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll {
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+
+  .ct-auth-card .ct-auth-form-heading > span {
+    display: none;
+  }
+
+  .ct-auth-card .ct-auth-form-heading {
+    margin: 0 0 10px;
+  }
+
+  .ct-auth-card .ct-auth-form-heading h1 {
+    font-size: 2rem;
+  }
+
+  .ct-auth-card .ct-auth-form {
+    gap: 8px;
+  }
+
+  .ct-auth-card .ct-auth-form .field-input {
+    min-height: 42px;
+  }
+
+  .ct-auth-card .ct-auth-home-link {
+    min-height: 32px;
+  }
+
+  .ct-auth-card .ct-auth-forgot {
+    min-height: 36px;
+  }
+
+  .ct-auth-card .ct-auth-switch button {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+
+  .ct-auth-card .ct-auth-terms {
+    min-height: 34px;
+  }
+
+  .ct-auth-card .ct-auth-security {
+    margin-top: 4px;
+  }
+}
+
+/*
+ * Tablet portrait & foldable terbuka (700–1023px, cukup tinggi): kartu bertumpuk di tengah layar,
+ * tinggi panel form login = daftar.
+ */
+@media (min-width: 700px) and (max-width: 1023px) and (min-height: 761px) {
+  .ct-auth-page {
+    --auth-pad-y: 20px;
+    --auth-pad-x: 24px;
+  }
+
+  .ct-auth-card,
+  .ct-auth-card--register {
+    grid-template-rows: 260px auto auto;
+    width: min(600px, 100%);
+  }
+
+  .ct-auth-card .ct-auth-art {
+    padding: 20px 24px;
+  }
+
+  .ct-auth-mascot img {
+    height: 176px !important;
+    max-width: 160px !important;
+  }
+
+  .ct-auth-speech {
+    max-width: 210px;
+    padding: 7px 11px;
+    font-size: 0.66rem;
+  }
+
+  .ct-auth-form-panel {
+    display: flex;
+    min-height: 652px;
+    flex-direction: column;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll,
+  .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll,
+  .ct-auth-card--register .ct-auth-form-scroll {
+    flex: 1;
+    padding: 22px 32px 30px;
+  }
+}
+
+/* Layout bertumpuk: logo diberi latar tipis agar tetap terbaca di atas ilustrasi (mis. matahari). */
+@media (max-width: 1023px) {
+  .ct-auth-brand {
+    padding: 5px 14px 5px 5px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 4px 14px rgba(29, 68, 47, 0.08);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* HP: form daftar kembali satu kolom (dua kolom tetap dipakai di tablet & desktop). */
+@media (max-width: 599px) {
+  .ct-auth-card--register .ct-auth-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Area sentuh yang nyaman (≥ 40px) untuk tautan & checkbox. */
+.ct-auth-forgot a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding-inline: 4px;
+}
+
+.ct-auth-card-footer a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+}
+
+.ct-auth-terms {
+  min-height: 40px;
+  align-items: center;
+}
+
+/* Font input minimal 16px di perangkat sentuh agar iPhone/iPad tidak auto-zoom saat kolom diketuk. */
+@media (max-width: 1023px), (pointer: coarse) {
+  .ct-auth-form .field-input {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1024px) and (pointer: coarse) {
+  .ct-auth-card--register .ct-auth-form .field-input::placeholder {
+    font-size: 0.82rem;
+  }
+}
+
+/*
+ * HP (portrait & landscape): layar penuh dari tepi ke tepi seperti aplikasi, tanpa kartu melayang.
+ * Ilustrasi mengisi sisa ruang (dibatasi min–maks) agar halaman login pas satu layar HP;
+ * env(safe-area-*) menjaga konten dari notch/poni & area gesture.
+ */
+@media (max-width: 699px), (max-width: 1023px) and (max-height: 760px) {
+  .ct-auth-page {
+    display: block;
+    padding: 0;
+    background: var(--auth-forest);
+  }
+
+  .ct-auth-page::before,
+  .ct-auth-page::after,
+  .ct-auth-bokeh {
+    display: none;
+  }
+
+  .ct-auth-card,
+  .ct-auth-card--register {
+    grid-template-rows: auto 1fr auto;
+    width: 100%;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .ct-auth-card .ct-auth-art {
+    height: clamp(
+      calc(140px + env(safe-area-inset-top)),
+      calc(100dvh - 556px),
+      calc(250px + env(safe-area-inset-top))
+    );
+    padding:
+      calc(14px + env(safe-area-inset-top))
+      max(18px, env(safe-area-inset-right))
+      14px
+      max(18px, env(safe-area-inset-left));
+  }
+
+  /*
+   * Maskot di sisi kanan & ukurannya ikut tinggi ilustrasi; balon ucapan di kiri kepalanya
+   * (gaya komik) supaya tidak pernah menimpa logo meski ilustrasi mengecil di HP pendek.
+   */
+  .ct-auth-mascot {
+    left: 74%;
+  }
+
+  .ct-auth-mascot img {
+    height: clamp(104px, calc(100dvh - 620px), 142px) !important;
+    max-width: 128px !important;
+  }
+
+  .ct-auth-speech {
+    position: absolute;
+    top: 8px;
+    right: calc(100% - 18px);
+    width: max-content;
+    max-width: min(190px, 46vw);
+    margin: 0;
+    border-radius: 15px 15px 4px 15px;
+    text-align: left;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll,
+  .ct-auth-card:not(.ct-auth-card--register) .ct-auth-form-scroll,
+  .ct-auth-card--register .ct-auth-form-scroll {
+    padding:
+      12px
+      max(22px, env(safe-area-inset-right))
+      16px
+      max(22px, env(safe-area-inset-left));
+  }
+
+  .ct-auth-home-link {
+    min-height: 36px;
+  }
+
+  .ct-auth-form-heading {
+    margin: 4px 0 14px;
+  }
+
+  .ct-auth-form-heading h1 {
+    font-size: 2rem;
+  }
+
+  .ct-auth-form {
+    gap: 10px;
+  }
+
+  .ct-auth-form .field-input {
+    min-height: 46px;
+  }
+
+  .ct-auth-security {
+    margin-top: 8px;
+  }
+
+  .ct-auth-card-footer {
+    min-height: 0;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 12px;
+    padding:
+      4px
+      max(22px, env(safe-area-inset-right))
+      calc(4px + env(safe-area-inset-bottom))
+      max(22px, env(safe-area-inset-left));
+    text-align: left;
+  }
+}
+
+/* HP pendek (iPhone SE dkk.): label kecil di atas judul disembunyikan agar form muat satu layar. */
+@media (max-width: 767px) and (max-height: 700px) {
+  .ct-auth-form-heading > span {
+    display: none;
+  }
+}
+
+/* HP sangat sempit: isi footer bertumpuk agar tidak berdesakan. */
+@media (max-width: 340px) {
+  .ct-auth-card-footer {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    text-align: center;
+  }
+}
+
+/*
+ * Foldable dual-screen yang dibentangkan (Surface Duo, Galaxy Fold mode spanning):
+ * ilustrasi di layar pertama, form di layar kedua, kolom tengah = engsel (tidak ada konten terpotong engsel).
+ */
+@media (horizontal-viewport-segments: 2) {
+  .ct-auth-page {
+    display: block;
+    padding: 0;
+  }
+
+  .ct-auth-card,
+  .ct-auth-card--register {
+    --auth-wave-w: 0px;
+    grid-template-areas: "art hinge form" "footer footer footer";
+    grid-template-columns:
+      env(viewport-segment-width 0 0, 1fr)
+      calc(env(viewport-segment-left 1 0, 0px) - env(viewport-segment-right 0 0, 0px))
+      env(viewport-segment-width 1 0, 1fr);
+    width: 100%;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    zoom: 1;
+  }
+
+  .ct-auth-card--register {
+    grid-template-areas: "form hinge art" "footer footer footer";
+  }
+
+  .ct-auth-card .ct-auth-art {
+    margin: 0;
+    padding: var(--auth-art-pad);
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .ct-auth-card .ct-auth-form-scroll {
+    padding-inline: clamp(24px, 4vw, 46px);
+  }
+
+  .ct-auth-wave-editor-box {
+    display: none;
+  }
+}
+
+/* Foldable dilipat setengah secara horizontal (mode "flex"/tabletop): ilustrasi di atas engsel, form di bawah. */
+@media (vertical-viewport-segments: 2) and (max-width: 1023px) {
+  .ct-auth-card .ct-auth-art {
+    height: env(viewport-segment-height 0 0, auto);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-auth-page *,
+  .ct-auth-page *::before,
+  .ct-auth-page *::after,
+  .ct-footer *,
+  .ct-footer *::before,
+  .ct-footer *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .ct-auth-card {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ct-footer-mascot,
+  .ct-footer-column {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -1,0 +1,23 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+*.apk
+.flutter-plugins
+.flutter-plugins-dependencies
+# Environment rahasia lokal
+.env
+.env*.local
+.env.json
+
+# IDE & OS
+*.iml
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# APK rilis siap install (ditautkan di README)
+!release/*.apk

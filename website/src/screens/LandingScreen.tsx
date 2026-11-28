@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -292,6 +293,21 @@ export const LandingScreen: React.FC = () => {
     fileIdx: number;
   } | null>(null);
   const [activeNavId, setActiveNavId] = useState<string>('jalan-kami');
+
+  // Popup info lembar: tutup dengan Esc & kunci scroll halaman selama terbuka
+  useEffect(() => {
+    if (!selectedSheet) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedSheet(null);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedSheet]);
   const [isDarkTone, setIsDarkTone] = useState(false);
   const [featurePaused, setFeaturePaused] = useState(false);
   const featureTrackRef = useRef<HTMLDivElement | null>(null);
@@ -841,13 +857,19 @@ export const LandingScreen: React.FC = () => {
                     WORKFLOW_STEPS[selectedSheet.stepIdx]?.files[selectedSheet.fileIdx] && (() => {
                       const stepInfo = WORKFLOW_STEPS[selectedSheet.stepIdx];
                       const sheetInfo = stepInfo.files[selectedSheet.fileIdx];
-                      return (
+                      // Portal ke <body>: popup selalu di tengah layar (tidak ikut transform animasi seksi)
+                      return createPortal(
+                        <div
+                          className="modal-backdrop lp-sheet-backdrop"
+                          onClick={() => setSelectedSheet(null)}
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label={`Info ${sheetInfo.name}`}
+                        >
                         <div
                           key={`${selectedSheet.stepIdx}-${selectedSheet.fileIdx}`}
-                          className="lp-sheet-detail-card step-transition"
-                          role="region"
-                          aria-live="polite"
-                          aria-label={`Detail ${sheetInfo.name}`}
+                          className="lp-sheet-detail-card lp-sheet-modal"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <div className="lp-sheet-detail-head">
                             <div className="lp-sheet-detail-badges">
@@ -900,6 +922,8 @@ export const LandingScreen: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                        </div>,
+                        document.body
                       );
                     })()}
 

@@ -7267,6 +7267,58 @@ button.plant-stat {
   flex-shrink: 0;
 }
 
+/* Popup info lembar folder (di tengah layar) */
+.lp-sheet-backdrop {
+  z-index: 200;
+}
+
+.lp-sheet-modal {
+  width: min(620px, 100%);
+  max-height: 88dvh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-3);
+  animation: modalPopIn 280ms var(--ease-out);
+}
+
+.lp-sheet-modal .lp-sheet-detail-body {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lp-sheet-modal .lp-sheet-detail-main {
+  flex: 1 1 auto;
+}
+
+.lp-sheet-modal .lp-sheet-detail-list li {
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.lp-sheet-modal .lp-sheet-detail-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Di HP tetap di tengah layar (bukan lembar bawah seperti modal lain) */
+@media (max-width: 768px) {
+  .lp-sheet-backdrop {
+    align-items: center;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-sheet-modal {
+    padding: 18px 16px;
+  }
+
+  .lp-sheet-modal .lp-sheet-detail-action .ct-btn-dark {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 /* Seksi 6 (#fitur-unggulan) — Auto-scroll horizontal ke samping */
 .lp-features-panel {
   overflow: hidden;

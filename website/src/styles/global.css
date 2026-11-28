@@ -3521,6 +3521,24 @@ textarea {
   animation: tipBubblePop 240ms var(--ease-spring) both;
 }
 
+/* Gelembung rata kiri (sidebar): tanpa geser -50% agar tidak terpotong tepi */
+.tip-bubble-in--start {
+  animation-name: tipBubblePopStart;
+  transform-origin: 24px 100%;
+}
+
+@keyframes tipBubblePopStart {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .pose-chip-btn {
   transition:
     transform var(--dur-base) var(--ease-out),

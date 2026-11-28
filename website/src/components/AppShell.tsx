@@ -483,6 +483,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <CermoMascot
             pose={cermoSidebarPose}
             size={38}
+            tipAlign="start"
+            tipMaxWidth={204}
             tipOverride={
               isPowerSave
                 ? 'Baterai surya sedang hemat daya. Data dikirim lebih jarang ya.'

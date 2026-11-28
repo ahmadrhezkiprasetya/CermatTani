@@ -20,6 +20,10 @@ interface CermoMascotProps {
   tipOverride?: string;
   className?: string;
   label?: string;
+  /** Posisi gelembung tips: tengah maskot (bawaan) atau rata kiri (untuk ruang sempit seperti sidebar) */
+  tipAlign?: 'center' | 'start';
+  /** Lebar maks gelembung tips */
+  tipMaxWidth?: number;
 }
 
 const POSE_TO_FARMER: Record<CermoPose, PakCermatPose> = {
@@ -57,6 +61,8 @@ export const CermoMascot: React.FC<CermoMascotProps> = ({
   tipOverride,
   className = '',
   label = 'Maskot Pak Cermat',
+  tipAlign = 'center',
+  tipMaxWidth = 220,
 }) => {
   const safeSize = Math.max(32, size);
   const [isJumping, setIsJumping] = useState(false);
@@ -113,12 +119,13 @@ export const CermoMascot: React.FC<CermoMascotProps> = ({
       {activeTip && (
         <div
           role="status"
-          className="tip-bubble-in"
+          className={tipAlign === 'start' ? 'tip-bubble-in tip-bubble-in--start' : 'tip-bubble-in'}
           style={{
             position: 'absolute',
             bottom: 'calc(100% + 8px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            ...(tipAlign === 'start'
+              ? { left: -10, transform: 'none', textAlign: 'left' as const }
+              : { left: '50%', transform: 'translateX(-50%)', textAlign: 'center' as const }),
             background: 'var(--surface)',
             color: 'var(--ink)',
             padding: '8px 12px',
@@ -128,8 +135,7 @@ export const CermoMascot: React.FC<CermoMascotProps> = ({
             fontWeight: 600,
             lineHeight: 1.4,
             width: 'max-content',
-            maxWidth: '220px',
-            textAlign: 'center',
+            maxWidth: tipMaxWidth,
             zIndex: 35,
             border: '1px solid var(--line)',
             pointerEvents: 'none',

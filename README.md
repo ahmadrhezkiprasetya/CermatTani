@@ -2,6 +2,34 @@
 
 Repositori menyeluruh proyek **CermatTani** (InSaintek 2026) sesuai `PRD (1).md` dan `DESIGN (3).md` — khusus budidaya **tomat** berbasis computer vision + IoT surya + maskot **Cermo**.
 
+## 📱 Download Aplikasi Android (siap install)
+
+### [⬇️ Download CermatTani v1.1.0 (APK)](https://github.com/ahmadrhezkiprasetya/CermatTani/raw/main/applications/release/CermatTani-v1.1.0.apk)
+
+| | |
+|---|---|
+| Versi | **1.1.0** |
+| Ukuran | **21.5 MB** |
+| Perangkat | Android 7.0 ke atas (HP 64-bit / arm64 — hampir semua HP Android sekarang) |
+| File di repo | [`applications/release/CermatTani-v1.1.0.apk`](applications/release/CermatTani-v1.1.0.apk) |
+
+**Cara install di HP:**
+
+1. Buka link **Download** di atas dari browser HP Android, lalu unduh file APK-nya.
+2. Buka file `CermatTani-v1.1.0.apk` dari notifikasi unduhan atau aplikasi **File**.
+3. Bila muncul peringatan **"Install aplikasi tidak dikenal"**, ketuk **Setelan → izinkan dari sumber ini**, lalu kembali.
+4. Ketuk **Install**, tunggu selesai, lalu **Buka**.
+5. Masuk dengan akun yang sama seperti di website.
+
+Yang sudah aktif di APK ini:
+- **Scan foto & Chat Cermo** memakai AI **KoboiLLM** (hemat token: mode gambar ringan, jawaban JSON ringkas).
+- **Pengingat Telegram** lewat bot **@CermatTaniBot**.
+- **Sinkron akun & data** dengan Supabase (sama dengan website).
+
+> Website: **https://cermattaniweb.vercel.app**
+
+---
+
 ## Struktur 3 Repositori (Monorepo + Git Subtree)
 
 ```text
@@ -45,13 +73,32 @@ Buka peramban di **http://localhost:3000**.
 
 ---
 
-## 3. Cara Menjalankan Mobile App (Flutter)
+## 3. Cara Menjalankan & Build Mobile App (Flutter)
+
+Buat file `applications/.env.json` (tidak ikut ke git) berisi kunci yang sama dengan website:
+
+```json
+{
+  "SUPABASE_URL": "https://PROJECT-ID.supabase.co",
+  "SUPABASE_ANON_KEY": "eyJ...",
+  "KOBOILLM_API_KEY": "sk-...",
+  "TELEGRAM_BOT_TOKEN": "123456:AA...",
+  "GEMINI_API_KEY": ""
+}
+```
+
+`KOBOILLM_API_KEY` dipakai untuk AI (Scan & Chat). `GEMINI_API_KEY` hanya cadangan bila KoboiLLM kosong.
 
 ```powershell
 cd applications
-flutter create --platforms=android,ios .   # cukup sekali jika folder android/ & ios/ belum ada
 flutter pub get
-flutter run
+
+# Jalankan di HP/emulator
+flutter run --dart-define-from-file=.env.json
+
+# Build APK siap install (HP arm64)
+flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env.json
+# Hasil: applications/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ---

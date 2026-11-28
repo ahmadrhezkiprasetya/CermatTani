@@ -1536,6 +1536,13 @@ textarea {
   }
 }
 
+/* Mobile: kartu cuaca & matahari tampil paling atas di Beranda */
+@media (max-width: 768px) {
+  .dash-climate-card {
+    order: -1;
+  }
+}
+
 /* Mobile: cuaca + panel matahari tampil ringkas & bisa digeser dengan jari */
 @media (max-width: 640px) {
   .dash-climate-card {

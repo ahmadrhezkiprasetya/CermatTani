@@ -278,13 +278,33 @@ export const ScanScreen: React.FC = () => {
       return;
     }
 
+    // Potong frame persis seperti yang terlihat di preview (object-fit: cover, posisi tengah),
+    // supaya objek yang dipaskan di kotak panduan tetap berada di posisi yang sama pada foto.
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const viewW = video.clientWidth || vw;
+    const viewH = video.clientHeight || vh;
+    const viewRatio = viewW / viewH;
+    const videoRatio = vw / vh;
+    let sx = 0;
+    let sy = 0;
+    let sw = vw;
+    let sh = vh;
+    if (videoRatio > viewRatio) {
+      sw = Math.round(vh * viewRatio);
+      sx = Math.round((vw - sw) / 2);
+    } else if (videoRatio < viewRatio) {
+      sh = Math.round(vw / viewRatio);
+      sy = Math.round((vh - sh) / 2);
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = sw;
+    canvas.height = sh;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
     const rawDataUrl = canvas.toDataURL('image/jpeg', 0.9);
     stopCameraStream();
 
@@ -856,6 +876,8 @@ export const ScanScreen: React.FC = () => {
                 <div className="scan-result-grid">
                   {/* Foto + kotak deteksi (hanya untuk buah segar / kematangan) */}
                   <div className="scan-result-photo">
+                    {/* Frame mengikuti ukuran asli foto (tanpa crop) agar koordinat kotak (% foto) pas */}
+                    <div className="scan-result-photo-frame">
                     <img src={result.fotoUrl} alt={`Foto ${targetPlant?.nama || 'tanaman'}`} />
                     {focus === 'kematangan' &&
                       result.boxes.map((box, idx) => {
@@ -878,8 +900,8 @@ export const ScanScreen: React.FC = () => {
                             <span
                               style={{
                                 position: 'absolute',
-                                top: -26,
-                                left: -2,
+                                top: box.y < 10 ? 4 : -26,
+                                left: box.y < 10 ? 4 : -2,
                                 background: ref.color,
                                 color: box.stage === 'setengah_matang' ? '#14302A' : '#FFFFFF',
                                 padding: '2px 9px',
@@ -895,6 +917,7 @@ export const ScanScreen: React.FC = () => {
                           </div>
                         );
                       })}
+                    </div>
                   </div>
 
                   {/* Ringkasan */}

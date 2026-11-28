@@ -6262,13 +6262,25 @@ button.plant-stat {
   border-radius: var(--r-card);
   overflow: hidden;
   background: var(--surface-2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Frame mengikuti ukuran asli foto agar kotak deteksi (persen foto) tidak meleset */
+.scan-result-photo-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
 }
 
 .scan-result-photo img {
   display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 420px;
 }
 
 .scan-result-body {

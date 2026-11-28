@@ -27,10 +27,11 @@ interface ParsedGeminiScan {
   tanpaBuahTerdeteksi?: boolean;
   alasanTidakTerdeteksi?: string;
   boxes?: Array<{
-    x: number;
-    y: number;
-    w: number;
-    h: number;
+    box_2d?: number[];
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
     stage: RipenessStage;
     confidence: number;
   }>;
@@ -158,7 +159,7 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
    - KASUS B — BUAH SEGAR (MATANG / SETENGAH MATANG / MENTAH):
      * Jika foto menampilkan buah segar yang sehat/layak konsumsi (baik mentah, setengah matang, maupun matang):
      * WAJIB set "fokusOutput": "kematangan".
-     * Deteksi setiap buah segar sebagai kotak [x, y, w, h] dalam PERSEN 0–100 (x+w<=99, y+h<=99) dengan stage "mentah" | "setengah_matang" | "matang".
+     * Deteksi setiap buah segar dengan "box_2d": [ymin, xmin, ymax, xmax] dinormalisasi 0–1000 terhadap SELURUH foto (0,0 = pojok kiri atas), kotak harus rapat mengelilingi tepi buah, dengan stage "mentah" | "setengah_matang" | "matang".
      * Jika pada buah segar tersebut terlihat ada bercak/penyakit KECIL atau gejala awal ringan (buah masih dominan segar), tetap set "fokusOutput": "kematangan", set "penyakitUtamaId": "sehat", dan masukkan ID penyakit ringannya ke "penyakitRinganId" (selain itu set "penyakitRinganId": null).
      * "ringkasanSingkat" fokus ke kondisi kematangan buah saja.
    - KASUS C — GEJALA KEKURANGAN HARA MURNI (misal daun menguning pucat/tepi terbakar/antar-tulang kuning tanpa penyakit jamur/bakteri dominan):
@@ -254,14 +255,11 @@ Kembalikan tepat JSON sesuai skema.`;
           items: {
             type: 'OBJECT',
             properties: {
-              x: { type: 'NUMBER' },
-              y: { type: 'NUMBER' },
-              w: { type: 'NUMBER' },
-              h: { type: 'NUMBER' },
+              box_2d: { type: 'ARRAY', items: { type: 'NUMBER' } },
               stage: { type: 'STRING', enum: ['mentah', 'setengah_matang', 'matang'] },
               confidence: { type: 'NUMBER' },
             },
-            required: ['x', 'y', 'w', 'h', 'stage', 'confidence'],
+            required: ['box_2d', 'stage', 'confidence'],
           },
         },
         tahapDominan: {
@@ -456,15 +454,33 @@ Kembalikan tepat JSON sesuai skema.`;
         ? parsed.boxes
             .slice(0, 12)
             .map((b, i) => {
-              const rawX = Number(b.x);
-              const rawY = Number(b.y);
-              const rawW = Number(b.w);
-              const rawH = Number(b.h);
-              const scaleDiv = Math.max(rawX, rawY, rawW, rawH) > 100 ? 10 : 1;
-              const x = clamp(rawX / scaleDiv, 1, 90);
-              const y = clamp(rawY / scaleDiv, 1, 90);
-              const w = clamp(rawW / scaleDiv, 6, Math.max(6, 99 - x));
-              const h = clamp(rawH / scaleDiv, 6, Math.max(6, 99 - y));
+              // Format utama: box_2d [ymin, xmin, ymax, xmax] skala 0–1000 (dijelaskan eksplisit di prompt).
+              // Fallback: x/y/w/h persen untuk respons lama.
+              let x: number;
+              let y: number;
+              let w: number;
+              let h: number;
+              if (Array.isArray(b.box_2d) && b.box_2d.length === 4 && b.box_2d.every((n) => Number.isFinite(Number(n)))) {
+                const [a, c, d, e] = b.box_2d.map(Number);
+                const ymin = Math.min(a, d);
+                const ymax = Math.max(a, d);
+                const xmin = Math.min(c, e);
+                const xmax = Math.max(c, e);
+                x = clamp(xmin / 10, 0, 95);
+                y = clamp(ymin / 10, 0, 95);
+                w = clamp((xmax - xmin) / 10, 4, 100 - x);
+                h = clamp((ymax - ymin) / 10, 4, 100 - y);
+              } else {
+                const rawX = Number(b.x) || 0;
+                const rawY = Number(b.y) || 0;
+                const rawW = Number(b.w) || 0;
+                const rawH = Number(b.h) || 0;
+                const scaleDiv = Math.max(rawX, rawY, rawW, rawH) > 100 ? 10 : 1;
+                x = clamp(rawX / scaleDiv, 0, 95);
+                y = clamp(rawY / scaleDiv, 0, 95);
+                w = clamp(rawW / scaleDiv, 4, 100 - x);
+                h = clamp(rawH / scaleDiv, 4, 100 - y);
+              }
               return {
                 id: `ai-bx-${i + 1}`,
                 x,

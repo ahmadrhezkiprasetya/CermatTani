@@ -7,7 +7,33 @@ import {
   DATASET_NUTRIENTS,
   DATASET_RIPENESS,
 } from '@/data/agronomyDataset';
+import type { AiTokenUsage } from '@/lib/gemini';
 import type { PlantPart, RipenessStage, ScanOutputFocus } from '@/types/cermattani';
+
+/*
+ * Deteksi letak buah dipisah dari analisis utama: prompt pendek khusus kotak jauh lebih tepat
+ * (uji cabai di telapak tangan: analisis gabungan menaruh kotak di jari, panggilan khusus pas di buah).
+ * Berjalan paralel dengan analisis utama → tanpa tambahan waktu tunggu, hanya ±200 token.
+ */
+const DETECT_INSTRUCTION = `Kamu pendeteksi letak buah pada foto pertanian.
+Temukan setiap BUAH yang terlihat (bukan daun, tangan, jari, wadah, atau latar).
+Untuk tiap buah: "label" nama buahnya, "box_2d": [ymin, xmin, ymax, xmax] skala 0–1000 terhadap SELURUH foto (0,0 = pojok kiri atas), kotak rapat di tepi buah (tangkai boleh ikut), dan "stage" dari warna kulit: "mentah" | "setengah_matang" | "matang".
+Maksimal 12 buah. Bila tidak ada buah (misal sayuran daun saja), kembalikan "boxes": [].
+Balas JSON {"boxes":[{"label":string,"box_2d":[ymin,xmin,ymax,xmax],"stage":string}]}.`;
+// Sengaja tanpa responseSchema: teks skema panjang terbukti membuat kotak kurang rapat (uji cabai & tomat).
+
+function sumTokens(a?: AiTokenUsage | null, b?: AiTokenUsage | null): AiTokenUsage | null {
+  if (!a && !b) return null;
+  const z = { input: 0, cached: 0, output: 0, total: 0 };
+  const x = a ?? z;
+  const y = b ?? z;
+  return {
+    input: x.input + y.input,
+    cached: x.cached + y.cached,
+    output: x.output + y.output,
+    total: x.total + y.total,
+  };
+}
 
 interface ParsedGeminiScan {
   objekTeridentifikasi?: string;
@@ -159,7 +185,7 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
    - KASUS B — BUAH SEGAR (MATANG / SETENGAH MATANG / MENTAH):
      * Jika foto menampilkan buah segar yang sehat/layak konsumsi (baik mentah, setengah matang, maupun matang):
      * WAJIB set "fokusOutput": "kematangan".
-     * Deteksi setiap buah segar dengan "box_2d": [ymin, xmin, ymax, xmax] dinormalisasi 0–1000 terhadap SELURUH foto (0,0 = pojok kiri atas), kotak harus rapat mengelilingi tepi buah, dengan stage "mentah" | "setengah_matang" | "matang".
+     * Deteksi setiap buah segar dengan "box_2d": [ymin, xmin, ymax, xmax] dinormalisasi 0–1000 terhadap SELURUH foto (0,0 = pojok kiri atas), kotak harus rapat mengelilingi tepi buah itu sendiri (tangkai boleh ikut) — BUKAN tangan, jari, daun, wadah, atau latar; bila letak buah tidak yakin, lebih baik "boxes": [] daripada kotak salah tempat. Stage "mentah" | "setengah_matang" | "matang".
      * Jika pada buah segar tersebut terlihat ada bercak/penyakit KECIL atau gejala awal ringan (buah masih dominan segar), tetap set "fokusOutput": "kematangan", set "penyakitUtamaId": "sehat", dan masukkan ID penyakit ringannya ke "penyakitRinganId" (selain itu set "penyakitRinganId": null).
      * "ringkasanSingkat" fokus ke kondisi kematangan buah saja.
    - KASUS C — GEJALA KEKURANGAN HARA MURNI (misal daun menguning pucat/tepi terbakar/antar-tulang kuning tanpa penyakit jamur/bakteri dominan):
@@ -326,6 +352,27 @@ Kembalikan tepat JSON sesuai skema.`;
       ],
     };
 
+    // Panggilan deteksi kotak (paralel). Hanya Gemini: model lain terbukti meleset menaruh kotak.
+    const detectPromise = callGeminiServer({
+      mode: 'vision',
+      models: ['gemini/gemini-2.5-flash'],
+      systemInstruction: DETECT_INSTRUCTION,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: 'Temukan setiap buah di foto ini.' },
+            { inlineData: { mimeType: parsedImg.mimeType, data: parsedImg.base64 } },
+          ],
+        },
+      ],
+      responseMimeType: 'application/json',
+      temperature: 0,
+      maxOutputTokens: 500,
+      // Resolusi penuh untuk kotak: "low" membuat Gemini melihat gambar ±64 token → kotak meleset/rusak
+      imageDetail: 'high',
+    }).catch(() => null);
+
     const aiRes = await callGeminiServer({
       mode: 'vision',
       systemInstruction,
@@ -448,10 +495,27 @@ Kembalikan tepat JSON sesuai skema.`;
       fokusOutput = utamaId !== 'sehat' ? 'penyakit' : 'hara';
     }
 
+    // Kotak dari panggilan deteksi khusus (lebih tepat); bila gagal/kosong pakai kotak analisis utama.
+    const detectRes = await detectPromise;
+    let detectedBoxes: NonNullable<ParsedGeminiScan['boxes']> = [];
+    if (detectRes?.ok) {
+      try {
+        const det = JSON.parse(extractJsonObject(detectRes.text)) as { boxes?: ParsedGeminiScan['boxes'] };
+        const baseConf = Number(parsed.keyakinan) || 85;
+        detectedBoxes = (Array.isArray(det.boxes) ? det.boxes : [])
+          .filter((b) => Array.isArray(b?.box_2d) && b.box_2d.length === 4)
+          .map((b) => ({ ...b, confidence: baseConf }));
+      } catch {
+        detectedBoxes = [];
+      }
+    }
+    const sourceBoxes = detectedBoxes.length > 0 ? detectedBoxes : parsed.boxes;
+    const tokenTotal = sumTokens(aiRes.tokens, detectRes?.ok ? detectRes.tokens : null);
+
     // Kotak deteksi HANYA untuk buah segar (fokusOutput === 'kematangan')
     const safeBoxes =
-      fokusOutput === 'kematangan' && Array.isArray(parsed.boxes)
-        ? parsed.boxes
+      fokusOutput === 'kematangan' && Array.isArray(sourceBoxes)
+        ? sourceBoxes
             .slice(0, 12)
             .map((b, i) => {
               // Format utama: box_2d [ymin, xmin, ymax, xmax] skala 0–1000 (dijelaskan eksplisit di prompt).
@@ -609,7 +673,7 @@ Kembalikan tepat JSON sesuai skema.`;
     return NextResponse.json({
       ok: true,
       aiProvider: aiRes.provider,
-      tokenUsage: aiRes.tokens ?? null,
+      tokenUsage: tokenTotal,
       aiModel: aiRes.model,
       datasetVersion: 'CermatTani-Agronomy-v3.0',
       alasanTidakTerdeteksi: String(parsed.alasanTidakTerdeteksi || '').trim(),

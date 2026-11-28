@@ -34,6 +34,10 @@ export interface GeminiCallOptions {
   responseSchema?: Record<string, unknown>;
   temperature?: number;
   maxOutputTokens?: number;
+  /** KoboiLLM: daftar model khusus, menggantikan urutan bawaan (mis. deteksi kotak hanya dengan Gemini). */
+  models?: string[];
+  /** KoboiLLM: detail gambar khusus panggilan ini (bawaan dari KOBOILLM_IMAGE_DETAIL). */
+  imageDetail?: 'low' | 'high' | 'auto';
 }
 
 export type AiProvider = 'koboillm' | 'gemini';
@@ -109,11 +113,13 @@ function uniq(list: Array<string | undefined>): string[] {
 function getKoboiModels(mode: 'vision' | 'chat'): string[] {
   // Model vision yang tercantum di dokumentasi KoboiLLM (docs.koboillm.com/en/vision).
   // Model dari .env selalu dicoba lebih dulu; sisanya cadangan bila model tak tersedia di kunci Anda.
+  // Scan: Gemini 2.5 Flash lebih dulu — diuji paling tepat menaruh kotak box_2d (format bawaan Gemini)
+  // & membedakan jenis buah/sayur; GPT-4o-mini sering meleset (kotak jatuh di jari/latar).
   return mode === 'vision'
     ? uniq([
         process.env.KOBOILLM_MODEL_VISION,
-        'openai/gpt-4o-mini',
         'gemini/gemini-2.5-flash',
+        'openai/gpt-4o-mini',
         'openai/gpt-4o',
       ])
     : uniq([
@@ -139,7 +145,11 @@ interface OpenAiMessage {
   content: string | OpenAiContentPart[];
 }
 
-function toOpenAiMessages(systemPrompt: string, contents: GeminiContent[]): OpenAiMessage[] {
+function toOpenAiMessages(
+  systemPrompt: string,
+  contents: GeminiContent[],
+  imageDetail?: 'low' | 'high' | 'auto'
+): OpenAiMessage[] {
   const messages: OpenAiMessage[] = [{ role: 'system', content: systemPrompt }];
   for (const c of contents) {
     const role = c.role === 'model' ? 'assistant' : 'user';
@@ -156,7 +166,7 @@ function toOpenAiMessages(systemPrompt: string, contents: GeminiContent[]): Open
           type: 'image_url',
           image_url: {
             url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`,
-            detail: getImageDetail(),
+            detail: imageDetail ?? getImageDetail(),
           },
         });
       }
@@ -230,8 +240,8 @@ FORMAT JAWABAN WAJIB: kembalikan HANYA satu objek JSON valid (tanpa markdown, ta
 ${JSON.stringify(toJsonSchema(options.responseSchema))}`
       : options.systemInstruction;
 
-  const messages = toOpenAiMessages(systemPrompt, options.contents);
-  const models = getKoboiModels(mode);
+  const messages = toOpenAiMessages(systemPrompt, options.contents, options.imageDetail);
+  const models = options.models?.length ? uniq(options.models) : getKoboiModels(mode);
 
   let lastStatus = 503;
   let lastError = 'Layanan AI KoboiLLM sedang sibuk. Silakan coba lagi beberapa saat.';
@@ -245,6 +255,9 @@ ${JSON.stringify(toJsonSchema(options.responseSchema))}`
         temperature: options.temperature ?? (mode === 'vision' ? 0.15 : 0.35),
         max_tokens: options.maxOutputTokens ?? (mode === 'vision' ? 4096 : 1200),
         ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}),
+        // Gemini 2.5: matikan "thinking" — tanpa ini token jawaban habis untuk berpikir (JSON terpotong),
+        // lebih lambat, dan pada uji kotak deteksi justru kurang tepat.
+        ...(model.startsWith('gemini/gemini-2.5') ? { reasoning_effort: 'disable' } : {}),
       };
 
       try {

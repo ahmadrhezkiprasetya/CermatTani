@@ -164,7 +164,7 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
      * "tanpaBuahTerdeteksi": true, "boxes": [], "anjuranPanen": "Perlu foto ulang", "keyakinan": 15–40
      * "alasanTidakTerdeteksi": penjelasan sopan apa yang tampak & saran cara foto ulang.
 2B. IDENTIFIKASI & VERIFIKASI JENIS TANAMAN (SELALU DIISI):
-   - "objekTeridentifikasi": nama umum objek utama di foto dalam bahasa Indonesia, singkat (misal "Buah mangga", "Daun cabai", "Buah tomat", "Kucing", "Gambar kartun").
+   - "objekTeridentifikasi": nama objek utama di foto dalam bahasa Indonesia, sespesifik mungkin sampai jenis/varietas umum bila cirinya jelas (misal "Buah cabai rawit merah", "Buah tomat ceri", "Sayur pakcoy", "Daun selada keriting", "Buah mangga", "Kucing", "Gambar kartun").
    - Jika pengguna memilih tanaman target, bandingkan JENIS objek di foto dengan tanaman target (lihat nama & varietas).
      * Jika jenisnya SAMA (misal target tomat, foto buah/daun/batang tomat) → "sesuaiTanamanDipilih": true, "penjelasanJenis": "".
      * Jika foto memperlihatkan TANAMAN/BUAH LAIN (misal target tomat tetapi foto buah mangga) → "sesuaiTanamanDipilih": false, dan:
@@ -175,6 +175,13 @@ ATURAN WAJIB & PENENTUAN FOKUS OTOMATIS (RAHASIA — JANGAN PERNAH MENYEBUT KATA
      * Selain kasus jenis berbeda: "perbandinganJenis": [] dan "saranJenis": "".
    - Jika tanaman target "Tidak dipilih": "sesuaiTanamanDipilih": true, "penjelasanJenis": satu kalimat singkat jenis tanaman yang dikenali beserta cirinya, lalu lanjutkan analisis seperti biasa.
    - Jika foto bukan tanaman sama sekali: "sesuaiTanamanDipilih": false, "penjelasanJenis": "".
+2C. CIRI PEMBEDA JENIS (periksa dulu sebelum menamai; bandingkan ukuran terhadap jari/tangan, bentuk, warna, tekstur kulit, tangkai/kelopak, susunan daun):
+   - Cabai rawit: kecil 2–6 cm, ramping, ujung runcing · cabai merah besar: 8–15 cm, lurus mulus · cabai keriting: panjang, berkerut berliku · paprika: besar gemuk berlekuk 3–4, dinding tebal.
+   - Tomat: bulat/lonjong, kulit licin mengkilap, kelopak hijau bintang kecil · tomat ceri: diameter <3 cm, bergerombol · terong: ungu/hijau/putih, kelopak besar menutupi pangkal · mentimun: silinder hijau berbintil/bergaris.
+   - Selada: daun lebar tipis bergelombang/keriting, hijau muda, tanpa tangkai tebal · sawi hijau/caisim: daun lonjong hijau tua, tangkai hijau panjang · pakcoy: roset, tangkai putih/hijau muda tebal seperti sendok · bayam: daun kecil oval, batang tipis hijau/merah · kangkung: daun lancip seperti mata panah, batang berongga · seledri: daun bergerigi berlekuk, tangkai beralur · kubis: kepala bulat padat.
+   - Bawang merah: umbi kecil ungu-merah berlapis · bawang putih: putih bersiung · bawang daun: daun pipa hijau.
+   - Buah lain (mangga, jeruk, jambu, pepaya, pisang, stroberi, dll): sebut nama spesifiknya, jangan digeneralisasi.
+   - Bila ciri meragukan antara 2 jenis: pilih yang paling cocok dengan ciri terlihat, "keyakinan" maks 70, dan sebut keraguannya singkat di "penjelasanJenis".
 3. PILIH SATU "fokusOutput" PALING TEPAT SECARA OTOMATIS:
    - KASUS A — BUAH BUSUK / BUAH BERJAMUR / BUAH SAKIT BERAT / DAUN ATAU BATANG BERPENYAKIT:
      * Jika buah terlihat busuk, berjamur, lembek berair, cekung hitam (blossom end rot), patek/antraknosa, atau berpenyakit berat — ATAU foto daun/batang menunjukkan penyakit/hama:
